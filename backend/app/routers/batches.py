@@ -4,10 +4,17 @@ Endpoints:
     POST /api/batches/grn           Create batch via GRN intake
     GET  /api/batches/              List batches (with filters)
     GET  /api/batches/{batch_id}    Single batch detail
+    GET  /api/batches/{batch_id}/qr QR code SVG for batch
     PATCH /api/batches/{batch_id}   Update batch fields
 """
 
+import io
+import json
+from datetime import date
+
+import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +23,7 @@ from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.schemas.batch import (
+    BatchDetailOut,
     BatchOut,
     BatchSummary,
     BatchUpdate,
@@ -69,6 +77,8 @@ async def list_batches(
     grower_id: str | None = Query(None),
     batch_status: str | None = Query(None, alias="status"),
     fruit_type: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
@@ -83,6 +93,10 @@ async def list_batches(
         stmt = stmt.where(Batch.status == batch_status)
     if fruit_type:
         stmt = stmt.where(Batch.fruit_type == fruit_type)
+    if date_from:
+        stmt = stmt.where(Batch.intake_date >= date_from)
+    if date_to:
+        stmt = stmt.where(Batch.intake_date <= date_to)
 
     stmt = stmt.order_by(Batch.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(stmt)
@@ -91,7 +105,7 @@ async def list_batches(
 
 # ── Single batch detail ──────────────────────────────────────
 
-@router.get("/{batch_id}", response_model=BatchOut)
+@router.get("/{batch_id}", response_model=BatchDetailOut)
 async def get_batch(
     batch_id: str,
     db: AsyncSession = Depends(get_tenant_db),
@@ -105,6 +119,39 @@ async def get_batch(
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
     return batch
+
+
+# ── QR code ──────────────────────────────────────────────────
+
+@router.get("/{batch_id}/qr")
+async def get_batch_qr(
+    batch_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.read")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Return an SVG QR code encoding key batch information."""
+    result = await db.execute(
+        select(Batch).where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+    )
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    grower_name = batch.grower.name if batch.grower else None
+    qr_data = json.dumps({
+        "batch_id": batch.id,
+        "code": batch.batch_code,
+        "grower_name": grower_name,
+        "variety": batch.variety,
+        "net_weight_kg": float(batch.net_weight_kg) if batch.net_weight_kg else None,
+        "intake_date": batch.intake_date.isoformat() if batch.intake_date else None,
+    }, separators=(",", ":"))
+
+    qr = segno.make(qr_data)
+    buf = io.BytesIO()
+    qr.save(buf, kind="svg", scale=4, dark="#15803d")
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
 
 
 # ── Update batch ─────────────────────────────────────────────
@@ -127,9 +174,10 @@ async def update_batch(
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(batch, field, value)
 
-    # Recompute net weight if gross or tare changed
+    # Recompute net weight if gross or tare changed (guard against None)
     if body.gross_weight_kg is not None or body.tare_weight_kg is not None:
-        batch.net_weight_kg = batch.gross_weight_kg - batch.tare_weight_kg
+        if batch.gross_weight_kg is not None:
+            batch.net_weight_kg = batch.gross_weight_kg - (batch.tare_weight_kg or 0)
 
     await db.flush()
     return batch

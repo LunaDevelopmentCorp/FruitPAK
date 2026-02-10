@@ -25,6 +25,9 @@ class WizardState(TenantBase):
     # Partial draft data for the step in progress (JSON blob).
     # Cleared once the step is saved successfully.
     draft_data: Mapped[dict | None] = mapped_column(JSON, default=None)
+    # Completed step data keyed by step number, e.g. {"1": {...}, "2": {...}}.
+    # Allows forms to reload saved data when revisiting completed steps.
+    completed_data: Mapped[dict] = mapped_column(JSON, default=dict)
     is_complete: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

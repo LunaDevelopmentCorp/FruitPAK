@@ -54,7 +54,9 @@ class GrowerPayment(TenantBase):
     due_date: Mapped[datetime | None] = mapped_column(Date)
     paid_date: Mapped[datetime | None] = mapped_column(Date)
 
-    # ── Status ───────────────────────────────────────────────
+    # ── Type & Status ─────────────────────────────────────────
+    # advance | final
+    payment_type: Mapped[str] = mapped_column(String(20), default="final")
     # pending | approved | paid | cancelled
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
     approved_by: Mapped[str | None] = mapped_column(String(36))  # user_id

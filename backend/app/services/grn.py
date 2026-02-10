@@ -71,7 +71,11 @@ async def create_grn(
 
     # ── Create Batch ──────────────────────────────────────────
     batch_code = await _generate_batch_code(db)
-    net_weight = body.gross_weight_kg - body.tare_weight_kg
+    net_weight = (
+        body.gross_weight_kg - body.tare_weight_kg
+        if body.gross_weight_kg is not None
+        else None
+    )
 
     batch = Batch(
         batch_code=batch_code,
@@ -136,7 +140,8 @@ async def create_grn(
         # Append this batch to the payment's batch_ids
         existing_ids = advance.batch_ids or []
         advance.batch_ids = existing_ids + [batch.id]
-        advance.total_kg = (advance.total_kg or 0) + net_weight
+        if net_weight is not None:
+            advance.total_kg = (advance.total_kg or 0) + net_weight
         advance_linked = True
         advance_ref = advance.payment_ref
 

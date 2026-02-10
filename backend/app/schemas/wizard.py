@@ -15,6 +15,7 @@ class WizardProgress(BaseModel):
     completed_steps: list[int]
     is_complete: bool
     draft_data: dict | None = None
+    completed_data: dict[str, dict] = {}
 
 
 # ── Step 1: Company & Exporter basics ───────────────────────

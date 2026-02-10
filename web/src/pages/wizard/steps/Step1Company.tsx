@@ -1,6 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import type { StepProps } from "../WizardShell";
+import { Spinner } from "../WizardShell";
 
 interface FormData {
   trading_name: string;
@@ -148,7 +149,7 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
           disabled={saving}
           className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          Save Draft
+          {saving && <Spinner />} Save Draft
         </button>
         <button
           type="button"
@@ -156,7 +157,7 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
           disabled={saving || !formState.isValid}
           className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
         >
-          Save & Continue
+          {saving && <Spinner />} Save & Continue
         </button>
       </div>
     </form>

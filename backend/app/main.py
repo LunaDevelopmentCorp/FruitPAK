@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.middleware.tenant import TenantMiddleware
-from app.routers import auth, batches, enterprises, health, packhouses, reconciliation, wizard
+from app.routers import auth, batches, enterprises, growers, health, packhouses, payments, reconciliation, wizard
 from app.services.scheduler import lifespan
 
 app = FastAPI(
@@ -31,6 +31,8 @@ app.include_router(enterprises.router, prefix="/api/enterprises", tags=["enterpr
 
 # Tenant-scoped (require tenant_schema in JWT)
 app.include_router(packhouses.router, prefix="/api/packhouses", tags=["packhouses"])
+app.include_router(growers.router, prefix="/api/growers", tags=["growers"])
 app.include_router(wizard.router, prefix="/api/wizard", tags=["wizard"])
 app.include_router(batches.router, prefix="/api/batches", tags=["batches"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])

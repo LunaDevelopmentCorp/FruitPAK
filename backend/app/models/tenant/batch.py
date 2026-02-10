@@ -49,7 +49,7 @@ class Batch(TenantBase):
     intake_date: Mapped[datetime] = mapped_column(Date, default=datetime.utcnow)
 
     # ── Weights ──────────────────────────────────────────────
-    gross_weight_kg: Mapped[float] = mapped_column(Float, nullable=False)
+    gross_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     tare_weight_kg: Mapped[float] = mapped_column(Float, default=0.0)
     net_weight_kg: Mapped[float | None] = mapped_column(Float)
 

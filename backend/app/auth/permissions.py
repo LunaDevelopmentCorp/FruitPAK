@@ -40,7 +40,12 @@ ALL_PERMISSIONS: set[str] = {
     "grower.write",
     "grower.delete",
 
-    # Harvest / GRN intake
+    # Batch / GRN intake
+    "batch.read",
+    "batch.write",
+    "batch.delete",
+
+    # Lot
     "lot.read",
     "lot.write",
     "lot.delete",
@@ -78,6 +83,7 @@ ROLE_DEFAULTS: dict[str, set[str]] = {
         "users.read",
         "packhouse.read", "packhouse.write",
         "grower.read", "grower.write",
+        "batch.read", "batch.write",
         "lot.read", "lot.write",
         "pallet.read", "pallet.write",
         "storage.read", "storage.write",
@@ -88,6 +94,7 @@ ROLE_DEFAULTS: dict[str, set[str]] = {
     "operator": {
         "packhouse.read",
         "grower.read",
+        "batch.read", "batch.write",
         "lot.read", "lot.write",
         "pallet.read", "pallet.write",
         "storage.read",

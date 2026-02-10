@@ -2,17 +2,21 @@
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ── GRN Intake (primary intake flow) ─────────────────────────
 
 class GRNRequest(BaseModel):
-    """Payload for POST /api/batches/grn — the packhouse intake form."""
+    """Payload for POST /api/batches/grn — the packhouse intake form.
+
+    At least one of ``gross_weight_kg`` or ``bin_count`` must be provided.
+    Weight can be added later (retrospective weighing) via PATCH.
+    """
     grower_id: str
     packhouse_id: str
     fruit_type: str
-    gross_weight_kg: float = Field(..., gt=0)
+    gross_weight_kg: float | None = Field(None, ge=0)
 
     # Optional but typical at intake
     harvest_date: date | None = None
@@ -23,9 +27,17 @@ class GRNRequest(BaseModel):
     arrival_temp_c: float | None = None
     brix_reading: float | None = None
     quality_assessment: dict | None = None
-    bin_count: int | None = None
+    bin_count: int | None = Field(None, ge=1)
     bin_type: str | None = None
     delivery_notes: str | None = None
+
+    @model_validator(mode="after")
+    def weight_or_units_required(self):
+        if self.gross_weight_kg is None and self.bin_count is None:
+            raise ValueError(
+                "Provide at least one of gross_weight_kg or bin_count"
+            )
+        return self
 
 
 class GRNResponse(BaseModel):
@@ -87,8 +99,8 @@ class BatchOut(BaseModel):
     fruit_type: str
     variety: str | None
     harvest_date: date | None
-    intake_date: date | None
-    gross_weight_kg: float
+    intake_date: datetime | None
+    gross_weight_kg: float | None
     tare_weight_kg: float
     net_weight_kg: float | None
     arrival_temp_c: float | None
@@ -112,12 +124,52 @@ class BatchSummary(BaseModel):
     id: str
     batch_code: str
     grower_id: str
+    grower_name: str | None = None
     fruit_type: str
     variety: str | None
-    gross_weight_kg: float
+    gross_weight_kg: float | None
     net_weight_kg: float | None
     status: str
-    intake_date: date | None
+    intake_date: datetime | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _extract_grower_name(cls, data):
+        if hasattr(data, "grower") and data.grower:
+            data.__dict__["grower_name"] = data.grower.name
+        return data
+
+
+# ── History event ────────────────────────────────────────────
+
+class BatchHistoryOut(BaseModel):
+    id: str
+    event_type: str
+    event_subtype: str | None = None
+    event_data: dict | None = None
+    location_detail: str | None = None
+    notes: str | None = None
+    recorded_by: str | None = None
+    recorded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Detail (full, with resolved names + history) ────────────
+
+class BatchDetailOut(BatchOut):
+    grower_name: str | None = None
+    packhouse_name: str | None = None
+    history: list[BatchHistoryOut] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _extract_relations(cls, data):
+        if hasattr(data, "grower") and data.grower:
+            data.__dict__["grower_name"] = data.grower.name
+        if hasattr(data, "packhouse") and data.packhouse:
+            data.__dict__["packhouse_name"] = data.packhouse.name
+        return data
