@@ -19,6 +19,7 @@ class Enterprise(PublicBase):
         String(50), unique=True, nullable=False, index=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     users = relationship("User", back_populates="enterprise")

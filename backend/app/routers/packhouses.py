@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import require_permission
+from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.packhouse import Packhouse
@@ -46,6 +46,7 @@ async def create_packhouse(
     body: PackhouseCreate,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.write")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     packhouse = Packhouse(
         name=body.name,
@@ -62,6 +63,7 @@ async def create_packhouse(
 async def list_packhouses(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     result = await db.execute(select(Packhouse))
     return result.scalars().all()
@@ -72,6 +74,7 @@ async def get_packhouse(
     packhouse_id: str,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     result = await db.execute(
         select(Packhouse).where(Packhouse.id == packhouse_id)

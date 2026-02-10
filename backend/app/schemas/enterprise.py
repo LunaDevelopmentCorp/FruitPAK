@@ -11,5 +11,6 @@ class EnterpriseOut(BaseModel):
     name: str
     country: str
     tenant_schema: str
+    is_onboarded: bool
 
     model_config = {"from_attributes": True}

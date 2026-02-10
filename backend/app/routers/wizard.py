@@ -17,7 +17,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user, require_permission
-from app.database import get_tenant_db
+from app.database import get_db, get_tenant_db
+from app.models.public.enterprise import Enterprise
 from app.models.public.user import User
 from app.models.tenant.company_profile import CompanyProfile
 from app.models.tenant.financial_config import FinancialConfig
@@ -447,6 +448,7 @@ async def save_step_8(
 @router.post("/complete", response_model=WizardProgress)
 async def complete_wizard(
     db: AsyncSession = Depends(get_tenant_db),
+    public_db: AsyncSession = Depends(get_db),
     user: User = Depends(require_permission("enterprise.manage")),
 ):
     """Finalize the wizard. All required steps (1-7) must be completed."""
@@ -468,6 +470,15 @@ async def complete_wizard(
     state.is_complete = True
     state.draft_data = None
     await db.flush()
+
+    # Mark the enterprise as onboarded in the public schema
+    result = await public_db.execute(
+        select(Enterprise).where(Enterprise.id == user.enterprise_id)
+    )
+    enterprise = result.scalar_one_or_none()
+    if enterprise:
+        enterprise.is_onboarded = True
+        await public_db.flush()
 
     return WizardProgress(
         current_step=state.current_step,

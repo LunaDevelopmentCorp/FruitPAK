@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.jwt import decode_token
 from app.auth.permissions import has_permission
 from app.database import get_db
+from app.models.public.enterprise import Enterprise
 from app.models.public.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -95,6 +96,31 @@ def require_role(*roles: UserRole):
 
 
 # ── Permission-based access control ─────────────────────────
+
+async def require_onboarded(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Ensure the user's enterprise has completed the onboarding wizard.
+
+    Raises HTTP 403 if enterprise is not yet onboarded.
+    """
+    if not user.enterprise_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No enterprise context — create or join an enterprise first",
+        )
+    result = await db.execute(
+        select(Enterprise).where(Enterprise.id == user.enterprise_id)
+    )
+    enterprise = result.scalar_one_or_none()
+    if not enterprise or not enterprise.is_onboarded:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Complete onboarding wizard first",
+        )
+    return user
+
 
 def require_permission(*perms: str):
     """Dependency factory — restrict to users who hold ALL listed permissions.

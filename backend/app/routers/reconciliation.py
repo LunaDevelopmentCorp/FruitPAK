@@ -11,13 +11,13 @@ All endpoints are tenant-scoped and require financials.read permission.
 Triggering a run requires financials.write.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select, and_
+from sqlalchemy import cast, func, select, and_, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import require_permission
+from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.tenant.reconciliation_alert import ReconciliationAlert
 from app.models.public.user import User
@@ -38,6 +38,7 @@ router = APIRouter()
 async def get_dashboard(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     """Return an aggregated reconciliation dashboard:
     open/acknowledged counts, breakdowns, and the most recent alerts."""
@@ -139,6 +140,7 @@ async def get_dashboard(
 async def trigger_run(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.write")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     """Manually trigger a full reconciliation run.  Returns a summary
     of all mismatches detected.  Previous open alerts that no longer
@@ -154,10 +156,15 @@ async def list_alerts(
     alert_type: str | None = Query(None, description="Filter by alert_type"),
     severity: str | None = Query(None, description="Filter by severity"),
     alert_status: str | None = Query(None, alias="status", description="Filter by status"),
+    date_from: date | None = Query(None, description="Period start >= this date"),
+    date_to: date | None = Query(None, description="Period end <= this date"),
+    grower_id: str | None = Query(None, description="Filter by grower (from entity_refs)"),
+    product: str | None = Query(None, description="Filter by fruit_type (from entity_refs)"),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     """List reconciliation alerts with optional filters."""
     stmt = (
@@ -171,6 +178,19 @@ async def list_alerts(
         stmt = stmt.where(ReconciliationAlert.severity == severity)
     if alert_status:
         stmt = stmt.where(ReconciliationAlert.status == alert_status)
+    if date_from:
+        stmt = stmt.where(ReconciliationAlert.period_start >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        stmt = stmt.where(ReconciliationAlert.period_end <= datetime.combine(date_to, datetime.max.time()))
+    # JSON filters — PostgreSQL ->> operator extracts text from entity_refs
+    if grower_id:
+        stmt = stmt.where(
+            cast(ReconciliationAlert.entity_refs["grower_id"].astext, String) == grower_id
+        )
+    if product:
+        stmt = stmt.where(
+            cast(ReconciliationAlert.entity_refs["fruit_type"].astext, String) == product
+        )
 
     stmt = (
         stmt
@@ -190,6 +210,7 @@ async def get_alert(
     alert_id: str,
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     result = await db.execute(
         select(ReconciliationAlert).where(
@@ -211,6 +232,7 @@ async def update_alert(
     body: AlertUpdate,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("financials.write")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     """Acknowledge, resolve, or dismiss an alert."""
     valid_statuses = {"acknowledged", "resolved", "dismissed"}
