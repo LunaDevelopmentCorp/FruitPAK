@@ -64,13 +64,14 @@ jobs:
         working-directory: ./backend
         run: |
           pip install ruff
-          ruff check . --fix
+          ruff check .
         continue-on-error: true
 
       - name: Run migrations
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql+asyncpg://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
+          DATABASE_URL_SYNC: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
           PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           alembic upgrade head
@@ -79,9 +80,11 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql+asyncpg://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
+          DATABASE_URL_SYNC: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
           REDIS_URL: ${{ env.REDIS_URL }}
           SECRET_KEY: test-secret-key-for-ci
           ENVIRONMENT: test
+          PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           pytest --cov=app --cov-report=xml --cov-report=term -v
 

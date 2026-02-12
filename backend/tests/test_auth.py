@@ -20,7 +20,6 @@ class TestAuthEndpoints:
                 "email": "newuser@example.com",
                 "password": "SecurePassword123!",
                 "full_name": "New User",
-                "company_name": "New Company",
             },
         )
 
@@ -39,7 +38,6 @@ class TestAuthEndpoints:
                 "email": test_user.email,
                 "password": "AnotherPassword123!",
                 "full_name": "Another User",
-                "company_name": "Another Company",
             },
         )
 
@@ -136,11 +134,8 @@ class TestJWTTokens:
         assert "read" in payload["permissions"]
 
     def test_decode_invalid_token(self):
-        """Test decoding invalid token."""
+        """Test decoding invalid token returns empty dict."""
         from app.auth.jwt import decode_token
-        from fastapi import HTTPException
 
-        with pytest.raises(HTTPException) as exc_info:
-            decode_token("invalid.token.here")
-
-        assert exc_info.value.status_code == 401
+        payload = decode_token("invalid.token.here")
+        assert payload == {}

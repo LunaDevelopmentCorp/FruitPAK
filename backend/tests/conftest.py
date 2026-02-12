@@ -35,11 +35,8 @@ def event_loop() -> Generator:
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
     """Create test database engine."""
-    # Use test database
-    test_db_url = settings.database_url.replace(
-        settings.postgres_db,
-        f"{settings.postgres_db}_test"
-    )
+    # Use test database (replace DB name in async URL)
+    test_db_url = settings.database_url.rsplit("/", 1)[0] + "/fruitpak_test"
 
     engine = create_async_engine(test_db_url, echo=False)
 
@@ -92,7 +89,7 @@ async def test_user(db_session: AsyncSession) -> User:
     user = User(
         email="test@example.com",
         full_name="Test User",
-        password_hash=hash_password("testpassword123"),
+        hashed_password=hash_password("testpassword123"),
         role=UserRole.ADMINISTRATOR,
         is_active=True,
     )
