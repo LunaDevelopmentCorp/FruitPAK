@@ -4,8 +4,8 @@ Usage:
   # Migrate public schema (enterprises, users)
   alembic upgrade head
 
-  # Migrate all tenant schemas (run from a management command)
-  python -m app.cli migrate-tenants
+  # Migrate all tenant schemas
+  python -m app.tenancy.migration_runner
 """
 
 from logging.config import fileConfig
