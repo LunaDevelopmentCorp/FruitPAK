@@ -3,6 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.middleware.tenant import TenantMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.security import (
+    SecurityHeadersMiddleware,
+    HTTPSRedirectMiddleware,
+    SecureCookieMiddleware,
+)
+from app.middleware.exceptions import register_exception_handlers
 from app.routers import auth, batches, enterprises, growers, health, packhouses, payments, reconciliation, wizard
 from app.services.scheduler import lifespan
 
@@ -13,7 +20,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Exception Handlers ───────────────────────────────────────
+register_exception_handlers(app)
+
 # ── Middleware (outermost first) ─────────────────────────────
+# Security headers (first - applies to all responses)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# HTTPS redirect (production only)
+app.add_middleware(HTTPSRedirectMiddleware, force_https=False)
+
+# Secure cookies (production only)
+app.add_middleware(SecureCookieMiddleware)
+
+# Rate limiting
+app.add_middleware(
+    RateLimitMiddleware,
+    default_limit=100,  # 100 requests per minute (default)
+    default_window=60,
+    exempt_paths=["/health", "/health/ready", "/docs", "/openapi.json"],
+)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins.split(","),
@@ -21,6 +49,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Tenant context (innermost - processes request data)
 app.add_middleware(TenantMiddleware)
 
 # ── Routers ──────────────────────────────────────────────────

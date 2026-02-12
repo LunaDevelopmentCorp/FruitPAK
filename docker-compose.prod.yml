@@ -1,0 +1,295 @@
+version: '3.9'
+
+# ═══════════════════════════════════════════════════════════════════
+# FruitPAK - Production Docker Compose Configuration
+# ═══════════════════════════════════════════════════════════════════
+#
+# This configuration demonstrates horizontal scaling with:
+#   - 3 backend replicas behind Nginx load balancer
+#   - PostgreSQL primary with optional read replica
+#   - Redis for caching and session management
+#   - Health checks for all services
+#
+# For AWS deployment:
+#   - Replace services with ECS tasks
+#   - Use RDS for PostgreSQL (with read replicas)
+#   - Use ElastiCache for Redis
+#   - Use ALB for load balancing (instead of Nginx)
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build
+#
+# ═══════════════════════════════════════════════════════════════════
+
+services:
+  # ── PostgreSQL Primary (TimescaleDB) ───────────────────────────
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fruitpak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fruitpak}
+      POSTGRES_DB: ${POSTGRES_DB:-fruitpak}
+      # Enable replication for read replicas
+      POSTGRES_INITDB_ARGS: "-c wal_level=replica -c max_wal_senders=3 -c max_replication_slots=3"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fruitpak}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fruitpak
+
+    # ── AWS RDS Alternative ─────────────────────────────────────
+    # For production on AWS, replace with RDS PostgreSQL:
+    #
+    # 1. Create RDS instance (PostgreSQL 16 + TimescaleDB extension)
+    # 2. Enable Multi-AZ for high availability
+    # 3. Create read replicas for scaling read operations
+    # 4. Update DATABASE_URL and DATABASE_READ_URL environment variables
+    # 5. Remove this service from docker-compose
+    #
+    # Example DATABASE_URL:
+    #   postgresql+asyncpg://user:pass@fruitpak.abc123.us-east-1.rds.amazonaws.com:5432/fruitpak
+
+  # ── PostgreSQL Read Replica (Optional) ─────────────────────────
+  # Uncomment for local testing of read replica setup
+  # db-replica:
+  #   image: timescale/timescaledb:latest-pg16
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-fruitpak}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fruitpak}
+  #     PGDATA: /var/lib/postgresql/data/pgdata
+  #   volumes:
+  #     - pgdata-replica:/var/lib/postgresql/data
+  #   command: |
+  #     bash -c "
+  #       until pg_basebackup -h db -D /var/lib/postgresql/data/pgdata -U ${POSTGRES_USER:-fruitpak} -v -P -W; do
+  #         echo 'Waiting for primary...'; sleep 5;
+  #       done
+  #       echo 'standby_mode = on' > /var/lib/postgresql/data/pgdata/recovery.conf
+  #       echo 'primary_conninfo = ''host=db port=5432 user=${POSTGRES_USER:-fruitpak} password=${POSTGRES_PASSWORD:-fruitpak}''' >> /var/lib/postgresql/data/pgdata/recovery.conf
+  #       postgres
+  #     "
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - fruitpak
+
+  # ── Redis (Caching & Sessions) ─────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fruitpak
+
+    # ── AWS ElastiCache Alternative ────────────────────────────
+    # For production on AWS, replace with ElastiCache Redis:
+    #
+    # 1. Create ElastiCache Redis cluster (6.x or 7.x)
+    # 2. Enable cluster mode for horizontal scaling
+    # 3. Update REDIS_URL environment variable
+    # 4. Remove this service from docker-compose
+    #
+    # Example REDIS_URL:
+    #   redis://fruitpak.abc123.cache.amazonaws.com:6379/0
+
+  # ── FastAPI Backend Replica 1 ──────────────────────────────────
+  backend-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db:5432/${POSTGRES_DB:-fruitpak}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db:5432/${POSTGRES_DB:-fruitpak}
+      # For read replicas, add: DATABASE_READ_URL for read-only queries
+      # DATABASE_READ_URL: postgresql+asyncpg://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db-replica:5432/${POSTGRES_DB:-fruitpak}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      INSTANCE_ID: backend-1
+    volumes:
+      - ./backend/instance:/app/instance  # Shared uploads directory
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - fruitpak
+
+  # ── FastAPI Backend Replica 2 ──────────────────────────────────
+  backend-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db:5432/${POSTGRES_DB:-fruitpak}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db:5432/${POSTGRES_DB:-fruitpak}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      INSTANCE_ID: backend-2
+    volumes:
+      - ./backend/instance:/app/instance
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - fruitpak
+
+  # ── FastAPI Backend Replica 3 ──────────────────────────────────
+  backend-3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db:5432/${POSTGRES_DB:-fruitpak}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-fruitpak}:${POSTGRES_PASSWORD:-fruitpak}@db:5432/${POSTGRES_DB:-fruitpak}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      INSTANCE_ID: backend-3
+    volumes:
+      - ./backend/instance:/app/instance
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - fruitpak
+
+    # ── AWS ECS Alternative ─────────────────────────────────────
+    # For production on AWS ECS:
+    #
+    # 1. Create ECS task definition with:
+    #    - FastAPI container (from ECR)
+    #    - Health check: /health endpoint
+    #    - CPU: 512-1024, Memory: 1024-2048 MB
+    # 2. Create ECS service with:
+    #    - Desired count: 3 (auto-scaling 3-10)
+    #    - Load balancer: ALB with target group
+    #    - Health check grace period: 60s
+    # 3. Configure auto-scaling policies:
+    #    - Target CPU: 70%
+    #    - Target memory: 80%
+    # 4. Remove backend-1/2/3 services from docker-compose
+
+  # ── Nginx Load Balancer ────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      # - "443:443"  # Uncomment for HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # - ./nginx/ssl:/etc/nginx/ssl:ro  # Uncomment for HTTPS with SSL certs
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
+      - web
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fruitpak
+
+    # ── AWS ALB Alternative ─────────────────────────────────────
+    # For production on AWS, replace with Application Load Balancer:
+    #
+    # 1. Create ALB in public subnets
+    # 2. Configure target group:
+    #    - Protocol: HTTP
+    #    - Port: 8000
+    #    - Health check: /health
+    #    - Healthy threshold: 2
+    #    - Unhealthy threshold: 3
+    #    - Interval: 30s
+    # 3. Configure listener rules:
+    #    - /api/* → backend target group
+    #    - /* → frontend target group (S3 or CloudFront)
+    # 4. Enable access logs to S3
+    # 5. Remove nginx service from docker-compose
+
+  # ── React Web Frontend ─────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: production  # Use multi-stage build
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost/api}
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fruitpak
+
+    # ── AWS S3 + CloudFront Alternative ────────────────────────
+    # For production on AWS, replace with static hosting:
+    #
+    # 1. Build React app locally: npm run build
+    # 2. Upload build/ to S3 bucket (enable static website hosting)
+    # 3. Create CloudFront distribution:
+    #    - Origin: S3 bucket
+    #    - Viewer protocol: Redirect HTTP to HTTPS
+    #    - Compress objects: Yes
+    #    - Price class: Use all edge locations
+    # 4. Configure custom domain with Route 53 + ACM certificate
+    # 5. Remove web service from docker-compose
+
+networks:
+  fruitpak:
+    driver: bridge
+
+volumes:
+  pgdata:
+  # pgdata-replica:  # Uncomment for read replica
+  redisdata:

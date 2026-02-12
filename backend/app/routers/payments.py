@@ -17,6 +17,7 @@ from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.grower import Grower
 from app.models.tenant.grower_payment import GrowerPayment
+from app.schemas.common import PaginatedResponse
 from app.schemas.payment import GrowerPaymentCreate, GrowerPaymentOut
 from app.services.reconciliation import run_full_reconciliation
 
@@ -138,26 +139,31 @@ async def create_grower_payment(
 
 # ── GET /api/payments/grower ─────────────────────────────────
 
-@router.get("/grower", response_model=list[GrowerPaymentOut])
+@router.get("/grower", response_model=PaginatedResponse[GrowerPaymentOut])
 async def list_grower_payments(
     grower_id: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
 ):
     """List grower payments, optionally filtered by grower_id."""
-    stmt = (
-        select(GrowerPayment)
-        .where(GrowerPayment.is_deleted == False)  # noqa: E712
-        .order_by(GrowerPayment.created_at.desc())
-    )
+    # Build base query
+    base_stmt = select(GrowerPayment).where(GrowerPayment.is_deleted == False)  # noqa: E712
     if grower_id:
-        stmt = stmt.where(GrowerPayment.grower_id == grower_id)
+        base_stmt = base_stmt.where(GrowerPayment.grower_id == grower_id)
 
-    result = await db.execute(stmt)
+    # Count total matching records
+    count_stmt = select(func.count()).select_from(base_stmt.subquery())
+    total = await db.scalar(count_stmt) or 0
+
+    # Get paginated items
+    items_stmt = base_stmt.order_by(GrowerPayment.created_at.desc()).limit(limit).offset(offset)
+    result = await db.execute(items_stmt)
     payments = result.scalars().all()
 
-    return [
+    items = [
         GrowerPaymentOut(
             id=p.id,
             payment_ref=p.payment_ref,
@@ -176,3 +182,10 @@ async def list_grower_payments(
         )
         for p in payments
     ]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

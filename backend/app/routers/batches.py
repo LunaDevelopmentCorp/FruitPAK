@@ -15,8 +15,9 @@ from datetime import date
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
@@ -30,6 +31,7 @@ from app.schemas.batch import (
     GRNRequest,
     GRNResponse,
 )
+from app.schemas.common import PaginatedResponse
 from app.services.grn import create_grn
 
 router = APIRouter()
@@ -72,35 +74,55 @@ async def grn_intake(
 
 # ── List batches ─────────────────────────────────────────────
 
-@router.get("/", response_model=list[BatchSummary])
+@router.get("/", response_model=PaginatedResponse[BatchSummary])
 async def list_batches(
     grower_id: str | None = Query(None),
     batch_status: str | None = Query(None, alias="status"),
     fruit_type: str | None = Query(None),
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
 ):
-    stmt = select(Batch).where(Batch.is_deleted == False)  # noqa: E712
+    # Build base query with filters
+    base_stmt = select(Batch).where(Batch.is_deleted == False)  # noqa: E712
 
     if grower_id:
-        stmt = stmt.where(Batch.grower_id == grower_id)
+        base_stmt = base_stmt.where(Batch.grower_id == grower_id)
     if batch_status:
-        stmt = stmt.where(Batch.status == batch_status)
+        base_stmt = base_stmt.where(Batch.status == batch_status)
     if fruit_type:
-        stmt = stmt.where(Batch.fruit_type == fruit_type)
+        base_stmt = base_stmt.where(Batch.fruit_type == fruit_type)
     if date_from:
-        stmt = stmt.where(Batch.intake_date >= date_from)
+        base_stmt = base_stmt.where(Batch.intake_date >= date_from)
     if date_to:
-        stmt = stmt.where(Batch.intake_date <= date_to)
+        base_stmt = base_stmt.where(Batch.intake_date <= date_to)
 
-    stmt = stmt.order_by(Batch.created_at.desc()).limit(limit).offset(offset)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    # Count total matching records
+    count_stmt = select(func.count()).select_from(base_stmt.subquery())
+    total = await db.scalar(count_stmt) or 0
+
+    # Get paginated items with eager loading for grower relationship
+    # This prevents N+1 query problem when accessing batch.grower
+    items_stmt = (
+        base_stmt
+        .options(selectinload(Batch.grower))  # Eager load grower relationship
+        .order_by(Batch.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await db.execute(items_stmt)
+    items = result.scalars().all()
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 # ── Single batch detail ──────────────────────────────────────

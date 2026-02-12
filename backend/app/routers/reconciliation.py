@@ -21,6 +21,7 @@ from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.tenant.reconciliation_alert import ReconciliationAlert
 from app.models.public.user import User
+from app.schemas.common import PaginatedResponse
 from app.schemas.reconciliation import (
     AlertOut,
     AlertUpdate,
@@ -151,7 +152,7 @@ async def trigger_run(
 
 # ── List alerts with filters ─────────────────────────────────
 
-@router.get("/alerts", response_model=list[AlertOut])
+@router.get("/alerts", response_model=PaginatedResponse[AlertOut])
 async def list_alerts(
     alert_type: str | None = Query(None, description="Filter by alert_type"),
     severity: str | None = Query(None, description="Filter by severity"),
@@ -160,47 +161,54 @@ async def list_alerts(
     date_to: date | None = Query(None, description="Period end <= this date"),
     grower_id: str | None = Query(None, description="Filter by grower (from entity_refs)"),
     product: str | None = Query(None, description="Filter by fruit_type (from entity_refs)"),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
 ):
     """List reconciliation alerts with optional filters."""
-    stmt = (
+    # Build base query with filters
+    base_stmt = (
         select(ReconciliationAlert)
         .where(ReconciliationAlert.is_deleted == False)  # noqa: E712
     )
 
     if alert_type:
-        stmt = stmt.where(ReconciliationAlert.alert_type == alert_type)
+        base_stmt = base_stmt.where(ReconciliationAlert.alert_type == alert_type)
     if severity:
-        stmt = stmt.where(ReconciliationAlert.severity == severity)
+        base_stmt = base_stmt.where(ReconciliationAlert.severity == severity)
     if alert_status:
-        stmt = stmt.where(ReconciliationAlert.status == alert_status)
+        base_stmt = base_stmt.where(ReconciliationAlert.status == alert_status)
     if date_from:
-        stmt = stmt.where(ReconciliationAlert.period_start >= datetime.combine(date_from, datetime.min.time()))
+        base_stmt = base_stmt.where(ReconciliationAlert.period_start >= datetime.combine(date_from, datetime.min.time()))
     if date_to:
-        stmt = stmt.where(ReconciliationAlert.period_end <= datetime.combine(date_to, datetime.max.time()))
+        base_stmt = base_stmt.where(ReconciliationAlert.period_end <= datetime.combine(date_to, datetime.max.time()))
     # JSON filters — PostgreSQL ->> operator extracts text from entity_refs
     if grower_id:
-        stmt = stmt.where(
+        base_stmt = base_stmt.where(
             cast(ReconciliationAlert.entity_refs["grower_id"].astext, String) == grower_id
         )
     if product:
-        stmt = stmt.where(
+        base_stmt = base_stmt.where(
             cast(ReconciliationAlert.entity_refs["fruit_type"].astext, String) == product
         )
 
-    stmt = (
-        stmt
-        .order_by(ReconciliationAlert.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+    # Count total matching records
+    count_stmt = select(func.count()).select_from(base_stmt.subquery())
+    total = await db.scalar(count_stmt) or 0
 
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    # Get paginated items
+    items_stmt = base_stmt.order_by(ReconciliationAlert.created_at.desc()).limit(limit).offset(offset)
+    result = await db.execute(items_stmt)
+    items = result.scalars().all()
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 # ── Single alert detail ──────────────────────────────────────
