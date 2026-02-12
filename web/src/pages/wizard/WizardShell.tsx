@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useWizard } from "../../hooks/useWizard";
+import { useAuthStore } from "../../store/authStore";
 import { showToast as globalToast } from "../../store/toastStore";
 
 import Step1Company from "./steps/Step1Company";
@@ -47,6 +48,13 @@ function Spinner() {
 export { Spinner };
 
 export default function WizardShell() {
+  const user = useAuthStore((s) => s.user);
+
+  // Redirect to enterprise creation if no tenant exists yet
+  if (!user?.enterprise_id) {
+    return <Navigate to="/enterprise-setup" replace />;
+  }
+
   const {
     progress,
     loading,

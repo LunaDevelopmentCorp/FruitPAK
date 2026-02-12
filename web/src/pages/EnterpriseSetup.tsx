@@ -1,45 +1,41 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { login } from "../api/auth";
+import { useNavigate } from "react-router-dom";
+import { createEnterprise, reissueToken } from "../api/enterprise";
 import { useAuthStore } from "../store/authStore";
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function EnterpriseSetup() {
+  const [name, setName] = useState("");
+  const [country, setCountry] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim() || !country.trim()) {
+      setError("Company name and country are required.");
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
     try {
-      const res = await login({ email, password });
+      // 1. Create the enterprise (provisions tenant schema)
+      await createEnterprise({ name: name.trim(), country: country.trim() });
+
+      // 2. Reissue JWT with tenant_schema claim
+      const res = await reissueToken();
       setAuth(res.access_token, res.refresh_token, res.user);
 
-      // Route based on onboarding state
-      if (!res.user.enterprise_id) {
-        navigate("/enterprise-setup");
-      } else if (!res.user.is_onboarded) {
-        navigate("/setup");
-      } else {
-        navigate(from || "/dashboard");
-      }
+      // 3. Go to wizard
+      navigate("/setup");
     } catch (err: unknown) {
       if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as { response?: { data?: { detail?: string }; status?: number } };
-        if (axiosErr.response?.status === 401) {
-          setError("Invalid email or password");
-        } else {
-          setError(axiosErr.response?.data?.detail || "Login failed");
-        }
+        const axiosErr = err as { response?: { data?: { detail?: string } } };
+        setError(axiosErr.response?.data?.detail || "Failed to create enterprise");
       } else {
         setError("Network error — is the server running?");
       }
@@ -50,11 +46,11 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-green-700">FruitPAK</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Packhouse Management System
+            Create your enterprise to get started
           </p>
         </div>
 
@@ -62,7 +58,9 @@ export default function Login() {
           onSubmit={handleSubmit}
           className="bg-white shadow rounded-lg p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-800">Sign in</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            Enterprise Details
+          </h2>
 
           {error && (
             <div className="p-3 bg-red-50 text-red-700 rounded text-sm">
@@ -72,30 +70,30 @@ export default function Login() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Company Name *
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
               autoFocus
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="admin@testfarm.com"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="e.g. Cape Citrus Packers"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Country *
             </label>
             <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              type="text"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
               required
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="••••••••"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="e.g. South Africa"
             />
           </div>
 
@@ -104,7 +102,7 @@ export default function Login() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Creating..." : "Create Enterprise"}
           </button>
         </form>
       </div>

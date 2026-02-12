@@ -17,6 +17,7 @@ export interface LoginResponse {
     role: string;
     is_active: boolean;
     enterprise_id: string | null;
+    is_onboarded: boolean;
     permissions: string[];
     assigned_packhouses: string[] | null;
   };

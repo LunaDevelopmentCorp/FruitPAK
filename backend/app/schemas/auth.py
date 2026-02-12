@@ -21,6 +21,7 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     enterprise_id: str | None
+    is_onboarded: bool = False
     permissions: list[str]
     assigned_packhouses: list[str] | None
 

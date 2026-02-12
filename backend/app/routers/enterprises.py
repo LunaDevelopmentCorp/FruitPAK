@@ -17,7 +17,9 @@ from app.tenancy import create_tenant_schema
 router = APIRouter()
 
 
-def _build_user_out(user: User, permissions: list[str]) -> UserOut:
+def _build_user_out(
+    user: User, permissions: list[str], is_onboarded: bool = False
+) -> UserOut:
     return UserOut(
         id=user.id,
         email=user.email,
@@ -26,6 +28,7 @@ def _build_user_out(user: User, permissions: list[str]) -> UserOut:
         role=user.role.value,
         is_active=user.is_active,
         enterprise_id=user.enterprise_id,
+        is_onboarded=is_onboarded,
         permissions=permissions,
         assigned_packhouses=user.assigned_packhouses,
     )
@@ -91,5 +94,5 @@ async def reissue_token(
             role=user.role.value,
             tenant_schema=enterprise.tenant_schema,
         ),
-        user=_build_user_out(user, permissions),
+        user=_build_user_out(user, permissions, enterprise.is_onboarded),
     )

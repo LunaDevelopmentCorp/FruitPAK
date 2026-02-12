@@ -38,17 +38,26 @@ router = APIRouter()
 
 # ── Helpers ──────────────────────────────────────────────────
 
-async def _resolve_tenant_schema(db: AsyncSession, user: User) -> str | None:
-    """Look up the tenant_schema for a user's enterprise."""
+async def _resolve_enterprise_info(
+    db: AsyncSession, user: User
+) -> tuple[str | None, bool]:
+    """Look up the tenant_schema and is_onboarded for a user's enterprise."""
     if not user.enterprise_id:
-        return None
+        return None, False
     result = await db.execute(
-        select(Enterprise.tenant_schema).where(Enterprise.id == user.enterprise_id)
+        select(Enterprise.tenant_schema, Enterprise.is_onboarded).where(
+            Enterprise.id == user.enterprise_id
+        )
     )
-    return result.scalar_one_or_none()
+    row = result.one_or_none()
+    if not row:
+        return None, False
+    return row.tenant_schema, row.is_onboarded
 
 
-def _build_user_out(user: User, permissions: list[str]) -> UserOut:
+def _build_user_out(
+    user: User, permissions: list[str], is_onboarded: bool = False
+) -> UserOut:
     return UserOut(
         id=user.id,
         email=user.email,
@@ -57,6 +66,7 @@ def _build_user_out(user: User, permissions: list[str]) -> UserOut:
         role=user.role.value,
         is_active=user.is_active,
         enterprise_id=user.enterprise_id,
+        is_onboarded=is_onboarded,
         permissions=permissions,
         assigned_packhouses=user.assigned_packhouses,
     )
@@ -66,6 +76,7 @@ def _build_token_response(
     user: User,
     permissions: list[str],
     tenant_schema: str | None,
+    is_onboarded: bool = False,
 ) -> TokenResponse:
     return TokenResponse(
         access_token=create_access_token(
@@ -79,7 +90,7 @@ def _build_token_response(
             role=user.role.value,
             tenant_schema=tenant_schema,
         ),
-        user=_build_user_out(user, permissions),
+        user=_build_user_out(user, permissions, is_onboarded),
     )
 
 
@@ -125,9 +136,9 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account deactivated")
 
-    tenant_schema = await _resolve_tenant_schema(db, user)
+    tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
-    return _build_token_response(user, permissions, tenant_schema)
+    return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
 
 # ── POST /otp-request ───────────────────────────────────────
@@ -177,9 +188,9 @@ async def otp_verify(body: OTPVerify, db: AsyncSession = Depends(get_db)):
         user.otp_verified = True
         await db.flush()
 
-    tenant_schema = await _resolve_tenant_schema(db, user)
+    tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
-    return _build_token_response(user, permissions, tenant_schema)
+    return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
 
 # ── POST /signup (admin creates a user) ─────────────────────
@@ -251,18 +262,22 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
     # Re-resolve permissions (may have changed since last token)
-    tenant_schema = await _resolve_tenant_schema(db, user)
+    tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
-    return _build_token_response(user, permissions, tenant_schema)
+    return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
 
 # ── GET /me ──────────────────────────────────────────────────
 
 @router.get("/me", response_model=UserOut)
-async def me(user: User = Depends(get_current_user)):
+async def me(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Return the current authenticated user's profile and permissions."""
+    _, is_onboarded = await _resolve_enterprise_info(db, user)
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
-    return _build_user_out(user, permissions)
+    return _build_user_out(user, permissions, is_onboarded)
 
 
 # ── POST /logout ─────────────────────────────────────────────

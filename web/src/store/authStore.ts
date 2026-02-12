@@ -8,6 +8,7 @@ export interface AuthUser {
   role: string;
   is_active: boolean;
   enterprise_id: string | null;
+  is_onboarded: boolean;
   permissions: string[];
   assigned_packhouses: string[] | null;
 }
@@ -49,5 +50,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   isAuthenticated: () => !!get().token,
-  isOnboarded: () => !!get().user?.enterprise_id,
+  isOnboarded: () => !!get().user?.is_onboarded,
 }));
