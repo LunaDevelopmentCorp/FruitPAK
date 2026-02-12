@@ -70,17 +70,11 @@ export default function WizardShell() {
 
   const [activeStep, setActiveStep] = useState(progress?.current_step ?? 1);
   const [editMode, setEditMode] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
   // Sync activeStep when progress loads
   React.useEffect(() => {
     if (progress) setActiveStep(progress.current_step);
   }, [progress?.current_step]);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
 
   if (loading) {
     return (
@@ -140,7 +134,7 @@ export default function WizardShell() {
   ) => {
     try {
       await save(activeStep, data, complete);
-      showToast(complete ? "Step completed!" : "Draft saved.");
+      globalToast("success", complete ? "Step completed!" : "Draft saved.");
     } catch {
       globalToast("error", "Failed to save — please try again.");
     }
@@ -156,13 +150,6 @@ export default function WizardShell() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm animate-[slideIn_0.3s_ease-out]">
-          {toast}
-        </div>
-      )}
-
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">

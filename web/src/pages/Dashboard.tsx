@@ -34,10 +34,13 @@ export default function Dashboard() {
     });
   }, []);
 
-  const received = batches.filter((b) => b.status === "received").length;
-  const inProcess = batches.filter(
-    (b) => b.status === "grading" || b.status === "packing"
+  const today = new Date().toISOString().slice(0, 10);
+  const receivedToday = batches.filter(
+    (b) =>
+      b.status === "received" &&
+      (b.intake_date?.slice(0, 10) === today || b.created_at?.slice(0, 10) === today),
   ).length;
+  const pendingPayments = payments.filter((p) => p.status !== "paid").length;
   const openAlerts = reconciliation?.total_open ?? 0;
   const criticalAlerts = reconciliation?.by_severity?.critical ?? 0;
 
@@ -72,9 +75,17 @@ export default function Dashboard() {
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
         <StatCard label="Total Batches" value={batches.length} />
-        <StatCard label="Received" value={received} accent="blue" />
-        <StatCard label="In Process" value={inProcess} accent="yellow" />
-        <StatCard label="Payments" value={payments.length} accent="green" />
+        <StatCard label="Received Today" value={receivedToday} accent="blue" />
+        <StatCard
+          label="Payments Pending"
+          value={pendingPayments}
+          accent={pendingPayments > 0 ? "yellow" : "green"}
+        />
+        <StatCard
+          label="Open Alerts"
+          value={openAlerts}
+          accent={criticalAlerts > 0 ? "red" : openAlerts > 0 ? "yellow" : "green"}
+        />
       </div>
 
       {/* Quick links */}
@@ -107,7 +118,7 @@ export default function Dashboard() {
           to="/setup"
           className="bg-white border text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
         >
-          Setup Wizard
+          Edit Setup
         </Link>
       </div>
 
@@ -148,10 +159,10 @@ export default function Dashboard() {
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {b.batch_code}
                         </td>
-                        <td className="px-4 py-2">{b.grower_name || "—"}</td>
+                        <td className="px-4 py-2">{b.grower_name || "\u2014"}</td>
                         <td className="px-4 py-2">{b.fruit_type}</td>
                         <td className="px-4 py-2 text-right">
-                          {b.net_weight_kg?.toLocaleString() ?? "—"}
+                          {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
                         </td>
                         <td className="px-4 py-2">
                           <span
@@ -167,7 +178,7 @@ export default function Dashboard() {
                             ? new Date(b.intake_date).toLocaleDateString()
                             : b.created_at
                               ? new Date(b.created_at).toLocaleDateString()
-                              : "—"}
+                              : "\u2014"}
                         </td>
                       </tr>
                     ))}
@@ -208,7 +219,7 @@ export default function Dashboard() {
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {p.payment_ref}
                         </td>
-                        <td className="px-4 py-2">{p.grower_name || "—"}</td>
+                        <td className="px-4 py-2">{p.grower_name || "\u2014"}</td>
                         <td className="px-4 py-2 text-right font-medium">
                           {p.currency} {p.gross_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
@@ -218,7 +229,7 @@ export default function Dashboard() {
                             className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                               p.status === "paid"
                                 ? "bg-green-50 text-green-700"
-                                : "bg-gray-100 text-gray-600"
+                                : "bg-yellow-50 text-yellow-700"
                             }`}
                           >
                             {p.status}
@@ -229,7 +240,7 @@ export default function Dashboard() {
                             ? new Date(p.paid_date).toLocaleDateString()
                             : p.created_at
                               ? new Date(p.created_at).toLocaleDateString()
-                              : "—"}
+                              : "\u2014"}
                         </td>
                       </tr>
                     ))}
@@ -260,7 +271,9 @@ function StatCard({
         ? "text-yellow-600"
         : accent === "green"
           ? "text-green-600"
-          : "text-gray-800";
+          : accent === "red"
+            ? "text-red-600"
+            : "text-gray-800";
   return (
     <div className="bg-white rounded-lg border p-4">
       <p className="text-sm text-gray-500">{label}</p>

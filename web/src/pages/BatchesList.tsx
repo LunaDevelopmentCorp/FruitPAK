@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listBatches, BatchOut } from "../api/batches";
+import { listBatches, listGrowers, BatchOut, Grower } from "../api/batches";
 
 const STATUSES = ["received", "grading", "packing", "complete", "rejected"];
 
@@ -17,13 +17,22 @@ const PAGE_SIZE = 25;
 export default function BatchesList() {
   const navigate = useNavigate();
   const [batches, setBatches] = useState<BatchOut[]>([]);
+  const [growers, setGrowers] = useState<Grower[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
+  const [growerFilter, setGrowerFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+
+  // Load growers once for the dropdown
+  useEffect(() => {
+    listGrowers().catch(() => []).then(setGrowers);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -37,17 +46,40 @@ export default function BatchesList() {
       .finally(() => setLoading(false));
   }, [statusFilter]);
 
-  // Client-side search filter
+  // Client-side search + grower + date filter
   const filtered = useMemo(() => {
-    if (!search.trim()) return batches;
-    const q = search.toLowerCase();
-    return batches.filter(
-      (b) =>
-        b.batch_code.toLowerCase().includes(q) ||
-        (b.grower_name && b.grower_name.toLowerCase().includes(q)) ||
-        b.fruit_type.toLowerCase().includes(q),
-    );
-  }, [batches, search]);
+    let result = batches;
+
+    if (growerFilter) {
+      result = result.filter((b) => b.grower_id === growerFilter);
+    }
+
+    if (dateFrom) {
+      result = result.filter((b) => {
+        const d = b.intake_date || b.created_at;
+        return d && d.slice(0, 10) >= dateFrom;
+      });
+    }
+
+    if (dateTo) {
+      result = result.filter((b) => {
+        const d = b.intake_date || b.created_at;
+        return d && d.slice(0, 10) <= dateTo;
+      });
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (b) =>
+          b.batch_code.toLowerCase().includes(q) ||
+          (b.grower_name && b.grower_name.toLowerCase().includes(q)) ||
+          b.fruit_type.toLowerCase().includes(q),
+      );
+    }
+
+    return result;
+  }, [batches, growerFilter, dateFrom, dateTo, search]);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -56,7 +88,9 @@ export default function BatchesList() {
   // Reset page when filters change
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, search]);
+  }, [statusFilter, growerFilter, dateFrom, dateTo, search]);
+
+  const hasActiveFilters = statusFilter || growerFilter || dateFrom || dateTo || search;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -66,6 +100,7 @@ export default function BatchesList() {
           <h1 className="text-2xl font-bold text-gray-800">Batches</h1>
           <p className="text-sm text-gray-500 mt-1">
             {filtered.length} batch{filtered.length !== 1 ? "es" : ""}
+            {hasActiveFilters ? " (filtered)" : ""}
           </p>
         </div>
         <Link
@@ -83,7 +118,7 @@ export default function BatchesList() {
       )}
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -96,13 +131,58 @@ export default function BatchesList() {
             </option>
           ))}
         </select>
+
+        <select
+          value={growerFilter}
+          onChange={(e) => setGrowerFilter(e.target.value)}
+          className="border rounded px-3 py-2 text-sm"
+        >
+          <option value="">All growers</option>
+          {growers.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="border rounded px-3 py-2 text-sm"
+          title="From date"
+        />
+        <span className="text-gray-400 text-sm">to</span>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="border rounded px-3 py-2 text-sm"
+          title="To date"
+        />
+
         <input
           type="text"
-          placeholder="Search batch code or grower..."
+          placeholder="Search code, grower, fruit..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="border rounded px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
+
+        {hasActiveFilters && (
+          <button
+            onClick={() => {
+              setStatusFilter("");
+              setGrowerFilter("");
+              setDateFrom("");
+              setDateTo("");
+              setSearch("");
+            }}
+            className="text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -137,11 +217,11 @@ export default function BatchesList() {
                     <td className="px-4 py-2 font-mono text-xs text-green-700">
                       {b.batch_code}
                     </td>
-                    <td className="px-4 py-2">{b.grower_name || "—"}</td>
+                    <td className="px-4 py-2">{b.grower_name || "\u2014"}</td>
                     <td className="px-4 py-2">{b.fruit_type}</td>
-                    <td className="px-4 py-2">{b.variety || "—"}</td>
+                    <td className="px-4 py-2">{b.variety || "\u2014"}</td>
                     <td className="px-4 py-2 text-right">
-                      {b.net_weight_kg?.toLocaleString() ?? "—"}
+                      {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
                     </td>
                     <td className="px-4 py-2">
                       <span
@@ -157,7 +237,7 @@ export default function BatchesList() {
                         ? new Date(b.intake_date).toLocaleDateString()
                         : b.created_at
                           ? new Date(b.created_at).toLocaleDateString()
-                          : "—"}
+                          : "\u2014"}
                     </td>
                   </tr>
                 ))}

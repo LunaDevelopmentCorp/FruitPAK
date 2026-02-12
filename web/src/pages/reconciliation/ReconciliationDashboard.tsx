@@ -11,24 +11,21 @@
  * │  Severity Breakdown (bar/pills)                             │
  * │  ■ Critical (n)  ■ High (n)  ■ Medium (n)  ■ Low (n)       │
  * ├──────────────────────────────┬──────────────────────────────┤
- * │  By Type (donut/list)       │  Filter bar                  │
- * │  grn_vs_payment: n          │  [Type ▼] [Severity ▼]       │
- * │  export_vs_invoice: n       │  [Status ▼]                  │
- * │  labour_vs_cost: n          │                              │
+ * │  Filter bar                                                 │
+ * │  [Type ▼] [Severity ▼] [Status ▼]  Clear filters           │
  * ├──────────────────────────────┴──────────────────────────────┤
  * │  Alert Table                                                │
  * │  ┌────┬──────┬────────┬──────────┬─────────┬─────────┐     │
  * │  │Sev │ Type │ Title  │ Variance │ Status  │ Actions │     │
- * │  ├────┼──────┼────────┼──────────┼─────────┼─────────┤     │
- * │  │ ●  │ GRN  │ Batch..│ +120 kg  │  open   │ ⋯       │     │
- * │  │ ●  │ Exp  │ Export.│ -$500    │  open   │ ⋯       │     │
  * │  └────┴──────┴────────┴──────────┴─────────┴─────────┘     │
  * └─────────────────────────────────────────────────────────────┘
  */
 
 import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { DashboardSummary, ReconciliationAlert } from "../../api/reconciliation";
 import { getDashboard, triggerRun, updateAlert } from "../../api/reconciliation";
+import { showToast } from "../../store/toastStore";
 
 // ── Severity badge colours ──────────────────────────────────
 const SEV_COLORS: Record<string, string> = {
@@ -47,6 +44,11 @@ const TYPE_LABELS: Record<string, string> = {
   cold_storage_gap: "Cold Storage Gap",
 };
 
+const STATUS_OPTIONS = ["open", "acknowledged", "resolved", "dismissed"];
+
+// Alert types that relate to payments — show "Record Payment" link
+const PAYMENT_TYPES = new Set(["grn_vs_payment", "export_vs_invoice", "labour_vs_cost"]);
+
 // ── Sub-components ──────────────────────────────────────────
 
 function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
@@ -60,7 +62,7 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 
 function SeverityBar({ by_severity }: { by_severity: Record<string, number> }) {
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3 flex-wrap">
       {["critical", "high", "medium", "low"].map((sev) => (
         <span key={sev} className={`px-3 py-1 rounded-full text-xs font-medium ${SEV_COLORS[sev]}`}>
           {sev}: {by_severity[sev] || 0}
@@ -85,7 +87,7 @@ function AlertRow({
   }[alert.severity];
 
   const formatVariance = () => {
-    if (alert.variance == null) return "—";
+    if (alert.variance == null) return "\u2014";
     const sign = alert.variance >= 0 ? "+" : "";
     const unit = alert.unit === "currency" ? "" : ` ${alert.unit || ""}`;
     return `${sign}${alert.variance.toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit}`;
@@ -108,13 +110,14 @@ function AlertRow({
         <span className={`px-2 py-0.5 rounded text-xs ${
           alert.status === "open" ? "bg-red-50 text-red-700" :
           alert.status === "acknowledged" ? "bg-blue-50 text-blue-700" :
-          "bg-green-50 text-green-700"
+          alert.status === "resolved" ? "bg-green-50 text-green-700" :
+          "bg-gray-100 text-gray-500"
         }`}>
           {alert.status}
         </span>
       </td>
       <td className="px-3 py-2">
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           {alert.status === "open" && (
             <button onClick={() => onAction(alert.id, "acknowledged")} className="text-xs text-blue-600 hover:underline">
               Ack
@@ -130,6 +133,11 @@ function AlertRow({
               </button>
             </>
           )}
+          {PAYMENT_TYPES.has(alert.alert_type) && (alert.status === "open" || alert.status === "acknowledged") && (
+            <Link to="/payments" className="text-xs text-amber-600 hover:underline ml-1">
+              Record Payment
+            </Link>
+          )}
         </div>
       </td>
     </tr>
@@ -142,19 +150,18 @@ export default function ReconciliationDashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [filterType, setFilterType] = useState<string>("");
   const [filterSev, setFilterSev] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setData(await getDashboard());
-      setError(null);
     } catch (e: any) {
-      setError(e.response?.data?.detail || "Failed to load dashboard");
+      showToast("error", e.response?.data?.detail || "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
@@ -165,10 +172,11 @@ export default function ReconciliationDashboard() {
   const handleRun = async () => {
     setRunning(true);
     try {
-      await triggerRun();
+      const result = await triggerRun();
+      showToast("success", `Reconciliation complete: ${result.total_alerts} alert(s) found`);
       await load();
     } catch (e: any) {
-      setError(e.response?.data?.detail || "Run failed");
+      showToast("error", e.response?.data?.detail || "Run failed");
     } finally {
       setRunning(false);
     }
@@ -177,9 +185,10 @@ export default function ReconciliationDashboard() {
   const handleAction = async (alertId: string, status: string) => {
     try {
       await updateAlert(alertId, { status });
+      showToast("success", `Alert ${status}`);
       await load();
     } catch (e: any) {
-      setError(e.response?.data?.detail || "Action failed");
+      showToast("error", e.response?.data?.detail || "Action failed");
     }
   };
 
@@ -188,6 +197,7 @@ export default function ReconciliationDashboard() {
   const filteredAlerts = (data?.alerts || []).filter((a) => {
     if (filterType && a.alert_type !== filterType) return false;
     if (filterSev && a.severity !== filterSev) return false;
+    if (filterStatus && a.status !== filterStatus) return false;
     return true;
   });
 
@@ -199,19 +209,15 @@ export default function ReconciliationDashboard() {
         <button
           onClick={handleRun}
           disabled={running}
-          className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium disabled:opacity-50"
+          className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium disabled:opacity-50 hover:bg-green-700"
         >
           {running ? "Running..." : "Run Now"}
         </button>
       </div>
 
-      {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
-      )}
-
       {/* KPI cards */}
       {data && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <KpiCard label="Open Alerts" value={data.total_open} color="text-red-600" />
           <KpiCard label="Acknowledged" value={data.total_acknowledged} color="text-blue-600" />
           <KpiCard label="Resolved (30d)" value={data.total_resolved_30d} color="text-green-600" />
@@ -229,9 +235,9 @@ export default function ReconciliationDashboard() {
       {/* Severity breakdown */}
       {data && <SeverityBar by_severity={data.by_severity} />}
 
-      {/* Filters + type breakdown */}
+      {/* Filters */}
       {data && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="border rounded px-3 py-1.5 text-sm">
             <option value="">All types</option>
             {Object.entries(TYPE_LABELS).map(([k, v]) => (
@@ -244,6 +250,20 @@ export default function ReconciliationDashboard() {
               <option key={s} value={s}>{s} ({data.by_severity[s] || 0})</option>
             ))}
           </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border rounded px-3 py-1.5 text-sm">
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          {(filterType || filterSev || filterStatus) && (
+            <button
+              onClick={() => { setFilterType(""); setFilterSev(""); setFilterStatus(""); }}
+              className="text-xs text-gray-500 hover:text-gray-700 underline"
+            >
+              Clear filters
+            </button>
+          )}
           <span className="text-xs text-gray-400 ml-auto">
             {filteredAlerts.length} alert{filteredAlerts.length !== 1 ? "s" : ""}
           </span>
@@ -260,7 +280,7 @@ export default function ReconciliationDashboard() {
               <th className="px-3 py-2 text-left">Title</th>
               <th className="px-3 py-2 text-left">Variance</th>
               <th className="px-3 py-2 text-left">Status</th>
-              <th className="px-3 py-2 text-left w-28">Actions</th>
+              <th className="px-3 py-2 text-left w-40">Actions</th>
             </tr>
           </thead>
           <tbody>
