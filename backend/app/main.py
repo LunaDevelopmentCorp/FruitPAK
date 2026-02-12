@@ -36,7 +36,8 @@ app.add_middleware(SecureCookieMiddleware)
 # Rate limiting
 app.add_middleware(
     RateLimitMiddleware,
-    default_limit=100,  # 100 requests per minute (default)
+    default_limit=100,  # 100 requests per minute (anonymous/IP)
+    authenticated_limit=500,  # 500 requests per minute (JWT user)
     default_window=60,
     exempt_paths=["/health", "/health/ready", "/docs", "/openapi.json"],
 )

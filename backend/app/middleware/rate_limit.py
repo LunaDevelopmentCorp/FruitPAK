@@ -26,12 +26,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        default_limit: int = 100,  # requests
+        default_limit: int = 100,  # requests per window (anonymous/IP)
+        authenticated_limit: int = 500,  # requests per window (JWT user)
         default_window: int = 60,  # seconds
         exempt_paths: Optional[list[str]] = None,
     ):
         super().__init__(app)
         self.default_limit = default_limit
+        self.authenticated_limit = authenticated_limit
         self.default_window = default_window
         self.exempt_paths = exempt_paths or ["/health", "/docs", "/openapi.json"]
 
@@ -49,11 +51,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(path) for path in self.exempt_paths):
             return await call_next(request)
 
+        # Determine rate limit key (user ID or IP)
+        key = await self._get_rate_limit_key(request)
+
         # Get rate limit for this endpoint
         limit, window = self._get_limit_for_path(request.url.path)
 
-        # Determine rate limit key (user ID or IP)
-        key = await self._get_rate_limit_key(request)
+        # Authenticated users get higher limits (unless custom path limit applies)
+        if key.startswith("user:") and request.url.path not in self.custom_limits:
+            limit = self.authenticated_limit
 
         # Check rate limit
         allowed, remaining, reset_time = await self._check_rate_limit(
