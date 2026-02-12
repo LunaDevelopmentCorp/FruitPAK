@@ -1,5 +1,12 @@
 import api from "./client";
 
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface GRNPayload {
   grower_id: string;
   packhouse_id: string;
@@ -99,8 +106,8 @@ export interface BatchUpdatePayload {
 }
 
 export async function listBatches(params?: Record<string, string>): Promise<BatchOut[]> {
-  const { data } = await api.get<BatchOut[]>("/batches/", { params });
-  return data;
+  const { data } = await api.get<PaginatedResponse<BatchOut>>("/batches/", { params });
+  return data.items;
 }
 
 export async function getBatch(id: string): Promise<BatchDetail> {
@@ -114,11 +121,11 @@ export async function updateBatch(id: string, payload: BatchUpdatePayload): Prom
 }
 
 export async function listGrowers(): Promise<Grower[]> {
-  const { data } = await api.get<Grower[]>("/growers/");
-  return data;
+  const { data } = await api.get<PaginatedResponse<Grower>>("/growers/");
+  return data.items;
 }
 
 export async function listPackhouses(): Promise<Packhouse[]> {
-  const { data } = await api.get<Packhouse[]>("/packhouses/");
-  return data;
+  const { data } = await api.get<PaginatedResponse<Packhouse>>("/packhouses/");
+  return data.items;
 }

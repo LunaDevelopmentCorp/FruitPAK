@@ -1,5 +1,12 @@
 import api from "./client";
 
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface GrowerPaymentPayload {
   grower_id: string;
   amount: number;
@@ -38,6 +45,6 @@ export async function listGrowerPayments(
   grower_id?: string
 ): Promise<GrowerPaymentOut[]> {
   const params = grower_id ? { grower_id } : {};
-  const { data } = await api.get<GrowerPaymentOut[]>("/payments/grower", { params });
-  return data;
+  const { data } = await api.get<PaginatedResponse<GrowerPaymentOut>>("/payments/grower", { params });
+  return data.items;
 }

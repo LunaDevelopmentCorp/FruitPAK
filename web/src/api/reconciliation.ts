@@ -1,5 +1,12 @@
 import client from "./client";
 
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface ReconciliationAlert {
   id: string;
   alert_type: string;
@@ -43,12 +50,12 @@ export interface RunSummary {
 }
 
 export async function getDashboard(): Promise<DashboardSummary> {
-  const { data } = await client.get("/api/reconciliation/");
+  const { data } = await client.get("/reconciliation/");
   return data;
 }
 
 export async function triggerRun(): Promise<RunSummary> {
-  const { data } = await client.post("/api/reconciliation/run");
+  const { data } = await client.post("/reconciliation/run");
   return data;
 }
 
@@ -59,12 +66,12 @@ export async function listAlerts(params?: {
   limit?: number;
   offset?: number;
 }): Promise<ReconciliationAlert[]> {
-  const { data } = await client.get("/api/reconciliation/alerts", { params });
-  return data;
+  const { data } = await client.get<PaginatedResponse<ReconciliationAlert>>("/reconciliation/alerts", { params });
+  return data.items;
 }
 
 export async function getAlert(id: string): Promise<ReconciliationAlert> {
-  const { data } = await client.get(`/api/reconciliation/alerts/${id}`);
+  const { data } = await client.get(`/reconciliation/alerts/${id}`);
   return data;
 }
 
@@ -73,7 +80,7 @@ export async function updateAlert(
   update: { status: string; resolution_note?: string }
 ): Promise<ReconciliationAlert> {
   const { data } = await client.patch(
-    `/api/reconciliation/alerts/${id}`,
+    `/reconciliation/alerts/${id}`,
     update
   );
   return data;
