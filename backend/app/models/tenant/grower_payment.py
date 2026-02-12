@@ -31,7 +31,7 @@ class GrowerPayment(TenantBase):
 
     # ── Links ────────────────────────────────────────────────
     grower_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("growers.id"), nullable=False
+        String(36), ForeignKey("growers.id"), nullable=False, index=True
     )
     # JSON array of batch IDs this payment covers
     batch_ids: Mapped[list] = mapped_column(JSON, default=list)
@@ -52,7 +52,7 @@ class GrowerPayment(TenantBase):
     period_start: Mapped[datetime | None] = mapped_column(Date)
     period_end: Mapped[datetime | None] = mapped_column(Date)
     due_date: Mapped[datetime | None] = mapped_column(Date)
-    paid_date: Mapped[datetime | None] = mapped_column(Date)
+    paid_date: Mapped[datetime | None] = mapped_column(Date, index=True)
 
     # ── Type & Status ─────────────────────────────────────────
     # advance | final

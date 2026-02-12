@@ -33,7 +33,7 @@ class Batch(TenantBase):
 
     # ── Origin traceability ──────────────────────────────────
     grower_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("growers.id"), nullable=False
+        String(36), ForeignKey("growers.id"), nullable=False, index=True
     )
     harvest_team_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("harvest_teams.id")
@@ -45,7 +45,7 @@ class Batch(TenantBase):
     # ── Fruit details ────────────────────────────────────────
     fruit_type: Mapped[str] = mapped_column(String(100), nullable=False)
     variety: Mapped[str | None] = mapped_column(String(100))
-    harvest_date: Mapped[datetime | None] = mapped_column(Date)
+    harvest_date: Mapped[datetime | None] = mapped_column(Date, index=True)
     intake_date: Mapped[datetime] = mapped_column(Date, default=datetime.utcnow)
 
     # ── Weights ──────────────────────────────────────────────
