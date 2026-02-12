@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useWizard } from "../../hooks/useWizard";
+import { showToast as globalToast } from "../../store/toastStore";
 
 import Step1Company from "./steps/Step1Company";
 import Step2Packhouse from "./steps/Step2Packhouse";
@@ -129,12 +130,20 @@ export default function WizardShell() {
     data: Record<string, unknown>,
     complete: boolean
   ) => {
-    await save(activeStep, data, complete);
-    showToast(complete ? "Step completed!" : "Draft saved.");
+    try {
+      await save(activeStep, data, complete);
+      showToast(complete ? "Step completed!" : "Draft saved.");
+    } catch {
+      globalToast("error", "Failed to save — please try again.");
+    }
   };
 
   const handleFinish = async () => {
-    await finish();
+    try {
+      await finish();
+    } catch {
+      globalToast("error", "Failed to complete setup — please try again.");
+    }
   };
 
   return (

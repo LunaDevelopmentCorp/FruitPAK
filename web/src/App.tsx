@@ -10,34 +10,39 @@ import Payments from "./pages/Payments";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
+import GlobalToast from "./components/GlobalToast";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<Login />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <GlobalToast />
+        <Routes>
+          {/* Public */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Protected — wrapped in layout with nav */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/setup" element={<WizardShell />} />
-          <Route path="/grn-intake" element={<GrnIntake />} />
-          <Route path="/batches" element={<BatchesList />} />
-          <Route path="/batches/:batchId" element={<BatchDetail />} />
-          <Route path="/payments" element={<Payments />} />
-          <Route path="/reconciliation" element={<ReconciliationDashboard />} />
-        </Route>
+          {/* Protected — wrapped in layout with nav */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/setup" element={<WizardShell />} />
+            <Route path="/grn-intake" element={<GrnIntake />} />
+            <Route path="/batches" element={<BatchesList />} />
+            <Route path="/batches/:batchId" element={<BatchDetail />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/reconciliation" element={<ReconciliationDashboard />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

@@ -117,11 +117,11 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <h1 className="text-xl font-semibold text-gray-900 text-center mb-2">
-              Oops! Something went wrong
+              Something went wrong
             </h1>
 
             <p className="text-gray-600 text-center mb-6">
-              We're sorry for the inconvenience. The error has been logged and we'll look into it.
+              Something went wrong — please try again. The error has been logged.
             </p>
 
             {process.env.NODE_ENV === 'development' && this.state.error && (

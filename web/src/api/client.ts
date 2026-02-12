@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { showToast } from "../store/toastStore";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
@@ -87,6 +88,28 @@ api.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // 403 Forbidden — clear auth and redirect
+    if (status === 403) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+      showToast("error", "Access denied. Please log in again.");
+      window.location.href = "/login";
+      return Promise.reject(error);
+    }
+
+    // 5xx server errors
+    if (status && status >= 500) {
+      showToast("error", "Server error — please try again later.");
+      return Promise.reject(error);
+    }
+
+    // Network error (no response)
+    if (!error.response) {
+      showToast("error", "No connection — check your internet.");
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

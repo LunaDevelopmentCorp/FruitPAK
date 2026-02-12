@@ -11,6 +11,7 @@ import {
   Packhouse,
 } from "../api/batches";
 import BatchQR from "../components/BatchQR";
+import { showToast as globalToast } from "../store/toastStore";
 
 const inputBase =
   "w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
@@ -117,9 +118,11 @@ export default function GrnIntake() {
           setError(detail);
         } else {
           setError("GRN submission failed");
+          globalToast("error", "GRN submission failed.");
         }
       } else {
         setError("Network error — is the server running?");
+        globalToast("error", "Network error — is the server running?");
       }
     }
   };
