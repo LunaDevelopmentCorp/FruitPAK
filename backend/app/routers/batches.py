@@ -81,7 +81,7 @@ async def list_batches(
     fruit_type: str | None = Query(None),
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),

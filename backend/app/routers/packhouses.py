@@ -68,7 +68,7 @@ async def create_packhouse(
 @router.get("/", response_model=PaginatedResponse[PackhouseOut])
 @cached(ttl=300, prefix="packhouses")  # Cache for 5 minutes
 async def list_packhouses(
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.read")),

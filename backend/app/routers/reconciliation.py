@@ -161,7 +161,7 @@ async def list_alerts(
     date_to: date | None = Query(None, description="Period end <= this date"),
     grower_id: str | None = Query(None, description="Filter by grower (from entity_refs)"),
     product: str | None = Query(None, description="Filter by fruit_type (from entity_refs)"),
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),

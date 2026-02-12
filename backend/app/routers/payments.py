@@ -142,7 +142,7 @@ async def create_grower_payment(
 @router.get("/grower", response_model=PaginatedResponse[GrowerPaymentOut])
 async def list_grower_payments(
     grower_id: str | None = Query(None),
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),

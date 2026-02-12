@@ -36,7 +36,7 @@ router = APIRouter()
 @router.get("/", response_model=PaginatedResponse[GrowerOut])
 @cached(ttl=300, prefix="growers")  # Cache for 5 minutes
 async def list_growers(
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("grower.read")),
