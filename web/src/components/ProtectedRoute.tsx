@@ -10,6 +10,8 @@ export default function ProtectedRoute({ children }: Props) {
   const token = useAuthStore((s) => s.token);
   const location = useLocation();
 
+  console.log("[auth] ProtectedRoute:", location.pathname, token ? "authenticated" : "NOT authenticated");
+
   if (!token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

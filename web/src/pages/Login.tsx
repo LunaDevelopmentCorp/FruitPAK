@@ -22,14 +22,18 @@ export default function Login() {
 
     try {
       const res = await login({ email, password });
+      console.log("[auth] Login success:", res.user.email, "enterprise:", res.user.enterprise_id, "onboarded:", res.user.is_onboarded);
       setAuth(res.access_token, res.refresh_token, res.user);
 
       // Route based on onboarding state
       if (!res.user.enterprise_id) {
+        console.log("[auth] Routing → /enterprise-setup (no enterprise)");
         navigate("/enterprise-setup");
       } else if (!res.user.is_onboarded) {
+        console.log("[auth] Routing → /setup (not onboarded)");
         navigate("/setup");
       } else {
+        console.log("[auth] Routing →", from || "/dashboard");
         navigate(from || "/dashboard");
       }
     } catch (err: unknown) {

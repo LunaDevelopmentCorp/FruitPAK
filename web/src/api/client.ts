@@ -1,6 +1,14 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { showToast } from "../store/toastStore";
 
+/** Clear all auth state from localStorage (Zustand store re-reads on page reload). */
+function clearAuthStorage() {
+  console.log("[api] Clearing auth storage");
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("user");
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
 });
@@ -10,6 +18,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log("[api] Request:", config.method?.toUpperCase(), config.url, token ? "(token attached)" : "(no token)");
   return config;
 });
 
@@ -29,10 +38,15 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log("[api] Response:", response.status, response.config.url);
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const status = error.response?.status;
+
+    console.warn("[api] Error:", status, originalRequest.url, (error.response?.data as Record<string, unknown>)?.detail || "");
 
     // On 401, try to refresh the token before giving up
     if (status === 401 && !originalRequest._retry && window.location.pathname !== "/login") {
@@ -40,9 +54,7 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         // No refresh token — redirect to login
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        localStorage.removeItem("user");
+        clearAuthStorage();
         window.location.href = "/login";
         return Promise.reject(error);
       }
@@ -80,9 +92,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        localStorage.removeItem("user");
+        clearAuthStorage();
         window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
@@ -90,13 +100,12 @@ api.interceptors.response.use(
       }
     }
 
-    // 403 Forbidden — clear auth and redirect
+    // 403 Forbidden — NOT an auth failure; user is authenticated but not authorized
+    // for this specific action. Don't nuke auth — let the calling code handle it.
     if (status === 403) {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-      showToast("error", "Access denied. Please log in again.");
-      window.location.href = "/login";
+      const detail = (error.response?.data as Record<string, unknown>)?.detail || "Access denied";
+      console.warn("[api] 403 Forbidden:", detail);
+      showToast("warning", String(detail));
       return Promise.reject(error);
     }
 

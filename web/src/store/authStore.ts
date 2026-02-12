@@ -23,19 +23,24 @@ interface AuthState {
   isOnboarded: () => boolean;
 }
 
+const _initToken = localStorage.getItem("access_token");
+const _initUser = (() => {
+  try {
+    const u = localStorage.getItem("user");
+    return u ? JSON.parse(u) : null;
+  } catch {
+    return null;
+  }
+})();
+console.log("[auth] Store init:", _initToken ? "token found" : "no token", _initUser ? `user=${_initUser.email}` : "no user");
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  token: localStorage.getItem("access_token"),
+  token: _initToken,
   refreshToken: localStorage.getItem("refresh_token"),
-  user: (() => {
-    try {
-      const u = localStorage.getItem("user");
-      return u ? JSON.parse(u) : null;
-    } catch {
-      return null;
-    }
-  })(),
+  user: _initUser,
 
   setAuth: (token, refreshToken, user) => {
+    console.log("[auth] setAuth:", user.email, "onboarded:", user.is_onboarded, "enterprise:", user.enterprise_id);
     localStorage.setItem("access_token", token);
     localStorage.setItem("refresh_token", refreshToken);
     localStorage.setItem("user", JSON.stringify(user));
@@ -43,6 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    console.log("[auth] logout called");
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
