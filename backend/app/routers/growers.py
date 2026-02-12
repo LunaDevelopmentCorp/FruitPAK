@@ -67,6 +67,7 @@ async def list_growers(
 
 
 @router.get("/{grower_id}", response_model=GrowerOut)
+@cached(ttl=300, prefix="grower")  # Cache for 5 minutes
 async def get_grower(
     grower_id: str,
     db: AsyncSession = Depends(get_tenant_db),
@@ -77,4 +78,4 @@ async def get_grower(
     grower = result.scalar_one_or_none()
     if not grower:
         raise HTTPException(status_code=404, detail="Grower not found")
-    return grower
+    return GrowerOut.model_validate(grower)

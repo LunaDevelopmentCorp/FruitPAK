@@ -59,8 +59,9 @@ async def create_packhouse(
     db.add(packhouse)
     await db.flush()
 
-    # Invalidate cache when creating new packhouse
+    # Invalidate list and single-item caches
     await invalidate_cache("packhouses:*")
+    await invalidate_cache("packhouse:*")
 
     return packhouse
 
@@ -99,6 +100,7 @@ async def list_packhouses(
 
 
 @router.get("/{packhouse_id}", response_model=PackhouseOut)
+@cached(ttl=300, prefix="packhouse")  # Cache for 5 minutes
 async def get_packhouse(
     packhouse_id: str,
     db: AsyncSession = Depends(get_tenant_db),
@@ -111,4 +113,4 @@ async def get_packhouse(
     packhouse = result.scalar_one_or_none()
     if not packhouse:
         raise HTTPException(status_code=404, detail="Packhouse not found")
-    return packhouse
+    return PackhouseOut.model_validate(packhouse)

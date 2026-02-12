@@ -33,6 +33,7 @@ from app.schemas.batch import (
 )
 from app.schemas.common import PaginatedResponse
 from app.services.grn import create_grn
+from app.utils.cache import cached, invalidate_cache
 
 router = APIRouter()
 
@@ -64,6 +65,8 @@ async def grn_intake(
     batch = result["batch"]
     qr_url = f"/api/batches/{batch.id}/qr"
 
+    await invalidate_cache("batches:*")
+
     return GRNResponse(
         batch=BatchOut.model_validate(batch),
         qr_code_url=qr_url,
@@ -75,6 +78,7 @@ async def grn_intake(
 # ── List batches ─────────────────────────────────────────────
 
 @router.get("/", response_model=PaginatedResponse[BatchSummary])
+@cached(ttl=60, prefix="batches")  # Cache for 1 minute (batches change frequently)
 async def list_batches(
     grower_id: str | None = Query(None),
     batch_status: str | None = Query(None, alias="status"),
@@ -202,4 +206,5 @@ async def update_batch(
             batch.net_weight_kg = batch.gross_weight_kg - (batch.tare_weight_kg or 0)
 
     await db.flush()
+    await invalidate_cache("batches:*")
     return batch

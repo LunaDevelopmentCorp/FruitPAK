@@ -439,80 +439,112 @@ async def check_container_vs_pallets(db: AsyncSession, run_id: str) -> list[Reco
 async def check_labour_consistency(db: AsyncSession, run_id: str) -> list[ReconciliationAlert]:
     """For each LabourCost record that has hours_worked and rate_per_hour,
     verify that total_amount ≈ hours_worked × rate_per_hour × headcount.
-    Also flags records with hours but zero cost, or cost but zero hours."""
+    Also flags records with hours but zero cost, or cost but zero hours.
 
-    stmt = (
-        select(LabourCost)
+    Optimized: computes expected_total in SQL and only returns mismatched
+    rows, avoiding a full table scan into Python.
+    """
+
+    hours_col = func.coalesce(LabourCost.hours_worked, literal(0))
+    rate_col = func.coalesce(LabourCost.rate_per_hour, literal(0))
+    headcount_col = func.coalesce(LabourCost.headcount, literal(1))
+    total_col = func.coalesce(LabourCost.total_amount, literal(0))
+    expected_col = hours_col * rate_col * headcount_col
+    variance_col = total_col - expected_col
+
+    # Case 1: has hours+rate but total doesn't match (beyond tolerance)
+    calc_mismatch_stmt = (
+        select(
+            LabourCost.id,
+            LabourCost.category,
+            LabourCost.work_date,
+            hours_col.label("hours"),
+            rate_col.label("rate"),
+            headcount_col.label("headcount"),
+            total_col.label("total"),
+            expected_col.label("expected_total"),
+            variance_col.label("variance"),
+        )
         .where(
             LabourCost.is_deleted == False,  # noqa: E712
             LabourCost.status != "cancelled",
+            hours_col > 0,
+            rate_col > 0,
+            func.abs(variance_col) > AMOUNT_TOLERANCE,
         )
     )
 
-    result = await db.execute(stmt)
+    result = await db.execute(calc_mismatch_stmt)
     alerts = []
 
-    for cost in result.scalars().all():
-        hours = cost.hours_worked or 0
-        rate = cost.rate_per_hour or 0
-        headcount = cost.headcount or 1
-        total = cost.total_amount or 0
+    for row in result.all():
+        pct = _safe_pct(float(row.expected_total), float(row.total))
+        alerts.append(ReconciliationAlert(
+            alert_type="labour_vs_cost",
+            severity=_severity(pct),
+            title=f"Labour cost {row.id[:8]}: total ≠ hours × rate",
+            description=(
+                f"{row.category} labour on {row.work_date}: "
+                f"{float(row.hours):.1f}h × {float(row.rate):.2f}/h × "
+                f"{float(row.headcount):.0f} heads = "
+                f"{float(row.expected_total):,.2f} expected, but recorded "
+                f"{float(row.total):,.2f} "
+                f"(variance {float(row.variance):+,.2f} / {pct:.1f}%)."
+            ),
+            expected_value=float(row.expected_total),
+            actual_value=float(row.total),
+            variance=float(row.variance),
+            variance_pct=pct,
+            unit="currency",
+            entity_refs={
+                "labour_cost_id": row.id,
+                "category": row.category,
+                "work_date": str(row.work_date),
+            },
+            run_id=run_id,
+        ))
 
-        # Flag: has hours and rate but total doesn't match
-        if hours > 0 and rate > 0:
-            expected_total = hours * rate * headcount
-            variance = total - expected_total
+    # Case 2: has cost but no hours/rate (cannot verify)
+    no_hours_stmt = (
+        select(
+            LabourCost.id,
+            LabourCost.category,
+            LabourCost.work_date,
+            total_col.label("total"),
+        )
+        .where(
+            LabourCost.is_deleted == False,  # noqa: E712
+            LabourCost.status != "cancelled",
+            total_col > AMOUNT_TOLERANCE,
+            hours_col == 0,
+            rate_col == 0,
+        )
+    )
 
-            if abs(variance) <= AMOUNT_TOLERANCE:
-                continue
+    result2 = await db.execute(no_hours_stmt)
 
-            pct = _safe_pct(expected_total, total)
-            alerts.append(ReconciliationAlert(
-                alert_type="labour_vs_cost",
-                severity=_severity(pct),
-                title=f"Labour cost {cost.id[:8]}: total ≠ hours × rate",
-                description=(
-                    f"{cost.category} labour on {cost.work_date}: "
-                    f"{hours:.1f}h × {rate:.2f}/h × {headcount:.0f} heads = "
-                    f"{expected_total:,.2f} expected, but recorded {total:,.2f} "
-                    f"(variance {variance:+,.2f} / {pct:.1f}%)."
-                ),
-                expected_value=expected_total,
-                actual_value=total,
-                variance=variance,
-                variance_pct=pct,
-                unit="currency",
-                entity_refs={
-                    "labour_cost_id": cost.id,
-                    "category": cost.category,
-                    "work_date": str(cost.work_date),
-                },
-                run_id=run_id,
-            ))
-
-        # Flag: has cost but no hours logged
-        elif total > AMOUNT_TOLERANCE and hours == 0 and rate == 0:
-            alerts.append(ReconciliationAlert(
-                alert_type="labour_vs_cost",
-                severity="medium",
-                title=f"Labour cost {cost.id[:8]}: cost recorded without hours",
-                description=(
-                    f"{cost.category} labour on {cost.work_date}: "
-                    f"{total:,.2f} recorded but no hours or rate specified. "
-                    f"Cannot verify cost calculation."
-                ),
-                expected_value=0,
-                actual_value=total,
-                variance=total,
-                variance_pct=100.0,
-                unit="currency",
-                entity_refs={
-                    "labour_cost_id": cost.id,
-                    "category": cost.category,
-                    "work_date": str(cost.work_date),
-                },
-                run_id=run_id,
-            ))
+    for row in result2.all():
+        alerts.append(ReconciliationAlert(
+            alert_type="labour_vs_cost",
+            severity="medium",
+            title=f"Labour cost {row.id[:8]}: cost recorded without hours",
+            description=(
+                f"{row.category} labour on {row.work_date}: "
+                f"{float(row.total):,.2f} recorded but no hours or rate "
+                f"specified. Cannot verify cost calculation."
+            ),
+            expected_value=0,
+            actual_value=float(row.total),
+            variance=float(row.total),
+            variance_pct=100.0,
+            unit="currency",
+            entity_refs={
+                "labour_cost_id": row.id,
+                "category": row.category,
+                "work_date": str(row.work_date),
+            },
+            run_id=run_id,
+        ))
 
     return alerts
 
