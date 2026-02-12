@@ -65,8 +65,22 @@ export default function BatchDetail() {
     if (data.notes !== undefined) payload.notes = data.notes;
 
     try {
-      const updated = await updateBatch(batchId, payload);
-      setBatch(updated);
+      await updateBatch(batchId, payload);
+      // Re-fetch full detail (PATCH returns BatchOut without names/history)
+      const refreshed = await getBatch(batchId);
+      setBatch(refreshed);
+      reset({
+        variety: refreshed.variety || "",
+        harvest_date: refreshed.harvest_date?.split("T")[0] || "",
+        gross_weight_kg: refreshed.gross_weight_kg ?? undefined,
+        tare_weight_kg: refreshed.tare_weight_kg,
+        arrival_temp_c: refreshed.arrival_temp_c ?? undefined,
+        brix_reading: refreshed.brix_reading ?? undefined,
+        status: refreshed.status,
+        bin_count: refreshed.bin_count ?? undefined,
+        bin_type: refreshed.bin_type || "",
+        notes: refreshed.notes || "",
+      });
       setEditing(false);
       setSuccess("Batch updated successfully");
     } catch (err: unknown) {
