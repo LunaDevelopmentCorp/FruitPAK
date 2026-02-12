@@ -70,7 +70,7 @@ jobs:
       - name: Run migrations
         working-directory: ./backend
         env:
-          DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
+          DATABASE_URL: postgresql+asyncpg://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
           PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           alembic upgrade head
