@@ -3,7 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.middleware.tenant import TenantMiddleware
-from app.routers import auth, enterprises, health, packhouses, reconciliation, wizard
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.security import (
+    SecurityHeadersMiddleware,
+    HTTPSRedirectMiddleware,
+    SecureCookieMiddleware,
+)
+from app.middleware.exceptions import register_exception_handlers
+from app.routers import auth, batches, enterprises, growers, health, packhouses, payments, reconciliation, wizard
 from app.services.scheduler import lifespan
 
 app = FastAPI(
@@ -13,7 +20,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Exception Handlers ───────────────────────────────────────
+register_exception_handlers(app)
+
 # ── Middleware (outermost first) ─────────────────────────────
+# Security headers (first - applies to all responses)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# HTTPS redirect (production only)
+app.add_middleware(HTTPSRedirectMiddleware, force_https=False)
+
+# Secure cookies (production only)
+app.add_middleware(SecureCookieMiddleware)
+
+# Rate limiting
+app.add_middleware(
+    RateLimitMiddleware,
+    default_limit=100,  # 100 requests per minute (default)
+    default_window=60,
+    exempt_paths=["/health", "/health/ready", "/docs", "/openapi.json"],
+)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins.split(","),
@@ -21,6 +49,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Tenant context (innermost - processes request data)
 app.add_middleware(TenantMiddleware)
 
 # ── Routers ──────────────────────────────────────────────────
@@ -31,5 +61,8 @@ app.include_router(enterprises.router, prefix="/api/enterprises", tags=["enterpr
 
 # Tenant-scoped (require tenant_schema in JWT)
 app.include_router(packhouses.router, prefix="/api/packhouses", tags=["packhouses"])
+app.include_router(growers.router, prefix="/api/growers", tags=["growers"])
 app.include_router(wizard.router, prefix="/api/wizard", tags=["wizard"])
+app.include_router(batches.router, prefix="/api/batches", tags=["batches"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])

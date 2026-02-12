@@ -1,28 +1,42 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import GrnIntake from "./pages/GrnIntake";
+import BatchesList from "./pages/BatchesList";
+import BatchDetail from "./pages/BatchDetail";
 import WizardShell from "./pages/wizard/WizardShell";
+import Payments from "./pages/Payments";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
-
-function Home() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-green-700">FruitPAK</h1>
-        <p className="mt-2 text-gray-600">
-          Fruit Inventory Packhouse Management &amp; Export System
-        </p>
-      </div>
-    </div>
-  );
-}
+import ProtectedRoute from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/setup" element={<WizardShell />} />
-        <Route path="/reconciliation" element={<ReconciliationDashboard />} />
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Protected — wrapped in layout with nav */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/setup" element={<WizardShell />} />
+          <Route path="/grn-intake" element={<GrnIntake />} />
+          <Route path="/batches" element={<BatchesList />} />
+          <Route path="/batches/:batchId" element={<BatchDetail />} />
+          <Route path="/payments" element={<Payments />} />
+          <Route path="/reconciliation" element={<ReconciliationDashboard />} />
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

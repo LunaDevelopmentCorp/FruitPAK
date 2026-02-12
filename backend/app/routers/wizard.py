@@ -17,8 +17,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user, require_permission
-from app.database import get_tenant_db
+from app.database import get_db, get_tenant_db
+from app.models.public.enterprise import Enterprise
 from app.models.public.user import User
+from app.models.tenant.batch import Batch
 from app.models.tenant.company_profile import CompanyProfile
 from app.models.tenant.financial_config import FinancialConfig
 from app.models.tenant.grower import Grower
@@ -75,6 +77,42 @@ async def _get_or_create_state(db: AsyncSession) -> WizardState:
     return state
 
 
+def _make_progress(state: WizardState) -> WizardProgress:
+    """Build a WizardProgress response from current state."""
+    return WizardProgress(
+        current_step=state.current_step,
+        completed_steps=state.completed_steps,
+        is_complete=state.is_complete,
+        draft_data=state.draft_data,
+        completed_data=state.completed_data or {},
+    )
+
+
+async def _finish_step(
+    db: AsyncSession,
+    state: WizardState,
+    step: int,
+    data: dict,
+    complete: bool,
+    next_step: int,
+) -> WizardProgress:
+    """Mark step complete (or save draft) and return progress."""
+    if complete:
+        if step not in state.completed_steps:
+            state.completed_steps = state.completed_steps + [step]
+        # Store completed data so forms can reload it
+        cd = dict(state.completed_data or {})
+        cd[str(step)] = data
+        state.completed_data = cd
+        state.current_step = next_step
+        state.draft_data = None
+    else:
+        state.current_step = step
+        state.draft_data = data
+    await db.flush()
+    return _make_progress(state)
+
+
 def _check_prerequisites(step: int, completed: list[int]) -> None:
     prereqs = STEP_PREREQUISITES.get(step, [])
     missing = [s for s in prereqs if s not in completed]
@@ -109,6 +147,7 @@ async def get_progress(
         completed_steps=state.completed_steps,
         is_complete=state.is_complete,
         draft_data=state.draft_data,
+        completed_data=state.completed_data or {},
     )
 
 
@@ -156,18 +195,7 @@ async def save_step_1(
         db.add(profile)
     await db.flush()
 
-    if complete and 1 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [1]
-    state.current_step = 2 if complete else 1
-    state.draft_data = None if complete else data
-    await db.flush()
-
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 1, data, complete, next_step=2)
 
 
 @router.patch("/step/2", response_model=WizardProgress)
@@ -185,19 +213,30 @@ async def save_step_2(
         Step2Complete(**body.model_dump())
 
     if body.packhouses:
-        # Replace existing packhouses + lines for idempotent saves
+        # Upsert by name — can't DELETE packhouses referenced by batches
+        result = await db.execute(select(Packhouse))
+        existing = {ph.name: ph for ph in result.scalars().all()}
+
+        # Clear all pack lines (safe — no FK from batches)
         await db.execute(delete(PackLine))
-        await db.execute(delete(Packhouse))
         await db.flush()
 
+        new_names: set[str] = set()
         for ph in body.packhouses:
-            packhouse = Packhouse(
-                name=ph.name,
-                location=ph.location,
-                capacity_tons_per_day=ph.capacity_tons_per_day,
-                cold_rooms=ph.cold_rooms,
-            )
-            db.add(packhouse)
+            new_names.add(ph.name)
+            if ph.name in existing:
+                packhouse = existing[ph.name]
+                packhouse.location = ph.location
+                packhouse.capacity_tons_per_day = ph.capacity_tons_per_day
+                packhouse.cold_rooms = ph.cold_rooms
+            else:
+                packhouse = Packhouse(
+                    name=ph.name,
+                    location=ph.location,
+                    capacity_tons_per_day=ph.capacity_tons_per_day,
+                    cold_rooms=ph.cold_rooms,
+                )
+                db.add(packhouse)
             await db.flush()
 
             if ph.pack_lines:
@@ -212,18 +251,17 @@ async def save_step_2(
                     db.add(line)
         await db.flush()
 
-    if complete and 2 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [2]
-    state.current_step = 3 if complete else 2
-    state.draft_data = None if complete else body.model_dump(exclude_unset=True)
-    await db.flush()
+        # Remove packhouses no longer in the list (only if unreferenced)
+        for name, ph in existing.items():
+            if name not in new_names:
+                ref = await db.execute(
+                    select(Batch.id).where(Batch.packhouse_id == ph.id).limit(1)
+                )
+                if not ref.scalar_one_or_none():
+                    await db.delete(ph)
+        await db.flush()
 
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 2, body.model_dump(exclude_unset=True), complete, next_step=3)
 
 
 @router.patch("/step/3", response_model=WizardProgress)
@@ -244,18 +282,7 @@ async def save_step_3(
             db.add(Supplier(**s.model_dump()))
         await db.flush()
 
-    if complete and 3 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [3]
-    state.current_step = 4 if complete else 3
-    state.draft_data = None if complete else body.model_dump(exclude_unset=True)
-    await db.flush()
-
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 3, body.model_dump(exclude_unset=True), complete, next_step=4)
 
 
 @router.patch("/step/4", response_model=WizardProgress)
@@ -273,31 +300,39 @@ async def save_step_4(
         Step4Complete(**body.model_dump())
 
     if body.growers:
-        await db.execute(delete(Grower))
-        await db.flush()
+        # Upsert by name — can't DELETE growers referenced by batches
+        result = await db.execute(select(Grower))
+        existing = {g.name: g for g in result.scalars().all()}
+
+        new_names: set[str] = set()
         for g in body.growers:
             data = g.model_dump()
-            # Convert nested FieldInput dicts
             if data.get("fields"):
                 data["fields"] = [
                     f if isinstance(f, dict) else f.model_dump()
                     for f in data["fields"]
                 ]
-            db.add(Grower(**data))
+            new_names.add(g.name)
+            if g.name in existing:
+                grower = existing[g.name]
+                for k, v in data.items():
+                    if k != "name":
+                        setattr(grower, k, v)
+            else:
+                db.add(Grower(**data))
         await db.flush()
 
-    if complete and 4 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [4]
-    state.current_step = 5 if complete else 4
-    state.draft_data = None if complete else body.model_dump(exclude_unset=True)
-    await db.flush()
+        # Remove growers no longer in the list (only if unreferenced)
+        for name, grower in existing.items():
+            if name not in new_names:
+                ref = await db.execute(
+                    select(Batch.id).where(Batch.grower_id == grower.id).limit(1)
+                )
+                if not ref.scalar_one_or_none():
+                    await db.delete(grower)
+        await db.flush()
 
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 4, body.model_dump(exclude_unset=True), complete, next_step=5)
 
 
 @router.patch("/step/5", response_model=WizardProgress)
@@ -312,24 +347,34 @@ async def save_step_5(
     _check_prerequisites(5, state.completed_steps)
 
     if body.harvest_teams:
-        await db.execute(delete(HarvestTeam))
-        await db.flush()
+        # Upsert by name — can't DELETE teams referenced by batches
+        result = await db.execute(select(HarvestTeam))
+        existing = {t.name: t for t in result.scalars().all()}
+
+        new_names: set[str] = set()
         for t in body.harvest_teams:
-            db.add(HarvestTeam(**t.model_dump()))
+            data = t.model_dump()
+            new_names.add(t.name)
+            if t.name in existing:
+                team = existing[t.name]
+                for k, v in data.items():
+                    if k != "name":
+                        setattr(team, k, v)
+            else:
+                db.add(HarvestTeam(**data))
         await db.flush()
 
-    if complete and 5 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [5]
-    state.current_step = 6 if complete else 5
-    state.draft_data = None if complete else body.model_dump(exclude_unset=True)
-    await db.flush()
+        # Remove teams no longer in the list (only if unreferenced)
+        for name, team in existing.items():
+            if name not in new_names:
+                ref = await db.execute(
+                    select(Batch.id).where(Batch.harvest_team_id == team.id).limit(1)
+                )
+                if not ref.scalar_one_or_none():
+                    await db.delete(team)
+        await db.flush()
 
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 5, body.model_dump(exclude_unset=True), complete, next_step=6)
 
 
 @router.patch("/step/6", response_model=WizardProgress)
@@ -360,18 +405,7 @@ async def save_step_6(
             db.add(PackSpec(**ps.model_dump()))
         await db.flush()
 
-    if complete and 6 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [6]
-    state.current_step = 7 if complete else 6
-    state.draft_data = None if complete else body.model_dump(exclude_unset=True)
-    await db.flush()
-
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 6, body.model_dump(exclude_unset=True), complete, next_step=7)
 
 
 @router.patch("/step/7", response_model=WizardProgress)
@@ -392,18 +426,7 @@ async def save_step_7(
             db.add(TransportConfig(**tc.model_dump()))
         await db.flush()
 
-    if complete and 7 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [7]
-    state.current_step = 8 if complete else 7
-    state.draft_data = None if complete else body.model_dump(exclude_unset=True)
-    await db.flush()
-
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 7, body.model_dump(exclude_unset=True), complete, next_step=8)
 
 
 @router.patch("/step/8", response_model=WizardProgress)
@@ -429,17 +452,7 @@ async def save_step_8(
             db.add(config)
         await db.flush()
 
-    if complete and 8 not in state.completed_steps:
-        state.completed_steps = state.completed_steps + [8]
-    state.draft_data = None if complete else data
-    await db.flush()
-
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=state.is_complete,
-        draft_data=state.draft_data,
-    )
+    return await _finish_step(db, state, 8, data, complete, next_step=8)
 
 
 # ── POST /api/wizard/complete ────────────────────────────────
@@ -447,6 +460,7 @@ async def save_step_8(
 @router.post("/complete", response_model=WizardProgress)
 async def complete_wizard(
     db: AsyncSession = Depends(get_tenant_db),
+    public_db: AsyncSession = Depends(get_db),
     user: User = Depends(require_permission("enterprise.manage")),
 ):
     """Finalize the wizard. All required steps (1-7) must be completed."""
@@ -469,9 +483,13 @@ async def complete_wizard(
     state.draft_data = None
     await db.flush()
 
-    return WizardProgress(
-        current_step=state.current_step,
-        completed_steps=state.completed_steps,
-        is_complete=True,
-        draft_data=None,
+    # Mark the enterprise as onboarded in the public schema
+    result = await public_db.execute(
+        select(Enterprise).where(Enterprise.id == user.enterprise_id)
     )
+    enterprise = result.scalar_one_or_none()
+    if enterprise:
+        enterprise.is_onboarded = True
+        await public_db.flush()
+
+    return _make_progress(state)

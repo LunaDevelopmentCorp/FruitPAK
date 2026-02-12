@@ -5,6 +5,7 @@ export interface WizardProgress {
   completed_steps: number[];
   is_complete: boolean;
   draft_data: Record<string, unknown> | null;
+  completed_data: Record<string, Record<string, unknown>>;
 }
 
 export async function getWizardProgress(): Promise<WizardProgress> {

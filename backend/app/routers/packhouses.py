@@ -5,14 +5,16 @@ Every endpoint uses:
   - require_permission → checks granular permissions from JWT (zero-DB-hit)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import require_permission
+from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.packhouse import Packhouse
+from app.schemas.common import PaginatedResponse
+from app.utils.cache import cached, invalidate_cache
 
 from pydantic import BaseModel
 
@@ -46,6 +48,7 @@ async def create_packhouse(
     body: PackhouseCreate,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.write")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     packhouse = Packhouse(
         name=body.name,
@@ -55,16 +58,44 @@ async def create_packhouse(
     )
     db.add(packhouse)
     await db.flush()
+
+    # Invalidate cache when creating new packhouse
+    await invalidate_cache("packhouses:*")
+
     return packhouse
 
 
-@router.get("/", response_model=list[PackhouseOut])
+@router.get("/", response_model=PaginatedResponse[PackhouseOut])
+@cached(ttl=300, prefix="packhouses")  # Cache for 5 minutes
 async def list_packhouses(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
-    result = await db.execute(select(Packhouse))
-    return result.scalars().all()
+    """List packhouses with caching (TTL: 5 minutes).
+
+    Cache is automatically invalidated when packhouses are created/updated.
+    """
+    # Count total packhouses
+    count_stmt = select(func.count(Packhouse.id))
+    total = await db.scalar(count_stmt) or 0
+
+    # Get paginated items
+    items_stmt = select(Packhouse).order_by(Packhouse.name).limit(limit).offset(offset)
+    result = await db.execute(items_stmt)
+    items = result.scalars().all()
+
+    # Convert to Pydantic models for caching
+    items_out = [PackhouseOut.model_validate(item) for item in items]
+
+    return PaginatedResponse(
+        items=items_out,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{packhouse_id}", response_model=PackhouseOut)
@@ -72,6 +103,7 @@ async def get_packhouse(
     packhouse_id: str,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("packhouse.read")),
+    _onboarded: User = Depends(require_onboarded),
 ):
     result = await db.execute(
         select(Packhouse).where(Packhouse.id == packhouse_id)

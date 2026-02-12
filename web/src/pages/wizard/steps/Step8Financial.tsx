@@ -1,6 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import type { StepProps } from "../WizardShell";
+import { Spinner } from "../WizardShell";
 
 interface FormData {
   currency: string;
@@ -51,8 +52,8 @@ export default function Step8Financial({ onSave, saving, draftData }: StepProps)
       </fieldset>
 
       <div className="flex gap-3 pt-4 border-t">
-        <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">Save Draft</button>
-        <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">Save & Complete</button>
+        <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">{saving && <Spinner />} Save Draft</button>
+        <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">{saving && <Spinner />} Save & Complete</button>
       </div>
     </form>
   );
