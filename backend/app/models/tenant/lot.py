@@ -90,4 +90,4 @@ class Lot(TenantBase):
     packhouse = relationship("Packhouse", backref="lots", lazy="selectin")
     product_config = relationship("ProductConfig", lazy="selectin")
     pack_spec = relationship("PackSpec", lazy="selectin")
-    pallets = relationship("Pallet", back_populates="lot", lazy="selectin")
+    pallet_lots = relationship("PalletLot", back_populates="lot", lazy="selectin")

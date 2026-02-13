@@ -8,6 +8,8 @@ import BatchesList from "./pages/BatchesList";
 import BatchDetail from "./pages/BatchDetail";
 import WizardShell from "./pages/wizard/WizardShell";
 import Payments from "./pages/Payments";
+import PalletsList from "./pages/PalletsList";
+import PalletDetail from "./pages/PalletDetail";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
@@ -46,6 +48,8 @@ export default function App() {
             <Route path="/grn-intake" element={<GrnIntake />} />
             <Route path="/batches" element={<BatchesList />} />
             <Route path="/batches/:batchId" element={<BatchDetail />} />
+            <Route path="/pallets" element={<PalletsList />} />
+            <Route path="/pallets/:palletId" element={<PalletDetail />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/reconciliation" element={<ReconciliationDashboard />} />
           </Route>

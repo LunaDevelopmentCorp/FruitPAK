@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import {
   getBatch,
@@ -9,6 +9,12 @@ import {
   BatchUpdatePayload,
   LotFromBatchItem,
 } from "../api/batches";
+import {
+  getPalletTypes,
+  createPalletsFromLots,
+  PalletTypeConfig,
+  LotAssignment,
+} from "../api/pallets";
 import BatchQR from "../components/BatchQR";
 import { showToast as globalToast } from "../store/toastStore";
 
@@ -17,11 +23,20 @@ export default function BatchDetail() {
   const [batch, setBatch] = useState<BatchDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const navigate = useNavigate();
   const [creatingLots, setCreatingLots] = useState(false);
   const [lotRows, setLotRows] = useState<LotFromBatchItem[]>([{ grade: "", carton_count: 0 }]);
   const [lotSaving, setLotSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Pallet creation state
+  const [creatingPallet, setCreatingPallet] = useState(false);
+  const [palletTypes, setPalletTypes] = useState<PalletTypeConfig[]>([]);
+  const [selectedPalletType, setSelectedPalletType] = useState("");
+  const [palletCapacity, setPalletCapacity] = useState(240);
+  const [lotAssignments, setLotAssignments] = useState<Record<string, number>>({});
+  const [palletSaving, setPalletSaving] = useState(false);
 
   const {
     register,
@@ -481,6 +496,206 @@ export default function BatchDetail() {
               <p className="text-gray-400 text-sm">No lots yet. Click "Create Lots" to split this batch.</p>
             ) : null}
           </div>
+
+          {/* Palletize */}
+          {batch.lots && batch.lots.length > 0 && (
+            <div className="bg-white rounded-lg border p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Palletize</h3>
+                {!creatingPallet && (
+                  <button
+                    onClick={() => {
+                      setCreatingPallet(true);
+                      getPalletTypes().then(setPalletTypes).catch(() => {});
+                      // Pre-fill lot assignments with carton counts
+                      const init: Record<string, number> = {};
+                      batch.lots.forEach((l) => { init[l.id] = l.carton_count; });
+                      setLotAssignments(init);
+                    }}
+                    className="text-sm text-green-600 hover:text-green-700 font-medium"
+                  >
+                    + Create Pallet
+                  </button>
+                )}
+              </div>
+
+              {creatingPallet && (
+                <div className="p-4 bg-gray-50 rounded-lg border space-y-4">
+                  {/* Pallet type selection */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Pallet Type *</label>
+                      {palletTypes.length > 0 ? (
+                        <select
+                          value={selectedPalletType}
+                          onChange={(e) => {
+                            setSelectedPalletType(e.target.value);
+                            const pt = palletTypes.find((t) => t.name === e.target.value);
+                            if (pt) setPalletCapacity(pt.capacity_boxes);
+                          }}
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        >
+                          <option value="">Select pallet type</option>
+                          {palletTypes.map((pt) => (
+                            <option key={pt.id} value={pt.name}>
+                              {pt.name} ({pt.capacity_boxes} boxes)
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={selectedPalletType}
+                          onChange={(e) => setSelectedPalletType(e.target.value)}
+                          placeholder="e.g. Standard 240"
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Capacity (boxes)</label>
+                      <input
+                        type="number"
+                        value={palletCapacity}
+                        onChange={(e) => setPalletCapacity(Number(e.target.value))}
+                        min={1}
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Lot assignment table */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Assign boxes from lots</label>
+                    <div className="border rounded overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 text-gray-600 text-xs">
+                          <tr>
+                            <th className="text-left px-2 py-1.5 font-medium">Lot</th>
+                            <th className="text-left px-2 py-1.5 font-medium">Grade</th>
+                            <th className="text-left px-2 py-1.5 font-medium">Size</th>
+                            <th className="text-right px-2 py-1.5 font-medium">Available</th>
+                            <th className="text-right px-2 py-1.5 font-medium">Assign</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {batch.lots.map((lot) => {
+                            const assigned = lotAssignments[lot.id] ?? 0;
+                            return (
+                              <tr key={lot.id}>
+                                <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                                <td className="px-2 py-1.5">{lot.grade || "—"}</td>
+                                <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                                <td className="px-2 py-1.5 text-right text-gray-500">{lot.carton_count}</td>
+                                <td className="px-2 py-1.5 text-right">
+                                  <input
+                                    type="number"
+                                    value={assigned}
+                                    onChange={(e) => setLotAssignments({
+                                      ...lotAssignments,
+                                      [lot.id]: Math.max(0, Math.min(lot.carton_count, Number(e.target.value))),
+                                    })}
+                                    min={0}
+                                    max={lot.carton_count}
+                                    className="w-20 border rounded px-2 py-1 text-sm text-right"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {(() => {
+                      const totalAssigned = Object.values(lotAssignments).reduce((a, b) => a + b, 0);
+                      const sizes = new Set(
+                        batch.lots
+                          .filter((l) => (lotAssignments[l.id] ?? 0) > 0)
+                          .map((l) => l.size)
+                          .filter(Boolean)
+                      );
+                      const mixedSizes = sizes.size > 1;
+                      return (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-gray-500">
+                            Total: <span className="font-medium">{totalAssigned}</span> boxes
+                            {palletCapacity > 0 && ` / ${palletCapacity} capacity`}
+                            {totalAssigned > palletCapacity && (
+                              <span className="text-yellow-600 ml-2">
+                                (overflow: {Math.ceil(totalAssigned / palletCapacity)} pallets will be created)
+                              </span>
+                            )}
+                          </p>
+                          {mixedSizes && (
+                            <p className="text-xs text-yellow-600 font-medium">
+                              Warning: Mixed sizes on pallet ({[...sizes].join(", ")})
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2 border-t">
+                    <button
+                      onClick={async () => {
+                        if (!selectedPalletType) {
+                          globalToast("error", "Select a pallet type.");
+                          return;
+                        }
+                        const assignments: LotAssignment[] = Object.entries(lotAssignments)
+                          .filter(([, count]) => count > 0)
+                          .map(([lot_id, box_count]) => {
+                            const lot = batch.lots.find((l) => l.id === lot_id);
+                            return { lot_id, box_count, size: lot?.size || undefined };
+                          });
+                        if (assignments.length === 0) {
+                          globalToast("error", "Assign boxes from at least one lot.");
+                          return;
+                        }
+                        setPalletSaving(true);
+                        try {
+                          const pallets = await createPalletsFromLots({
+                            pallet_type_name: selectedPalletType,
+                            capacity_boxes: palletCapacity,
+                            lot_assignments: assignments,
+                            packhouse_id: batch.packhouse_id,
+                          });
+                          globalToast("success", `${pallets.length} pallet(s) created.`);
+                          setCreatingPallet(false);
+                          setSelectedPalletType("");
+                          setLotAssignments({});
+                          // Refresh batch
+                          const refreshed = await getBatch(batchId!);
+                          setBatch(refreshed);
+                        } catch {
+                          globalToast("error", "Failed to create pallet.");
+                        } finally {
+                          setPalletSaving(false);
+                        }
+                      }}
+                      disabled={palletSaving}
+                      className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {palletSaving ? "Creating..." : "Create Pallet"}
+                    </button>
+                    <button
+                      onClick={() => { setCreatingPallet(false); setSelectedPalletType(""); setLotAssignments({}); }}
+                      className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <Link
+                      to="/pallets"
+                      className="ml-auto text-xs text-gray-500 hover:text-gray-700 self-center"
+                    >
+                      View all pallets &rarr;
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* QR Code */}
           <div className="bg-white rounded-lg border p-4">

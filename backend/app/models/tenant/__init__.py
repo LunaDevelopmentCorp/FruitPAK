@@ -12,7 +12,7 @@ from app.models.tenant.pack_line import PackLine
 from app.models.tenant.supplier import Supplier
 from app.models.tenant.grower import Grower
 from app.models.tenant.harvest_team import HarvestTeam
-from app.models.tenant.product_config import ProductConfig, PackSpec
+from app.models.tenant.product_config import ProductConfig, PackSpec, BoxSize, PalletType
 from app.models.tenant.transport_config import TransportConfig
 from app.models.tenant.financial_config import FinancialConfig
 
@@ -20,7 +20,7 @@ from app.models.tenant.financial_config import FinancialConfig
 from app.models.tenant.batch import Batch
 from app.models.tenant.batch_history import BatchHistory
 from app.models.tenant.lot import Lot
-from app.models.tenant.pallet import Pallet
+from app.models.tenant.pallet import Pallet, PalletLot
 from app.models.tenant.container import Container
 from app.models.tenant.export import Export
 
@@ -37,9 +37,10 @@ __all__ = [
     # Setup / config
     "WizardState", "CompanyProfile", "Packhouse", "PackLine",
     "Supplier", "Grower", "HarvestTeam",
-    "ProductConfig", "PackSpec", "TransportConfig", "FinancialConfig",
+    "ProductConfig", "PackSpec", "BoxSize", "PalletType",
+    "TransportConfig", "FinancialConfig",
     # Core operational
-    "Batch", "BatchHistory", "Lot", "Pallet", "Container", "Export",
+    "Batch", "BatchHistory", "Lot", "Pallet", "PalletLot", "Container", "Export",
     # Financial
     "GrowerPayment", "LabourCost", "ClientInvoice", "Credit",
     # Reconciliation
