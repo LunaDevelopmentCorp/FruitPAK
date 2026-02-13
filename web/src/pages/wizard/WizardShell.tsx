@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useWizard } from "../../hooks/useWizard";
 import { useAuthStore } from "../../store/authStore";
 import { showToast as globalToast } from "../../store/toastStore";
@@ -140,9 +140,15 @@ export default function WizardShell() {
     }
   };
 
+  const markOnboarded = useAuthStore((s) => s.markOnboarded);
+  const navigate = useNavigate();
+
   const handleFinish = async () => {
     try {
       await finish();
+      markOnboarded();
+      globalToast("success", "Setup complete! Welcome to FruitPAK.");
+      navigate("/dashboard");
     } catch {
       globalToast("error", "Failed to complete setup — please try again.");
     }

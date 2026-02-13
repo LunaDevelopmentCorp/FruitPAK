@@ -18,6 +18,7 @@ interface AuthState {
   refreshToken: string | null;
   user: AuthUser | null;
   setAuth: (token: string, refreshToken: string, user: AuthUser) => void;
+  markOnboarded: () => void;
   logout: () => void;
   isAuthenticated: () => boolean;
   isOnboarded: () => boolean;
@@ -45,6 +46,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.setItem("refresh_token", refreshToken);
     localStorage.setItem("user", JSON.stringify(user));
     set({ token, refreshToken, user });
+  },
+
+  markOnboarded: () => {
+    const user = get().user;
+    if (user) {
+      const updated = { ...user, is_onboarded: true };
+      localStorage.setItem("user", JSON.stringify(updated));
+      set({ user: updated });
+    }
   },
 
   logout: () => {

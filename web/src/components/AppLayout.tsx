@@ -2,7 +2,7 @@ import React from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
-const NAV_ITEMS = [
+const NAV_ITEMS_FULL = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/setup", label: "Setup Wizard" },
   { to: "/grn-intake", label: "GRN Intake" },
@@ -11,11 +11,17 @@ const NAV_ITEMS = [
   { to: "/reconciliation", label: "Reconciliation" },
 ];
 
+const NAV_ITEMS_SETUP = [
+  { to: "/setup", label: "Setup Wizard" },
+];
+
 export default function AppLayout() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const navItems = user?.is_onboarded ? NAV_ITEMS_FULL : NAV_ITEMS_SETUP;
 
   const handleLogout = () => {
     logout();
@@ -33,7 +39,7 @@ export default function AppLayout() {
                 FruitPAK
               </Link>
               <nav className="hidden sm:flex gap-1">
-                {NAV_ITEMS.map((item) => (
+                {navItems.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}

@@ -103,9 +103,7 @@ api.interceptors.response.use(
     // 403 Forbidden — NOT an auth failure; user is authenticated but not authorized
     // for this specific action. Don't nuke auth — let the calling code handle it.
     if (status === 403) {
-      const detail = (error.response?.data as Record<string, unknown>)?.detail || "Access denied";
-      console.warn("[api] 403 Forbidden:", detail);
-      showToast("warning", String(detail));
+      console.warn("[api] 403 Forbidden:", (error.response?.data as Record<string, unknown>)?.detail || "Access denied");
       return Promise.reject(error);
     }
 
