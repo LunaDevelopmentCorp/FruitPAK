@@ -170,9 +170,24 @@ class PackSpecInput(BaseModel):
     target_market: str | None = None
 
 
+class BoxSizeInput(BaseModel):
+    name: str
+    size_code: int | None = None
+    fruit_count: int | None = None
+    weight_kg: float = 4.0
+
+
+class PalletTypeInput(BaseModel):
+    name: str
+    capacity_boxes: int = 240
+    notes: str | None = None
+
+
 class Step6Data(BaseModel):
     products: list[ProductInput] | None = None
     pack_specs: list[PackSpecInput] | None = None
+    box_sizes: list[BoxSizeInput] | None = None
+    pallet_types: list[PalletTypeInput] | None = None
 
 
 class Step6Complete(Step6Data):

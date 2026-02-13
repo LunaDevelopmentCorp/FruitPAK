@@ -48,3 +48,31 @@ class PackSpec(TenantBase):
     # Target market / client specific
     target_market: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class BoxSize(TenantBase):
+    """Enterprise-specific box/carton size definition."""
+    __tablename__ = "box_sizes"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Size code (fruit count reference): 4, 5, 6, 7, 8, 9, 10, 12, 14
+    size_code: Mapped[int | None] = mapped_column(Integer)
+    fruit_count: Mapped[int | None] = mapped_column(Integer)
+    weight_kg: Mapped[float] = mapped_column(Float, default=4.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PalletType(TenantBase):
+    """Enterprise-specific pallet structure definition."""
+    __tablename__ = "pallet_types"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    capacity_boxes: Mapped[int] = mapped_column(Integer, default=240)
+    notes: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

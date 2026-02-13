@@ -121,9 +121,37 @@ async def _scheduler_loop() -> None:
         await asyncio.sleep(60)
 
 
+async def _ensure_tenant_tables():
+    """Create any missing TenantBase tables in all existing tenant schemas.
+
+    Runs once at startup so that new models (e.g. box_sizes, pallet_types)
+    are provisioned for tenants created before those models existed.
+    """
+    from app.database import TenantBase, engine
+    from sqlalchemy import text
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'tenant_%'")
+        )
+        schemas = [row[0] for row in result.fetchall()]
+
+    for schema in schemas:
+        async with engine.begin() as conn:
+            def _sync_create(sync_conn):
+                for table in TenantBase.metadata.tables.values():
+                    table.schema = schema
+                TenantBase.metadata.create_all(bind=sync_conn, checkfirst=True)
+                for table in TenantBase.metadata.tables.values():
+                    table.schema = None
+            await conn.run_sync(_sync_create)
+        logger.info("Ensured tables for schema %s", schema)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan: start the scheduler on startup, cancel on shutdown."""
+    await _ensure_tenant_tables()
     task = asyncio.create_task(_scheduler_loop())
     logger.info("Reconciliation scheduler started")
     try:

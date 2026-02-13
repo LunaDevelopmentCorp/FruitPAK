@@ -27,7 +27,7 @@ from app.models.tenant.grower import Grower
 from app.models.tenant.harvest_team import HarvestTeam
 from app.models.tenant.pack_line import PackLine
 from app.models.tenant.packhouse import Packhouse
-from app.models.tenant.product_config import PackSpec, ProductConfig
+from app.models.tenant.product_config import BoxSize, PackSpec, PalletType, ProductConfig
 from app.models.tenant.supplier import Supplier
 from app.models.tenant.transport_config import TransportConfig
 from app.models.tenant.wizard_state import WizardState
@@ -403,6 +403,20 @@ async def save_step_6(
         await db.flush()
         for ps in body.pack_specs:
             db.add(PackSpec(**ps.model_dump()))
+        await db.flush()
+
+    if body.box_sizes:
+        await db.execute(delete(BoxSize))
+        await db.flush()
+        for bs in body.box_sizes:
+            db.add(BoxSize(**bs.model_dump()))
+        await db.flush()
+
+    if body.pallet_types:
+        await db.execute(delete(PalletType))
+        await db.flush()
+        for pt in body.pallet_types:
+            db.add(PalletType(**pt.model_dump()))
         await db.flush()
 
     return await _finish_step(db, state, 6, body.model_dump(exclude_unset=True), complete, next_step=7)
