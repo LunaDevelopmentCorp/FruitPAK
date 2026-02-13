@@ -4,16 +4,22 @@ import { useForm } from "react-hook-form";
 import {
   getBatch,
   updateBatch,
+  createLotsFromBatch,
   BatchDetail as BatchDetailType,
   BatchUpdatePayload,
+  LotFromBatchItem,
 } from "../api/batches";
 import BatchQR from "../components/BatchQR";
+import { showToast as globalToast } from "../store/toastStore";
 
 export default function BatchDetail() {
   const { batchId } = useParams<{ batchId: string }>();
   const [batch, setBatch] = useState<BatchDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [creatingLots, setCreatingLots] = useState(false);
+  const [lotRows, setLotRows] = useState<LotFromBatchItem[]>([{ grade: "", carton_count: 0 }]);
+  const [lotSaving, setLotSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -294,6 +300,186 @@ export default function BatchDetail() {
               <Row label="Rejection Reason" value={batch.rejection_reason || "—"} />
               <Row label="Notes" value={batch.notes || "—"} />
             </div>
+          </div>
+
+          {/* Packing Lots */}
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Packing Lots {batch.lots?.length > 0 && `(${batch.lots.length})`}
+              </h3>
+              {!creatingLots && (
+                <button
+                  onClick={() => setCreatingLots(true)}
+                  className="text-sm text-green-600 hover:text-green-700 font-medium"
+                >
+                  + Create Lots
+                </button>
+              )}
+            </div>
+
+            {/* Create lots form */}
+            {creatingLots && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border space-y-3">
+                <p className="text-xs text-gray-500">
+                  Split this batch into lots by grade/size. Each row creates one lot.
+                </p>
+                {lotRows.map((row, idx) => (
+                  <div key={idx} className="grid grid-cols-5 gap-2 items-end">
+                    <div>
+                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Grade *</label>}
+                      <select
+                        value={row.grade}
+                        onChange={(e) => {
+                          const updated = [...lotRows];
+                          updated[idx] = { ...updated[idx], grade: e.target.value };
+                          setLotRows(updated);
+                        }}
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Select</option>
+                        <option value="Class 1">Class 1</option>
+                        <option value="Class 2">Class 2</option>
+                        <option value="Class 3">Class 3</option>
+                        <option value="Industrial">Industrial</option>
+                      </select>
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Size</label>}
+                      <input
+                        value={row.size || ""}
+                        onChange={(e) => {
+                          const updated = [...lotRows];
+                          updated[idx] = { ...updated[idx], size: e.target.value };
+                          setLotRows(updated);
+                        }}
+                        placeholder="e.g. Large"
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Weight (kg)</label>}
+                      <input
+                        type="number"
+                        value={row.weight_kg ?? ""}
+                        onChange={(e) => {
+                          const updated = [...lotRows];
+                          updated[idx] = { ...updated[idx], weight_kg: e.target.value ? Number(e.target.value) : undefined };
+                          setLotRows(updated);
+                        }}
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Cartons</label>}
+                      <input
+                        type="number"
+                        value={row.carton_count ?? ""}
+                        onChange={(e) => {
+                          const updated = [...lotRows];
+                          updated[idx] = { ...updated[idx], carton_count: e.target.value ? Number(e.target.value) : 0 };
+                          setLotRows(updated);
+                        }}
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      {lotRows.length > 1 && (
+                        <button
+                          onClick={() => setLotRows(lotRows.filter((_, i) => i !== idx))}
+                          className="text-xs text-red-500 hover:text-red-700 py-1.5"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setLotRows([...lotRows, { grade: "", carton_count: 0 }])}
+                  className="text-xs text-green-600 hover:text-green-700"
+                >
+                  + Add row
+                </button>
+                <div className="flex gap-2 pt-2 border-t">
+                  <button
+                    onClick={async () => {
+                      const valid = lotRows.filter((r) => r.grade);
+                      if (valid.length === 0) {
+                        globalToast("error", "At least one lot with a grade is required.");
+                        return;
+                      }
+                      setLotSaving(true);
+                      try {
+                        await createLotsFromBatch(batchId!, valid);
+                        globalToast("success", `${valid.length} lot(s) created.`);
+                        setCreatingLots(false);
+                        setLotRows([{ grade: "", carton_count: 0 }]);
+                        // Refresh batch to show new lots
+                        const refreshed = await getBatch(batchId!);
+                        setBatch(refreshed);
+                      } catch {
+                        globalToast("error", "Failed to create lots.");
+                      } finally {
+                        setLotSaving(false);
+                      }
+                    }}
+                    disabled={lotSaving}
+                    className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {lotSaving ? "Creating..." : "Create Lots"}
+                  </button>
+                  <button
+                    onClick={() => { setCreatingLots(false); setLotRows([{ grade: "", carton_count: 0 }]); }}
+                    className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Lots table */}
+            {batch.lots && batch.lots.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead className="text-gray-500 text-xs">
+                  <tr>
+                    <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Grade</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Size</th>
+                    <th className="text-right px-2 py-1.5 font-medium">Cartons</th>
+                    <th className="text-right px-2 py-1.5 font-medium">Weight</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {batch.lots.map((lot) => (
+                    <tr key={lot.id} className="hover:bg-gray-50">
+                      <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                      <td className="px-2 py-1.5">{lot.grade || "—"}</td>
+                      <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                      <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
+                      <td className="px-2 py-1.5 text-right">
+                        {lot.weight_kg ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                          lot.status === "created" ? "bg-blue-50 text-blue-700"
+                          : lot.status === "palletizing" ? "bg-yellow-50 text-yellow-700"
+                          : lot.status === "stored" ? "bg-green-50 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                        }`}>
+                          {lot.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : !creatingLots ? (
+              <p className="text-gray-400 text-sm">No lots yet. Click "Create Lots" to split this batch.</p>
+            ) : null}
           </div>
 
           {/* QR Code */}

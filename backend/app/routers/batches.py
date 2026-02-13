@@ -122,7 +122,7 @@ async def list_batches(
     items = result.scalars().all()
 
     return PaginatedResponse(
-        items=items,
+        items=[BatchSummary.model_validate(b) for b in items],
         total=total,
         limit=limit,
         offset=offset,
@@ -139,12 +139,19 @@ async def get_batch(
     _onboarded: User = Depends(require_onboarded),
 ):
     result = await db.execute(
-        select(Batch).where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        select(Batch)
+        .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(
+            selectinload(Batch.grower),
+            selectinload(Batch.packhouse),
+            selectinload(Batch.history),
+            selectinload(Batch.lots),
+        )
     )
     batch = result.scalar_one_or_none()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    return batch
+    return BatchDetailOut.model_validate(batch)
 
 
 # ── QR code ──────────────────────────────────────────────────
@@ -207,4 +214,4 @@ async def update_batch(
 
     await db.flush()
     await invalidate_cache("batches:*")
-    return batch
+    return BatchOut.model_validate(batch)

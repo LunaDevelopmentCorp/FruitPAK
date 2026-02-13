@@ -1,8 +1,12 @@
 """Pydantic schemas for Batch CRUD operations."""
 
+from __future__ import annotations
+
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field, model_validator
+
+from app.schemas.lot import LotSummary
 
 
 # ── GRN Intake (primary intake flow) ─────────────────────────
@@ -158,12 +162,13 @@ class BatchHistoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ── Detail (full, with resolved names + history) ────────────
+# ── Detail (full, with resolved names + history + lots) ──────
 
 class BatchDetailOut(BatchOut):
     grower_name: str | None = None
     packhouse_name: str | None = None
     history: list[BatchHistoryOut] = []
+    lots: list[LotSummary] = []
 
     @model_validator(mode="before")
     @classmethod

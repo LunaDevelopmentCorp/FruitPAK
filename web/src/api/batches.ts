@@ -89,6 +89,7 @@ export interface BatchDetail extends BatchOut {
   updated_at: string;
   packhouse_name: string | null;
   history: BatchHistoryItem[];
+  lots: LotSummary[];
 }
 
 export interface BatchUpdatePayload {
@@ -127,5 +128,55 @@ export async function listGrowers(): Promise<Grower[]> {
 
 export async function listPackhouses(): Promise<Packhouse[]> {
   const { data } = await api.get<PaginatedResponse<Packhouse>>("/packhouses/");
+  return data.items;
+}
+
+// ── Lots ──────────────────────────────────────────────────────
+
+export interface LotSummary {
+  id: string;
+  lot_code: string;
+  batch_id: string;
+  grade: string | null;
+  size: string | null;
+  carton_count: number;
+  weight_kg: number | null;
+  status: string;
+  pack_date: string | null;
+  created_at: string;
+}
+
+export interface LotFromBatchItem {
+  grade: string;
+  size?: string;
+  weight_kg?: number;
+  carton_count?: number;
+  pack_date?: string;
+  notes?: string;
+}
+
+export interface LotOut extends LotSummary {
+  fruit_type: string;
+  variety: string | null;
+  batch_code: string | null;
+  grower_name: string | null;
+}
+
+export async function createLotsFromBatch(
+  batchId: string,
+  lots: LotFromBatchItem[]
+): Promise<LotOut[]> {
+  const { data } = await api.post<LotOut[]>(`/lots/from-batch/${batchId}`, {
+    lots,
+  });
+  return data;
+}
+
+export async function listLots(
+  params?: Record<string, string>
+): Promise<LotSummary[]> {
+  const { data } = await api.get<PaginatedResponse<LotSummary>>("/lots/", {
+    params,
+  });
   return data.items;
 }

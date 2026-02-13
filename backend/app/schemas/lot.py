@@ -5,7 +5,24 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field
 
 
-# ── Create ───────────────────────────────────────────────────
+# ── Create lots from a batch (high-level) ────────────────────
+
+class LotFromBatchItem(BaseModel):
+    """A single lot to create from a batch (one grade/size combo)."""
+    grade: str = Field(..., max_length=50)
+    size: str | None = Field(None, max_length=50)
+    weight_kg: float | None = Field(None, ge=0)
+    carton_count: int = Field(0, ge=0)
+    pack_date: date | None = None
+    notes: str | None = None
+
+
+class LotsFromBatchRequest(BaseModel):
+    """Payload for POST /api/lots/from-batch/{batch_id}."""
+    lots: list[LotFromBatchItem] = Field(..., min_length=1)
+
+
+# ── Create (low-level) ──────────────────────────────────────
 
 class LotCreate(BaseModel):
     lot_code: str = Field(..., max_length=50)
@@ -72,7 +89,20 @@ class LotOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # Resolved names
+    batch_code: str | None = None
+    grower_name: str | None = None
+
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm_with_names(cls, lot) -> "LotOut":
+        data = cls.model_validate(lot)
+        if hasattr(lot, "batch") and lot.batch:
+            data.batch_code = lot.batch.batch_code
+        if hasattr(lot, "grower") and lot.grower:
+            data.grower_name = lot.grower.name
+        return data
 
 
 # ── List (lightweight) ───────────────────────────────────────
