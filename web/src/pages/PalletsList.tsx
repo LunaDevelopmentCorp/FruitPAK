@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { listPallets, PalletSummary } from "../api/pallets";
+import { createContainerFromPallets } from "../api/containers";
+import { showToast as globalToast } from "../store/toastStore";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-50 text-blue-700",
@@ -11,6 +13,8 @@ const STATUS_COLORS: Record<string, string> = {
   exported: "bg-gray-100 text-gray-600",
 };
 
+const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
+
 export default function PalletsList() {
   const navigate = useNavigate();
   const [pallets, setPallets] = useState<PalletSummary[]>([]);
@@ -19,7 +23,17 @@ export default function PalletsList() {
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
+  // Container assignment
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showContainerForm, setShowContainerForm] = useState(false);
+  const [containerType, setContainerType] = useState("reefer_20ft");
+  const [capacityPallets, setCapacityPallets] = useState(20);
+  const [customerName, setCustomerName] = useState("");
+  const [destination, setDestination] = useState("");
+  const [sealNumber, setSealNumber] = useState("");
+  const [containerSaving, setContainerSaving] = useState(false);
+
+  const fetchPallets = () => {
     setLoading(true);
     const params: Record<string, string> = {};
     if (statusFilter) params.status = statusFilter;
@@ -27,6 +41,10 @@ export default function PalletsList() {
       .then(setPallets)
       .catch(() => setError("Failed to load pallets"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPallets();
   }, [statusFilter]);
 
   const filtered = pallets.filter((p) => {
@@ -40,6 +58,51 @@ export default function PalletsList() {
     );
   });
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const assignableSelected = filtered.filter(
+    (p) => selectedIds.has(p.id) && !["loaded", "exported"].includes(p.status)
+  );
+
+  const handleCreateContainer = async () => {
+    if (assignableSelected.length === 0) {
+      globalToast("error", "Select at least one pallet to assign.");
+      return;
+    }
+    if (!containerType) {
+      globalToast("error", "Select a container type.");
+      return;
+    }
+    setContainerSaving(true);
+    try {
+      const result = await createContainerFromPallets({
+        container_type: containerType,
+        capacity_pallets: capacityPallets,
+        pallet_ids: assignableSelected.map((p) => p.id),
+        customer_name: customerName || undefined,
+        destination: destination || undefined,
+        seal_number: sealNumber || undefined,
+      });
+      globalToast("success", `Container ${result.container_number} created with ${assignableSelected.length} pallet(s).`);
+      setShowContainerForm(false);
+      setSelectedIds(new Set());
+      setCustomerName("");
+      setDestination("");
+      setSealNumber("");
+      fetchPallets();
+    } catch {
+      globalToast("error", "Failed to create container.");
+    } finally {
+      setContainerSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -47,12 +110,106 @@ export default function PalletsList() {
           <h1 className="text-2xl font-bold text-gray-800">Pallets</h1>
           <p className="text-sm text-gray-500 mt-1">
             {filtered.length} pallet{filtered.length !== 1 ? "s" : ""}
+            {selectedIds.size > 0 && ` \u00b7 ${selectedIds.size} selected`}
           </p>
+        </div>
+        <div className="flex gap-2">
+          {selectedIds.size > 0 && !showContainerForm && (
+            <button
+              onClick={() => setShowContainerForm(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
+            >
+              Assign to Container ({selectedIds.size})
+            </button>
+          )}
+          <Link
+            to="/containers"
+            className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
+          >
+            View Containers
+          </Link>
         </div>
       </div>
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
+      )}
+
+      {/* Container creation form */}
+      {showContainerForm && (
+        <div className="mb-6 bg-white rounded-lg border p-4 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-700">Create Container</h3>
+          <p className="text-xs text-gray-500">
+            Assigning {assignableSelected.length} pallet(s) with{" "}
+            {assignableSelected.reduce((a, p) => a + p.current_boxes, 0)} total boxes.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Container Type *</label>
+              <select
+                value={containerType}
+                onChange={(e) => setContainerType(e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              >
+                {CONTAINER_TYPES.map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Capacity (pallets)</label>
+              <input
+                type="number"
+                value={capacityPallets}
+                onChange={(e) => setCapacityPallets(Number(e.target.value))}
+                min={1}
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Customer</label>
+              <input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Customer name"
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Destination</label>
+              <input
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                placeholder="e.g. Rotterdam, NL"
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Seal Number</label>
+              <input
+                value={sealNumber}
+                onChange={(e) => setSealNumber(e.target.value)}
+                placeholder="Optional"
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2 border-t">
+            <button
+              onClick={handleCreateContainer}
+              disabled={containerSaving}
+              className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {containerSaving ? "Creating..." : "Create Container"}
+            </button>
+            <button
+              onClick={() => setShowContainerForm(false)}
+              className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -74,6 +231,15 @@ export default function PalletsList() {
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
+
+        {selectedIds.size > 0 && (
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            Clear selection
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -85,45 +251,72 @@ export default function PalletsList() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
+                <th className="w-10 px-2 py-2">
+                  <input
+                    type="checkbox"
+                    checked={filtered.every((p) => selectedIds.has(p.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(new Set(filtered.map((p) => p.id)));
+                      } else {
+                        setSelectedIds(new Set());
+                      }
+                    }}
+                    className="rounded"
+                  />
+                </th>
                 <th className="text-left px-4 py-2 font-medium">Pallet #</th>
                 <th className="text-left px-4 py-2 font-medium">Type</th>
                 <th className="text-left px-4 py-2 font-medium">Fruit</th>
                 <th className="text-left px-4 py-2 font-medium">Grade</th>
                 <th className="text-left px-4 py-2 font-medium">Size</th>
                 <th className="text-right px-4 py-2 font-medium">Boxes</th>
-                <th className="text-right px-4 py-2 font-medium">Capacity</th>
                 <th className="text-left px-4 py-2 font-medium">Status</th>
                 <th className="text-left px-4 py-2 font-medium">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => navigate(`/pallets/${p.id}`)}
-                  className="hover:bg-gray-50 cursor-pointer"
-                >
-                  <td className="px-4 py-2 font-mono text-xs text-green-700">
-                    {p.pallet_number}
-                  </td>
-                  <td className="px-4 py-2">{p.pallet_type_name || "\u2014"}</td>
-                  <td className="px-4 py-2">{p.fruit_type || "\u2014"}</td>
-                  <td className="px-4 py-2">{p.grade || "\u2014"}</td>
-                  <td className="px-4 py-2">{p.size || "\u2014"}</td>
-                  <td className="px-4 py-2 text-right font-medium">{p.current_boxes}</td>
-                  <td className="px-4 py-2 text-right text-gray-500">{p.capacity_boxes}</td>
-                  <td className="px-4 py-2">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                      STATUS_COLORS[p.status] || "bg-gray-100 text-gray-600"
-                    }`}>
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-gray-500">
-                    {new Date(p.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((p) => {
+                const isLoaded = ["loaded", "exported"].includes(p.status);
+                return (
+                  <tr
+                    key={p.id}
+                    className={`hover:bg-gray-50 ${selectedIds.has(p.id) ? "bg-green-50" : ""}`}
+                  >
+                    <td className="px-2 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(p.id)}
+                        disabled={isLoaded}
+                        onChange={() => toggleSelect(p.id)}
+                        className="rounded"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                    <td
+                      className="px-4 py-2 font-mono text-xs text-green-700 cursor-pointer"
+                      onClick={() => navigate(`/pallets/${p.id}`)}
+                    >
+                      {p.pallet_number}
+                    </td>
+                    <td className="px-4 py-2">{p.pallet_type_name || "\u2014"}</td>
+                    <td className="px-4 py-2">{p.fruit_type || "\u2014"}</td>
+                    <td className="px-4 py-2">{p.grade || "\u2014"}</td>
+                    <td className="px-4 py-2">{p.size || "\u2014"}</td>
+                    <td className="px-4 py-2 text-right font-medium">{p.current_boxes}</td>
+                    <td className="px-4 py-2">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        STATUS_COLORS[p.status] || "bg-gray-100 text-gray-600"
+                      }`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-gray-500">
+                      {new Date(p.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

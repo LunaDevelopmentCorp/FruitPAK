@@ -33,6 +33,12 @@ class Container(TenantBase):
     )
     # "reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"
     container_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    capacity_pallets: Mapped[int] = mapped_column(Integer, default=20)
+
+    # ── Customer / destination ────────────────────────────────
+    customer_name: Mapped[str | None] = mapped_column(String(255))
+    destination: Mapped[str | None] = mapped_column(String(255))
+    export_date: Mapped[datetime | None] = mapped_column(DateTime)
 
     # ── Loading details ──────────────────────────────────────
     packhouse_id: Mapped[str | None] = mapped_column(
@@ -63,6 +69,7 @@ class Container(TenantBase):
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # ── Metadata ─────────────────────────────────────────────
+    qr_code_url: Mapped[str | None] = mapped_column(String(500))
     notes: Mapped[str | None] = mapped_column(Text)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
