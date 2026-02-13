@@ -48,12 +48,10 @@ function Spinner() {
 export { Spinner };
 
 export default function WizardShell() {
+  // ── All hooks MUST be called before any early return ──
   const user = useAuthStore((s) => s.user);
-
-  // Redirect to enterprise creation if no tenant exists yet
-  if (!user?.enterprise_id) {
-    return <Navigate to="/enterprise-setup" replace />;
-  }
+  const markOnboarded = useAuthStore((s) => s.markOnboarded);
+  const navigate = useNavigate();
 
   const {
     progress,
@@ -75,6 +73,11 @@ export default function WizardShell() {
   React.useEffect(() => {
     if (progress) setActiveStep(progress.current_step);
   }, [progress?.current_step]);
+
+  // Redirect to enterprise creation if no tenant exists yet
+  if (!user?.enterprise_id) {
+    return <Navigate to="/enterprise-setup" replace />;
+  }
 
   if (loading) {
     return (
@@ -139,9 +142,6 @@ export default function WizardShell() {
       globalToast("error", "Failed to save — please try again.");
     }
   };
-
-  const markOnboarded = useAuthStore((s) => s.markOnboarded);
-  const navigate = useNavigate();
 
   const handleFinish = async () => {
     try {
