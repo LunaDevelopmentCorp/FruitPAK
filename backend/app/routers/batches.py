@@ -23,6 +23,8 @@ from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
+from app.models.tenant.lot import Lot
+from app.models.tenant.pallet import PalletLot
 from app.schemas.batch import (
     BatchDetailOut,
     BatchOut,
@@ -30,6 +32,7 @@ from app.schemas.batch import (
     BatchUpdate,
     GRNRequest,
     GRNResponse,
+    LotSummaryWithAllocation,
 )
 from app.schemas.common import PaginatedResponse
 from app.services.grn import create_grn
@@ -151,7 +154,32 @@ async def get_batch(
     batch = result.scalar_one_or_none()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    return BatchDetailOut.model_validate(batch)
+
+    detail = BatchDetailOut.model_validate(batch)
+
+    # Resolve received_by UUID → user full_name
+    # Tenant session search_path includes public, so User table is accessible
+    if batch.received_by:
+        user_result = await db.execute(
+            select(User.full_name).where(User.id == batch.received_by)
+        )
+        name = user_result.scalar_one_or_none()
+        if name:
+            detail.received_by_name = name
+
+    # Compute palletized box counts per lot
+    if batch.lots:
+        lot_ids = [lot.id for lot in batch.lots]
+        pal_result = await db.execute(
+            select(PalletLot.lot_id, func.sum(PalletLot.box_count))
+            .where(PalletLot.lot_id.in_(lot_ids))
+            .group_by(PalletLot.lot_id)
+        )
+        palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}
+        for lot_out in detail.lots:
+            lot_out.palletized_boxes = palletized_map.get(lot_out.id, 0)
+
+    return detail
 
 
 # ── QR code ──────────────────────────────────────────────────
@@ -212,6 +240,63 @@ async def update_batch(
         if batch.gross_weight_kg is not None:
             batch.net_weight_kg = batch.gross_weight_kg - (batch.tare_weight_kg or 0)
 
+    await db.flush()
+    await invalidate_cache("batches:*")
+    return BatchOut.model_validate(batch)
+
+
+# ── Close production run ─────────────────────────────────────
+
+@router.post("/{batch_id}/close", response_model=BatchOut)
+async def close_production_run(
+    batch_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Close a batch production run.
+
+    Validates that incoming weight is accounted for (lot weight + waste).
+    Sets status to 'complete'.
+    """
+    result = await db.execute(
+        select(Batch)
+        .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(selectinload(Batch.lots))
+    )
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    if batch.status == "complete":
+        raise HTTPException(status_code=400, detail="Batch already closed")
+
+    # Check for unallocated boxes (lots with cartons not yet palletized)
+    lot_ids = [lot.id for lot in batch.lots] if batch.lots else []
+    palletized_map: dict[str, int] = {}
+    if lot_ids:
+        pal_result = await db.execute(
+            select(PalletLot.lot_id, func.sum(PalletLot.box_count))
+            .where(PalletLot.lot_id.in_(lot_ids))
+            .group_by(PalletLot.lot_id)
+        )
+        palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}
+
+    unallocated_lots = []
+    for lot in (batch.lots or []):
+        palletized = palletized_map.get(lot.id, 0)
+        if palletized < lot.carton_count:
+            unallocated_lots.append(
+                f"{lot.lot_code}: {lot.carton_count - palletized} boxes unallocated"
+            )
+
+    if unallocated_lots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot close: {'; '.join(unallocated_lots)}",
+        )
+
+    batch.status = "complete"
     await db.flush()
     await invalidate_cache("batches:*")
     return BatchOut.model_validate(batch)

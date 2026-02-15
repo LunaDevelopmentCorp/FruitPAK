@@ -26,7 +26,7 @@ const EMPTY_GROWER: GrowerForm = {
 };
 
 export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
-  const { register, control, handleSubmit, watch, setError, clearErrors, formState } = useForm<FormData>({
+  const { register, control, watch, getValues, setError, clearErrors, formState } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? { growers: [{ ...EMPTY_GROWER }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "growers" });
@@ -37,12 +37,16 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
   const hasUncertified = growers?.some((g) => g.name?.trim() && !g.globalg_ap_certified);
   const hasEntries = growers?.some((g) => g.name?.trim());
 
-  const saveDraft = handleSubmit((data) => onSave(data, false));
+  const filterEmpty = (data: FormData) => ({
+    growers: data.growers.filter((g) => g.name?.trim()),
+  });
+  const saveDraft = () => onSave(filterEmpty(getValues()), false);
 
-  const saveAndComplete = handleSubmit((data) => {
+  const saveAndComplete = () => {
+    const filtered = filterEmpty(getValues());
     // Validate: certified growers must have GGN number
     let valid = true;
-    data.growers.forEach((g, idx) => {
+    filtered.growers.forEach((g, idx) => {
       if (g.globalg_ap_certified && !g.globalg_ap_number?.trim()) {
         setError(`growers.${idx}.globalg_ap_number`, {
           type: "manual",
@@ -55,8 +59,8 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
       setShowForms(true);
       return;
     }
-    return onSave(data, true);
-  });
+    return onSave(filtered, true);
+  };
 
   return (
     <form className="space-y-6 max-w-2xl">
@@ -114,11 +118,9 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
                       >
                         Edit
                       </button>
-                      {fields.length > 1 && (
-                        <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500">
+                      <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">
                           Remove
                         </button>
-                      )}
                     </td>
                   </tr>
                 ) : null
@@ -138,12 +140,10 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
               <fieldset key={field.id} className="p-4 border rounded space-y-3">
                 <div className="flex justify-between items-center">
                   <legend className="text-sm font-medium text-gray-700">Grower {idx + 1}</legend>
-                  {fields.length > 1 && (
-                    <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500">Remove</button>
-                  )}
+                  <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input {...register(`growers.${idx}.name`, { required: true })} placeholder="Grower name *" className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.name`)} placeholder="Grower name" className="border rounded px-3 py-2 text-sm" />
                   <input {...register(`growers.${idx}.grower_code`)} placeholder="Grower code" className="border rounded px-3 py-2 text-sm" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">

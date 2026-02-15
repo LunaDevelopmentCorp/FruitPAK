@@ -367,7 +367,7 @@ async def check_container_vs_pallets(db: AsyncSession, run_id: str) -> list[Reco
         select(
             Pallet.container_id,
             func.count(Pallet.id).label("actual_pallets"),
-            func.coalesce(func.sum(Pallet.carton_count), 0).label("actual_cartons"),
+            func.coalesce(func.sum(Pallet.current_boxes), 0).label("actual_cartons"),
             func.coalesce(func.sum(Pallet.gross_weight_kg), 0).label("actual_kg"),
         )
         .where(

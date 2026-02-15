@@ -26,7 +26,7 @@ export default function Step2Packhouse({
   saving,
   draftData,
 }: StepProps) {
-  const { register, control, handleSubmit } = useForm<FormData>({
+  const { register, control, getValues } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
       packhouses: [
         { name: "", location: "", capacity_tons_per_day: null, cold_rooms: null, pack_lines: [] },
@@ -39,8 +39,11 @@ export default function Step2Packhouse({
     name: "packhouses",
   });
 
-  const saveDraft = handleSubmit((data) => onSave(data, false));
-  const saveAndComplete = handleSubmit((data) => onSave(data, true));
+  const filterEmpty = (data: FormData) => ({
+    packhouses: data.packhouses.filter((p) => p.name?.trim()),
+  });
+  const saveDraft = () => onSave(filterEmpty(getValues()), false);
+  const saveAndComplete = () => onSave(filterEmpty(getValues()), true);
 
   return (
     <form className="space-y-6 max-w-2xl">
@@ -50,20 +53,18 @@ export default function Step2Packhouse({
             <legend className="text-sm font-medium text-gray-700">
               Packhouse {idx + 1}
             </legend>
-            {fields.length > 1 && (
-              <button
-                type="button"
-                onClick={() => remove(idx)}
-                className="text-xs text-red-500 hover:text-red-700"
-              >
-                Remove
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="text-xs text-red-500 hover:text-red-700"
+            >
+              Remove
+            </button>
           </div>
 
           <input
-            {...register(`packhouses.${idx}.name`, { required: true })}
-            placeholder="Packhouse name *"
+            {...register(`packhouses.${idx}.name`)}
+            placeholder="Packhouse name"
             className="w-full border rounded px-3 py-2 text-sm"
           />
           <input

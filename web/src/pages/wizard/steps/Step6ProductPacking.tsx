@@ -18,10 +18,8 @@ interface PackSpecForm {
   target_market: string;
 }
 
-interface BoxSizeForm {
+interface BoxTypeForm {
   name: string;
-  size_code: number | null;
-  fruit_count: number | null;
   weight_kg: number;
 }
 
@@ -34,7 +32,7 @@ interface PalletTypeForm {
 interface FormData {
   products: ProductForm[];
   pack_specs: PackSpecForm[];
-  box_sizes: BoxSizeForm[];
+  box_sizes: BoxTypeForm[];
   pallet_types: PalletTypeForm[];
 }
 
@@ -47,18 +45,11 @@ const COMMON_PACK_SPECS: PackSpecForm[] = [
   { name: "5kg Net Bag", pack_type: "net bag", weight_kg: 5, cartons_per_layer: 18, layers_per_pallet: 8, target_market: "Local" },
 ];
 
-// Standard fruit counts for common size codes
-const STANDARD_FRUIT_COUNTS: Record<number, number> = {
-  4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 12: 12, 14: 14,
-};
-
-const SIZE_CODE_OPTIONS = [4, 5, 6, 7, 8, 9, 10, 12, 14];
-
-const EMPTY_BOX: BoxSizeForm = { name: "", size_code: null, fruit_count: null, weight_kg: 4.0 };
+const EMPTY_BOX: BoxTypeForm = { name: "", weight_kg: 4.0 };
 const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, notes: "" };
 
 export default function Step6ProductPacking({ onSave, saving, draftData }: StepProps) {
-  const { register, control, handleSubmit, watch, setValue } = useForm<FormData>({
+  const { register, control, watch, getValues } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
       products: [{ fruit_type: "", variety: "", grades: "", sizes: "" }],
       pack_specs: [{ name: "", pack_type: "", weight_kg: null, cartons_per_layer: null, layers_per_pallet: null, target_market: "" }],
@@ -83,18 +74,20 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
   };
 
   const transform = (data: FormData) => ({
-    products: data.products.map((p) => ({
-      ...p,
-      grades: p.grades ? p.grades.split(",").map((s) => s.trim()) : [],
-      sizes: p.sizes ? p.sizes.split(",").map((s) => s.trim()) : [],
-    })),
-    pack_specs: data.pack_specs,
+    products: data.products
+      .filter((p) => p.fruit_type?.trim())
+      .map((p) => ({
+        ...p,
+        grades: Array.isArray(p.grades) ? p.grades : p.grades ? p.grades.split(",").map((s) => s.trim()) : [],
+        sizes: Array.isArray(p.sizes) ? p.sizes : p.sizes ? p.sizes.split(",").map((s) => s.trim()) : [],
+      })),
+    pack_specs: data.pack_specs.filter((s) => s.name?.trim()),
     box_sizes: data.box_sizes.filter((b) => b.name?.trim()),
     pallet_types: data.pallet_types.filter((p) => p.name?.trim()),
   });
 
-  const saveDraft = handleSubmit((data) => onSave(transform(data), false));
-  const saveAndComplete = handleSubmit((data) => onSave(transform(data), true));
+  const saveDraft = () => onSave(transform(getValues()), false);
+  const saveAndComplete = () => onSave(transform(getValues()), true);
 
   return (
     <form className="space-y-8 max-w-2xl">
@@ -103,8 +96,12 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         <h3 className="text-sm font-medium text-gray-700">Products / Fruit types</h3>
         {products.fields.map((field, idx) => (
           <fieldset key={field.id} className="p-4 border rounded space-y-3">
+            <div className="flex justify-between items-center">
+              <legend className="text-xs font-medium text-gray-500">Product {idx + 1}</legend>
+              <button type="button" onClick={() => products.remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              <input {...register(`products.${idx}.fruit_type`, { required: true })} placeholder="Fruit type *" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`products.${idx}.fruit_type`)} placeholder="Fruit type" className="border rounded px-3 py-2 text-sm" />
               <input {...register(`products.${idx}.variety`)} placeholder="Variety" className="border rounded px-3 py-2 text-sm" />
             </div>
             <input {...register(`products.${idx}.grades`)} placeholder="Grades (comma separated)" className="w-full border rounded px-3 py-2 text-sm" />
@@ -148,12 +145,10 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           <fieldset key={field.id} className="p-4 border rounded space-y-3">
             <div className="flex justify-between items-center">
               <legend className="text-xs font-medium text-gray-500">Spec {idx + 1}</legend>
-              {packSpecs.fields.length > 1 && (
-                <button type="button" onClick={() => packSpecs.remove(idx)} className="text-xs text-red-500">Remove</button>
-              )}
+              <button type="button" onClick={() => packSpecs.remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <input {...register(`pack_specs.${idx}.name`, { required: true })} placeholder="Spec name *" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`pack_specs.${idx}.name`)} placeholder="Spec name" className="border rounded px-3 py-2 text-sm" />
               <input {...register(`pack_specs.${idx}.pack_type`)} placeholder="Pack type" className="border rounded px-3 py-2 text-sm" />
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -167,11 +162,11 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         <button type="button" onClick={() => packSpecs.append({ name: "", pack_type: "", weight_kg: null, cartons_per_layer: null, layers_per_pallet: null, target_market: "" })} className="text-sm text-green-600">+ Add pack spec</button>
       </div>
 
-      {/* Box Types & Sizes */}
+      {/* Box Types */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Box Types & Sizes</h3>
+        <h3 className="text-sm font-medium text-gray-700">Box Types</h3>
         <p className="text-xs text-gray-500">
-          Define box sizes used on your pack lines. Size code refers to standard fruit count categories.
+          Define the packaging types used on your pack lines. Size and count are allocated during packing.
         </p>
 
         {boxSizes.fields.length > 0 && (
@@ -180,8 +175,6 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
               <thead className="bg-gray-50 text-gray-600 text-xs">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Box Name *</th>
-                  <th className="text-left px-3 py-2 font-medium">Size Code</th>
-                  <th className="text-right px-3 py-2 font-medium">Fruit Count</th>
                   <th className="text-right px-3 py-2 font-medium">Weight (kg)</th>
                   <th className="w-16"></th>
                 </tr>
@@ -191,41 +184,14 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                   <tr key={field.id}>
                     <td className="px-3 py-2">
                       <input
-                        {...register(`box_sizes.${idx}.name`, { required: true })}
+                        {...register(`box_sizes.${idx}.name`)}
                         placeholder="e.g. 4kg Open Top"
                         className="w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <select
-                        {...register(`box_sizes.${idx}.size_code`, { valueAsNumber: true })}
-                        onChange={(e) => {
-                          const code = e.target.value ? Number(e.target.value) : null;
-                          setValue(`box_sizes.${idx}.size_code`, code);
-                          // Auto-fill fruit count from standard table
-                          if (code && STANDARD_FRUIT_COUNTS[code]) {
-                            setValue(`box_sizes.${idx}.fruit_count`, STANDARD_FRUIT_COUNTS[code]);
-                          }
-                        }}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      >
-                        <option value="">—</option>
-                        {SIZE_CODE_OPTIONS.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-3 py-2">
                       <input
-                        {...register(`box_sizes.${idx}.fruit_count`, { valueAsNumber: true })}
-                        type="number"
-                        min={1}
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`box_sizes.${idx}.weight_kg`, { valueAsNumber: true, required: true })}
+                        {...register(`box_sizes.${idx}.weight_kg`, { valueAsNumber: true })}
                         type="number"
                         step="0.1"
                         min={0.1}
@@ -245,7 +211,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         )}
 
         {boxSizes.fields.length === 0 && (
-          <p className="text-xs text-gray-400 italic">No box sizes defined yet.</p>
+          <p className="text-xs text-gray-400 italic">No box types defined yet.</p>
         )}
 
         <button
@@ -253,7 +219,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           onClick={() => boxSizes.append({ ...EMPTY_BOX })}
           className="text-sm text-green-600"
         >
-          + Add Box Size
+          + Add Box Type
         </button>
       </div>
 
@@ -280,14 +246,14 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                   <tr key={field.id}>
                     <td className="px-3 py-2">
                       <input
-                        {...register(`pallet_types.${idx}.name`, { required: true })}
+                        {...register(`pallet_types.${idx}.name`)}
                         placeholder="e.g. Standard 240"
                         className="w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
                     <td className="px-3 py-2">
                       <input
-                        {...register(`pallet_types.${idx}.capacity_boxes`, { valueAsNumber: true, required: true, min: 1 })}
+                        {...register(`pallet_types.${idx}.capacity_boxes`, { valueAsNumber: true, min: 1 })}
                         type="number"
                         min={1}
                         className="w-full border rounded px-2 py-1.5 text-sm text-right"

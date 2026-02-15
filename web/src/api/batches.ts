@@ -83,9 +83,12 @@ export interface BatchDetail extends BatchOut {
   brix_reading: number | null;
   quality_assessment: Record<string, unknown> | null;
   rejection_reason: string | null;
+  waste_kg: number;
+  waste_reason: string | null;
   bin_count: number | null;
   bin_type: string | null;
   received_by: string | null;
+  received_by_name: string | null;
   updated_at: string;
   packhouse_name: string | null;
   history: BatchHistoryItem[];
@@ -101,6 +104,8 @@ export interface BatchUpdatePayload {
   brix_reading?: number;
   status?: string;
   rejection_reason?: string;
+  waste_kg?: number;
+  waste_reason?: string;
   bin_count?: number;
   bin_type?: string;
   notes?: string;
@@ -141,6 +146,7 @@ export interface LotSummary {
   size: string | null;
   carton_count: number;
   weight_kg: number | null;
+  palletized_boxes: number;
   status: string;
   pack_date: string | null;
   created_at: string;
@@ -179,4 +185,9 @@ export async function listLots(
     params,
   });
   return data.items;
+}
+
+export async function closeProductionRun(batchId: string): Promise<BatchDetail> {
+  const { data } = await api.post<BatchDetail>(`/batches/${batchId}/close`);
+  return data;
 }

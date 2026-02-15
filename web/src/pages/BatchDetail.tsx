@@ -5,6 +5,7 @@ import {
   getBatch,
   updateBatch,
   createLotsFromBatch,
+  closeProductionRun,
   BatchDetail as BatchDetailType,
   BatchUpdatePayload,
   LotFromBatchItem,
@@ -29,6 +30,13 @@ export default function BatchDetail() {
   const [lotSaving, setLotSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Waste entry state
+  const [editingWaste, setEditingWaste] = useState(false);
+  const [wasteKg, setWasteKg] = useState(0);
+  const [wasteReason, setWasteReason] = useState("");
+  const [wasteSaving, setWasteSaving] = useState(false);
+  const [closingSaving, setClosingSaving] = useState(false);
 
   // Pallet creation state
   const [creatingPallet, setCreatingPallet] = useState(false);
@@ -155,6 +163,8 @@ export default function BatchDetail() {
                 ? "bg-blue-50 text-blue-700"
                 : batch.status === "processing"
                 ? "bg-yellow-50 text-yellow-700"
+                : batch.status === "complete"
+                ? "bg-green-50 text-green-700"
                 : batch.status === "rejected"
                 ? "bg-red-50 text-red-700"
                 : "bg-gray-100 text-gray-600"
@@ -192,6 +202,7 @@ export default function BatchDetail() {
                 <option value="received">Received</option>
                 <option value="processing">Processing</option>
                 <option value="packed">Packed</option>
+                <option value="complete">Complete</option>
                 <option value="rejected">Rejected</option>
                 <option value="dispatched">Dispatched</option>
               </select>
@@ -465,31 +476,46 @@ export default function BatchDetail() {
                     <th className="text-left px-2 py-1.5 font-medium">Size</th>
                     <th className="text-right px-2 py-1.5 font-medium">Cartons</th>
                     <th className="text-right px-2 py-1.5 font-medium">Weight</th>
+                    <th className="text-right px-2 py-1.5 font-medium">Unallocated</th>
                     <th className="text-left px-2 py-1.5 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {batch.lots.map((lot) => (
-                    <tr key={lot.id} className="hover:bg-gray-50">
-                      <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
-                      <td className="px-2 py-1.5">{lot.grade || "—"}</td>
-                      <td className="px-2 py-1.5">{lot.size || "—"}</td>
-                      <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
-                      <td className="px-2 py-1.5 text-right">
-                        {lot.weight_kg ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          lot.status === "created" ? "bg-blue-50 text-blue-700"
-                          : lot.status === "palletizing" ? "bg-yellow-50 text-yellow-700"
-                          : lot.status === "stored" ? "bg-green-50 text-green-700"
-                          : "bg-gray-100 text-gray-600"
-                        }`}>
-                          {lot.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {batch.lots.map((lot) => {
+                    const effectiveWeight = lot.weight_kg ?? lot.carton_count * 4.0;
+                    const unallocated = lot.carton_count - (lot.palletized_boxes ?? 0);
+                    return (
+                      <tr key={lot.id} className="hover:bg-gray-50">
+                        <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                        <td className="px-2 py-1.5">{lot.grade || "—"}</td>
+                        <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                        <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
+                        <td className="px-2 py-1.5 text-right">
+                          {effectiveWeight.toLocaleString()} kg
+                          {!lot.weight_kg && lot.carton_count > 0 && (
+                            <span className="text-gray-400 text-xs ml-1" title="Estimated: cartons × 4.0 kg">est</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {unallocated > 0 ? (
+                            <span className="text-yellow-600 font-medium">{unallocated}</span>
+                          ) : (
+                            <span className="text-green-600">0</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                            lot.status === "created" ? "bg-blue-50 text-blue-700"
+                            : lot.status === "palletizing" ? "bg-yellow-50 text-yellow-700"
+                            : lot.status === "stored" ? "bg-green-50 text-green-700"
+                            : "bg-gray-100 text-gray-600"
+                          }`}>
+                            {lot.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : !creatingLots ? (
@@ -507,9 +533,9 @@ export default function BatchDetail() {
                     onClick={() => {
                       setCreatingPallet(true);
                       getPalletTypes().then(setPalletTypes).catch(() => {});
-                      // Pre-fill lot assignments with carton counts
+                      // Pre-fill lot assignments with unallocated box counts
                       const init: Record<string, number> = {};
-                      batch.lots.forEach((l) => { init[l.id] = l.carton_count; });
+                      batch.lots.forEach((l) => { init[l.id] = l.carton_count - (l.palletized_boxes ?? 0); });
                       setLotAssignments(init);
                     }}
                     className="text-sm text-green-600 hover:text-green-700 font-medium"
@@ -580,22 +606,23 @@ export default function BatchDetail() {
                         <tbody className="divide-y">
                           {batch.lots.map((lot) => {
                             const assigned = lotAssignments[lot.id] ?? 0;
+                            const available = lot.carton_count - (lot.palletized_boxes ?? 0);
                             return (
                               <tr key={lot.id}>
                                 <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
                                 <td className="px-2 py-1.5">{lot.grade || "—"}</td>
                                 <td className="px-2 py-1.5">{lot.size || "—"}</td>
-                                <td className="px-2 py-1.5 text-right text-gray-500">{lot.carton_count}</td>
+                                <td className="px-2 py-1.5 text-right text-gray-500">{available}</td>
                                 <td className="px-2 py-1.5 text-right">
                                   <input
                                     type="number"
                                     value={assigned}
                                     onChange={(e) => setLotAssignments({
                                       ...lotAssignments,
-                                      [lot.id]: Math.max(0, Math.min(lot.carton_count, Number(e.target.value))),
+                                      [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
                                     })}
                                     min={0}
-                                    max={lot.carton_count}
+                                    max={available}
                                     className="w-20 border rounded px-2 py-1 text-sm text-right"
                                   />
                                 </td>
@@ -697,6 +724,167 @@ export default function BatchDetail() {
             </div>
           )}
 
+          {/* Mass Balance */}
+          {batch.lots && batch.lots.length > 0 && (() => {
+            const incomingNet = batch.net_weight_kg ?? 0;
+            const totalLotWeight = batch.lots.reduce(
+              (sum, l) => sum + (l.weight_kg ?? l.carton_count * 4.0), 0
+            );
+            const waste = batch.waste_kg ?? 0;
+            const accounted = totalLotWeight + waste;
+            const diff = incomingNet - accounted;
+            const balanced = Math.abs(diff) < 0.5;
+            return (
+              <div className={`rounded-lg border p-4 ${balanced ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}`}>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Mass Balance</h3>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Incoming Net</p>
+                    <p className="font-medium">{incomingNet.toLocaleString()} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Lot Weight</p>
+                    <p className="font-medium">{totalLotWeight.toLocaleString()} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Waste</p>
+                    <p className="font-medium">{waste.toLocaleString()} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Difference</p>
+                    <p className={`font-semibold ${balanced ? "text-green-700" : "text-yellow-700"}`}>
+                      {diff > 0 ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
+                      {balanced && " ✓"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Waste */}
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Waste</h3>
+              {!editingWaste && batch.status !== "complete" && (
+                <button
+                  onClick={() => { setEditingWaste(true); setWasteKg(batch.waste_kg ?? 0); setWasteReason(batch.waste_reason || ""); }}
+                  className="text-sm text-green-600 hover:text-green-700 font-medium"
+                >
+                  {batch.waste_kg > 0 ? "Edit Waste" : "+ Add Waste"}
+                </button>
+              )}
+            </div>
+            {batch.waste_kg > 0 && !editingWaste && (
+              <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <Row label="Waste Weight" value={`${batch.waste_kg.toLocaleString()} kg`} />
+                <Row label="Reason" value={batch.waste_reason || "—"} />
+              </div>
+            )}
+            {!batch.waste_kg && !editingWaste && (
+              <p className="text-gray-400 text-sm">No waste recorded.</p>
+            )}
+            {editingWaste && (
+              <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Waste Weight (kg)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={wasteKg}
+                      onChange={(e) => setWasteKg(Number(e.target.value))}
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Reason</label>
+                    <input
+                      value={wasteReason}
+                      onChange={(e) => setWasteReason(e.target.value)}
+                      placeholder="e.g. Sorting rejects, damage"
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setWasteSaving(true);
+                      try {
+                        await updateBatch(batchId!, { waste_kg: wasteKg, waste_reason: wasteReason || undefined });
+                        const refreshed = await getBatch(batchId!);
+                        setBatch(refreshed);
+                        setEditingWaste(false);
+                        globalToast("success", "Waste updated.");
+                      } catch {
+                        globalToast("error", "Failed to update waste.");
+                      } finally {
+                        setWasteSaving(false);
+                      }
+                    }}
+                    disabled={wasteSaving}
+                    className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {wasteSaving ? "Saving..." : "Save Waste"}
+                  </button>
+                  <button
+                    onClick={() => setEditingWaste(false)}
+                    className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Close Production Run */}
+          {batch.lots && batch.lots.length > 0 && batch.status !== "complete" && (() => {
+            const totalUnallocated = batch.lots.reduce(
+              (sum, l) => sum + l.carton_count - (l.palletized_boxes ?? 0), 0
+            );
+            const allAllocated = totalUnallocated === 0;
+            return (
+              <div className="bg-white rounded-lg border p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Close Production Run</h3>
+                {!allAllocated && (
+                  <p className="text-sm text-yellow-600 mb-3">
+                    {totalUnallocated} box(es) still unallocated to pallets. All boxes must be palletized before closing.
+                  </p>
+                )}
+                <button
+                  onClick={async () => {
+                    setClosingSaving(true);
+                    try {
+                      const refreshed = await closeProductionRun(batchId!);
+                      setBatch(refreshed);
+                      globalToast("success", "Production run closed.");
+                    } catch (err: unknown) {
+                      if (err && typeof err === "object" && "response" in err) {
+                        const axiosErr = err as { response?: { data?: { detail?: string } } };
+                        globalToast("error", axiosErr.response?.data?.detail || "Failed to close run.");
+                      } else {
+                        globalToast("error", "Failed to close run.");
+                      }
+                    } finally {
+                      setClosingSaving(false);
+                    }
+                  }}
+                  disabled={!allAllocated || closingSaving}
+                  className={`px-4 py-2 rounded text-sm font-medium ${
+                    allAllocated
+                      ? "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  } disabled:opacity-50`}
+                >
+                  {closingSaving ? "Closing..." : "Close Production Run"}
+                </button>
+              </div>
+            );
+          })()}
+
           {/* QR Code */}
           <div className="bg-white rounded-lg border p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
@@ -747,7 +935,7 @@ export default function BatchDetail() {
           <div className="text-xs text-gray-400 flex gap-4">
             <span>Created: {new Date(batch.created_at).toLocaleString()}</span>
             <span>Updated: {new Date(batch.updated_at).toLocaleString()}</span>
-            <span>Received by: {batch.received_by || "—"}</span>
+            <span>Received by: {batch.received_by_name || batch.received_by || "—"}</span>
           </div>
         </div>
       )}

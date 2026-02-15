@@ -15,7 +15,7 @@ interface FormData {
 }
 
 export default function Step5HarvestTeams({ onSave, saving, draftData }: StepProps) {
-  const { register, control, handleSubmit, watch } = useForm<FormData>({
+  const { register, control, watch, getValues } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
       harvest_teams: [{ name: "", team_leader: "", team_size: null, estimated_volume_kg: null }],
     },
@@ -24,8 +24,11 @@ export default function Step5HarvestTeams({ onSave, saving, draftData }: StepPro
 
   const teams = watch("harvest_teams");
 
-  const saveDraft = handleSubmit((data) => onSave(data, false));
-  const saveAndComplete = handleSubmit((data) => onSave(data, true));
+  const filterEmpty = (data: FormData) => ({
+    harvest_teams: data.harvest_teams.filter((t) => t.name?.trim()),
+  });
+  const saveDraft = () => onSave(filterEmpty(getValues()), false);
+  const saveAndComplete = () => onSave(filterEmpty(getValues()), true);
 
   return (
     <form className="space-y-6 max-w-2xl">
@@ -35,12 +38,10 @@ export default function Step5HarvestTeams({ onSave, saving, draftData }: StepPro
           <fieldset key={field.id} className="p-4 border rounded space-y-3">
             <div className="flex justify-between items-center">
               <legend className="text-sm font-medium text-gray-700">Team {idx + 1}</legend>
-              {fields.length > 1 && (
-                <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500">Remove</button>
-              )}
+              <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <input {...register(`harvest_teams.${idx}.name`, { required: true })} placeholder="Team name *" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`harvest_teams.${idx}.name`)} placeholder="Team name" className="border rounded px-3 py-2 text-sm" />
               <input {...register(`harvest_teams.${idx}.team_leader`)} placeholder="Team leader" className="border rounded px-3 py-2 text-sm" />
             </div>
             <div className="grid grid-cols-2 gap-3">

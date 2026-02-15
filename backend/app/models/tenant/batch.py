@@ -65,6 +65,10 @@ class Batch(TenantBase):
     status: Mapped[str] = mapped_column(String(30), default="received", index=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text)
 
+    # ── Waste ─────────────────────────────────────────────────
+    waste_kg: Mapped[float] = mapped_column(Float, default=0.0)
+    waste_reason: Mapped[str | None] = mapped_column(Text)
+
     # ── Bin / container tracking ─────────────────────────────
     bin_count: Mapped[int | None] = mapped_column(Integer)
     bin_type: Mapped[str | None] = mapped_column(String(50))

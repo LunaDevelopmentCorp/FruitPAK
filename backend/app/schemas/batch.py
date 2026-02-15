@@ -87,6 +87,8 @@ class BatchUpdate(BaseModel):
     quality_assessment: dict | None = None
     status: str | None = None
     rejection_reason: str | None = None
+    waste_kg: float | None = Field(None, ge=0)
+    waste_reason: str | None = None
     bin_count: int | None = None
     bin_type: str | None = None
     notes: str | None = None
@@ -112,6 +114,8 @@ class BatchOut(BaseModel):
     quality_assessment: dict | None
     status: str
     rejection_reason: str | None
+    waste_kg: float = 0.0
+    waste_reason: str | None = None
     bin_count: int | None
     bin_type: str | None
     notes: str | None
@@ -167,8 +171,9 @@ class BatchHistoryOut(BaseModel):
 class BatchDetailOut(BatchOut):
     grower_name: str | None = None
     packhouse_name: str | None = None
+    received_by_name: str | None = None
     history: list[BatchHistoryOut] = []
-    lots: list[LotSummary] = []
+    lots: list["LotSummaryWithAllocation"] = []
 
     @model_validator(mode="before")
     @classmethod
@@ -177,4 +182,10 @@ class BatchDetailOut(BatchOut):
             data.__dict__["grower_name"] = data.grower.name
         if hasattr(data, "packhouse") and data.packhouse:
             data.__dict__["packhouse_name"] = data.packhouse.name
+        # received_by_name is injected by the router after user lookup
         return data
+
+
+class LotSummaryWithAllocation(LotSummary):
+    """LotSummary extended with palletized box count."""
+    palletized_boxes: int = 0
