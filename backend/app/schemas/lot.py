@@ -14,6 +14,8 @@ class LotFromBatchItem(BaseModel):
     weight_kg: float | None = Field(None, ge=0)
     carton_count: int = Field(0, ge=0)
     pack_date: date | None = None
+    waste_kg: float | None = Field(None, ge=0)
+    waste_reason: str | None = None
     notes: str | None = None
 
 
@@ -59,6 +61,8 @@ class LotUpdate(BaseModel):
     pack_date: date | None = None
     quality_data: dict | None = None
     status: str | None = None
+    waste_kg: float | None = Field(None, ge=0)
+    waste_reason: str | None = None
     notes: str | None = None
 
 
@@ -80,6 +84,8 @@ class LotOut(BaseModel):
     target_market: str | None
     carton_count: int
     weight_kg: float | None
+    waste_kg: float = 0.0
+    waste_reason: str | None = None
     pack_date: date | None
     intake_date: datetime | None
     quality_data: dict | None
@@ -117,6 +123,8 @@ class LotSummary(BaseModel):
     size: str | None
     carton_count: int
     weight_kg: float | None
+    waste_kg: float = 0.0
+    waste_reason: str | None = None
     status: str
     pack_date: date | None
     created_at: datetime

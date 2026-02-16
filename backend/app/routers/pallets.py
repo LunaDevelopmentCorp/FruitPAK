@@ -24,6 +24,7 @@ from app.models.tenant.pallet import Pallet, PalletLot
 from app.models.tenant.product_config import BoxSize, PalletType
 from app.schemas.common import PaginatedResponse
 from app.schemas.pallet import (
+    AllocateBoxesRequest,
     BoxSizeOut,
     PalletDetail,
     PalletFromLotsRequest,
@@ -237,3 +238,69 @@ async def get_pallet(
             pl_out.lot_code = pl_orm.lot.lot_code
             pl_out.grade = pl_orm.lot.grade
     return detail
+
+
+# ── POST /api/pallets/{pallet_id}/allocate ──────────────────
+
+@router.post("/{pallet_id}/allocate", response_model=PalletSummary)
+async def allocate_boxes_to_pallet(
+    pallet_id: str,
+    body: AllocateBoxesRequest,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Add boxes from lots to an existing open pallet."""
+    result = await db.execute(
+        select(Pallet)
+        .where(Pallet.id == pallet_id, Pallet.is_deleted == False)  # noqa: E712
+    )
+    pallet = result.scalar_one_or_none()
+    if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if pallet.status not in ("open",):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Pallet is '{pallet.status}', must be 'open' to allocate",
+        )
+
+    total_new_boxes = sum(a.box_count for a in body.lot_assignments)
+    remaining = pallet.capacity_boxes - pallet.current_boxes
+    if total_new_boxes > remaining:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot fit {total_new_boxes} boxes, only {remaining} capacity remaining",
+        )
+
+    for assignment in body.lot_assignments:
+        lot_result = await db.execute(
+            select(Lot).where(
+                Lot.id == assignment.lot_id,
+                Lot.is_deleted == False,  # noqa: E712
+            )
+        )
+        lot = lot_result.scalar_one_or_none()
+        if not lot:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Lot {assignment.lot_id} not found",
+            )
+
+        pallet_lot = PalletLot(
+            id=str(uuid.uuid4()),
+            pallet_id=pallet.id,
+            lot_id=assignment.lot_id,
+            box_count=assignment.box_count,
+            size=assignment.size or lot.size,
+        )
+        db.add(pallet_lot)
+        pallet.current_boxes += assignment.box_count
+
+        if lot.status == "created":
+            lot.status = "palletizing"
+
+    if pallet.current_boxes >= pallet.capacity_boxes:
+        pallet.status = "closed"
+
+    await db.flush()
+    return PalletSummary.model_validate(pallet)

@@ -84,6 +84,8 @@ async def create_lots_from_batch(
             weight_kg=item.weight_kg,
             carton_count=item.carton_count,
             pack_date=item.pack_date,
+            waste_kg=item.waste_kg or 0.0,
+            waste_reason=item.waste_reason,
             notes=item.notes,
             packed_by=user.id,
             status="created",

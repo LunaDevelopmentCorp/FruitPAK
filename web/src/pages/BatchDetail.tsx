@@ -6,6 +6,7 @@ import {
   updateBatch,
   createLotsFromBatch,
   closeProductionRun,
+  finalizeGRN,
   BatchDetail as BatchDetailType,
   BatchUpdatePayload,
   LotFromBatchItem,
@@ -37,6 +38,7 @@ export default function BatchDetail() {
   const [wasteReason, setWasteReason] = useState("");
   const [wasteSaving, setWasteSaving] = useState(false);
   const [closingSaving, setClosingSaving] = useState(false);
+  const [finalizeSaving, setFinalizeSaving] = useState(false);
 
   // Pallet creation state
   const [creatingPallet, setCreatingPallet] = useState(false);
@@ -351,73 +353,108 @@ export default function BatchDetail() {
                   Split this batch into lots by grade/size. Each row creates one lot.
                 </p>
                 {lotRows.map((row, idx) => (
-                  <div key={idx} className="grid grid-cols-5 gap-2 items-end">
-                    <div>
-                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Grade *</label>}
-                      <select
-                        value={row.grade}
-                        onChange={(e) => {
-                          const updated = [...lotRows];
-                          updated[idx] = { ...updated[idx], grade: e.target.value };
-                          setLotRows(updated);
-                        }}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      >
-                        <option value="">Select</option>
-                        <option value="Class 1">Class 1</option>
-                        <option value="Class 2">Class 2</option>
-                        <option value="Class 3">Class 3</option>
-                        <option value="Industrial">Industrial</option>
-                      </select>
-                    </div>
-                    <div>
-                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Size</label>}
-                      <input
-                        value={row.size || ""}
-                        onChange={(e) => {
-                          const updated = [...lotRows];
-                          updated[idx] = { ...updated[idx], size: e.target.value };
-                          setLotRows(updated);
-                        }}
-                        placeholder="e.g. Large"
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      />
-                    </div>
-                    <div>
-                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Weight (kg)</label>}
-                      <input
-                        type="number"
-                        value={row.weight_kg ?? ""}
-                        onChange={(e) => {
-                          const updated = [...lotRows];
-                          updated[idx] = { ...updated[idx], weight_kg: e.target.value ? Number(e.target.value) : undefined };
-                          setLotRows(updated);
-                        }}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      />
-                    </div>
-                    <div>
-                      {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Cartons</label>}
-                      <input
-                        type="number"
-                        value={row.carton_count ?? ""}
-                        onChange={(e) => {
-                          const updated = [...lotRows];
-                          updated[idx] = { ...updated[idx], carton_count: e.target.value ? Number(e.target.value) : 0 };
-                          setLotRows(updated);
-                        }}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      />
-                    </div>
-                    <div>
-                      {lotRows.length > 1 && (
-                        <button
-                          onClick={() => setLotRows(lotRows.filter((_, i) => i !== idx))}
-                          className="text-xs text-red-500 hover:text-red-700 py-1.5"
+                  <div key={idx} className="space-y-1">
+                    <div className="grid grid-cols-5 gap-2 items-end">
+                      <div>
+                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Grade *</label>}
+                        <select
+                          value={row.grade}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], grade: e.target.value };
+                            setLotRows(updated);
+                          }}
+                          className="w-full border rounded px-2 py-1.5 text-sm"
                         >
-                          Remove
-                        </button>
-                      )}
+                          <option value="">Select</option>
+                          <option value="Class 1">Class 1</option>
+                          <option value="Class 2">Class 2</option>
+                          <option value="Class 3">Class 3</option>
+                          <option value="Industrial">Industrial</option>
+                        </select>
+                      </div>
+                      <div>
+                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Size</label>}
+                        <input
+                          value={row.size || ""}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], size: e.target.value };
+                            setLotRows(updated);
+                          }}
+                          placeholder="e.g. Large"
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div>
+                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Weight (kg)</label>}
+                        <input
+                          type="number"
+                          value={row.weight_kg ?? ""}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], weight_kg: e.target.value ? Number(e.target.value) : undefined };
+                            setLotRows(updated);
+                          }}
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div>
+                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Cartons</label>}
+                        <input
+                          type="number"
+                          value={row.carton_count ?? ""}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], carton_count: e.target.value ? Number(e.target.value) : 0 };
+                            setLotRows(updated);
+                          }}
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div>
+                        {lotRows.length > 1 && (
+                          <button
+                            onClick={() => setLotRows(lotRows.filter((_, i) => i !== idx))}
+                            className="text-xs text-red-500 hover:text-red-700 py-1.5"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Waste fields */}
+                    <div className="grid grid-cols-5 gap-2 items-end">
+                      <div>
+                        {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Waste (kg)</label>}
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={row.waste_kg ?? ""}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], waste_kg: e.target.value ? Number(e.target.value) : undefined };
+                            setLotRows(updated);
+                          }}
+                          placeholder="0"
+                          className="w-full border border-dashed rounded px-2 py-1.5 text-sm text-gray-600"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Waste Reason</label>}
+                        <input
+                          value={row.waste_reason || ""}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], waste_reason: e.target.value };
+                            setLotRows(updated);
+                          }}
+                          placeholder="e.g. Sorting rejects, bruised fruit"
+                          className="w-full border border-dashed rounded px-2 py-1.5 text-sm text-gray-600"
+                        />
+                      </div>
+                      <div />
                     </div>
                   </div>
                 ))}
@@ -730,7 +767,10 @@ export default function BatchDetail() {
             const totalLotWeight = batch.lots.reduce(
               (sum, l) => sum + (l.weight_kg ?? l.carton_count * 4.0), 0
             );
-            const waste = batch.waste_kg ?? 0;
+            const totalLotWaste = batch.lots.reduce(
+              (sum, l) => sum + (l.waste_kg ?? 0), 0
+            );
+            const waste = (batch.waste_kg ?? 0) + totalLotWaste;
             const accounted = totalLotWeight + waste;
             const diff = incomingNet - accounted;
             const balanced = Math.abs(diff) < 0.5;
@@ -880,6 +920,54 @@ export default function BatchDetail() {
                   } disabled:opacity-50`}
                 >
                   {closingSaving ? "Closing..." : "Close Production Run"}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Finalize GRN */}
+          {batch.status === "complete" && batch.lots && batch.lots.length > 0 && (() => {
+            const incomingNet = batch.net_weight_kg ?? 0;
+            const lotWeight = batch.lots.reduce(
+              (sum, l) => sum + (l.weight_kg ?? l.carton_count * 4.0), 0
+            );
+            const lotWaste = batch.lots.reduce((sum, l) => sum + (l.waste_kg ?? 0), 0);
+            const batchWaste = batch.waste_kg ?? 0;
+            const diff = Math.abs(incomingNet - (lotWeight + lotWaste + batchWaste));
+            const balanced = diff < 0.5;
+            return (
+              <div className="bg-white rounded-lg border p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Finalize GRN</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Production run is closed. Finalize the GRN to mark it as completed.
+                  {!balanced && (
+                    <span className="text-yellow-600 block mt-1">
+                      Mass balance difference is {diff.toFixed(1)} kg (tolerance: 0.5 kg). Adjust weights or waste before finalizing.
+                    </span>
+                  )}
+                </p>
+                <button
+                  onClick={async () => {
+                    setFinalizeSaving(true);
+                    try {
+                      const refreshed = await finalizeGRN(batchId!);
+                      setBatch(refreshed);
+                      globalToast("success", "GRN finalized — status set to completed.");
+                    } catch (err: unknown) {
+                      if (err && typeof err === "object" && "response" in err) {
+                        const axiosErr = err as { response?: { data?: { detail?: string } } };
+                        globalToast("error", axiosErr.response?.data?.detail || "Failed to finalize.");
+                      } else {
+                        globalToast("error", "Failed to finalize GRN.");
+                      }
+                    } finally {
+                      setFinalizeSaving(false);
+                    }
+                  }}
+                  disabled={finalizeSaving}
+                  className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {finalizeSaving ? "Finalizing..." : "Finalize GRN"}
                 </button>
               </div>
             );

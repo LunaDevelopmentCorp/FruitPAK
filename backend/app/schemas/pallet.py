@@ -23,6 +23,13 @@ class PalletFromLotsRequest(BaseModel):
     notes: str | None = None
 
 
+# ── Allocate boxes to existing pallet ────────────────────────
+
+class AllocateBoxesRequest(BaseModel):
+    """Payload for POST /api/pallets/{pallet_id}/allocate."""
+    lot_assignments: list[LotAssignment] = Field(..., min_length=1)
+
+
 # ── PalletLot (join) ─────────────────────────────────────────
 
 class PalletLotOut(BaseModel):

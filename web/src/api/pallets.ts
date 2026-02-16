@@ -109,3 +109,17 @@ export async function getPallet(id: string): Promise<PalletDetailType> {
   const { data } = await api.get<PalletDetailType>(`/pallets/${id}`);
   return data;
 }
+
+// ── Allocate boxes to existing pallet ──────────────────────
+
+export interface AllocateBoxesPayload {
+  lot_assignments: LotAssignment[];
+}
+
+export async function allocateBoxesToPallet(
+  palletId: string,
+  payload: AllocateBoxesPayload
+): Promise<PalletSummary> {
+  const { data } = await api.post<PalletSummary>(`/pallets/${palletId}/allocate`, payload);
+  return data;
+}

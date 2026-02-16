@@ -146,6 +146,8 @@ export interface LotSummary {
   size: string | null;
   carton_count: number;
   weight_kg: number | null;
+  waste_kg: number;
+  waste_reason: string | null;
   palletized_boxes: number;
   status: string;
   pack_date: string | null;
@@ -158,6 +160,8 @@ export interface LotFromBatchItem {
   weight_kg?: number;
   carton_count?: number;
   pack_date?: string;
+  waste_kg?: number;
+  waste_reason?: string;
   notes?: string;
 }
 
@@ -189,5 +193,10 @@ export async function listLots(
 
 export async function closeProductionRun(batchId: string): Promise<BatchDetail> {
   const { data } = await api.post<BatchDetail>(`/batches/${batchId}/close`);
+  return data;
+}
+
+export async function finalizeGRN(batchId: string): Promise<BatchDetail> {
+  const { data } = await api.post<BatchDetail>(`/batches/${batchId}/finalize`);
   return data;
 }

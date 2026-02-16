@@ -71,6 +71,10 @@ class Lot(TenantBase):
     # JSON: {"brix": 11.5, "pressure_kg": 5.2, "colour": "good", ...}
     quality_data: Mapped[dict | None] = mapped_column(JSON)
 
+    # ── Waste ──────────────────────────────────────────────
+    waste_kg: Mapped[float] = mapped_column(Float, default=0.0)
+    waste_reason: Mapped[str | None] = mapped_column(Text)
+
     # ── Status ───────────────────────────────────────────────
     # created | palletizing | stored | allocated | exported
     status: Mapped[str] = mapped_column(String(30), default="created", index=True)

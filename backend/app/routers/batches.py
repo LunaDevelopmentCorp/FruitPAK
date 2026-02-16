@@ -300,3 +300,59 @@ async def close_production_run(
     await db.flush()
     await invalidate_cache("batches:*")
     return BatchOut.model_validate(batch)
+
+
+# ── Finalize GRN ─────────────────────────────────────────────
+
+@router.post("/{batch_id}/finalize", response_model=BatchOut)
+async def finalize_grn(
+    batch_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Finalize a GRN after production run is closed.
+
+    Validates mass balance (incoming net == lot weight + waste) within
+    0.5 kg tolerance, then sets status to 'completed'.
+    """
+    result = await db.execute(
+        select(Batch)
+        .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(selectinload(Batch.lots))
+    )
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    if batch.status == "completed":
+        raise HTTPException(status_code=400, detail="GRN already finalized")
+    if batch.status != "complete":
+        raise HTTPException(
+            status_code=400,
+            detail="Production run must be closed before finalizing",
+        )
+
+    # Mass balance check
+    incoming_net = batch.net_weight_kg or 0.0
+    total_lot_weight = sum(
+        (lot.weight_kg if lot.weight_kg is not None else lot.carton_count * 4.0)
+        for lot in (batch.lots or [])
+    )
+    total_lot_waste = sum(
+        (lot.waste_kg or 0.0) for lot in (batch.lots or [])
+    )
+    batch_waste = batch.waste_kg or 0.0
+    accounted = total_lot_weight + total_lot_waste + batch_waste
+    diff = abs(incoming_net - accounted)
+
+    if diff > 0.5:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mass balance not zero: incoming {incoming_net:.1f} kg vs accounted {accounted:.1f} kg (diff {diff:.1f} kg)",
+        )
+
+    batch.status = "completed"
+    await db.flush()
+    await invalidate_cache("batches:*")
+    return BatchOut.model_validate(batch)

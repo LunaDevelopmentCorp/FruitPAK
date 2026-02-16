@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { listPallets, PalletSummary } from "../api/pallets";
+import { listPallets, allocateBoxesToPallet, PalletSummary, LotAssignment } from "../api/pallets";
+import { listLots, LotSummary } from "../api/batches";
 import { createContainerFromPallets } from "../api/containers";
 import { showToast as globalToast } from "../store/toastStore";
 
@@ -22,6 +23,13 @@ export default function PalletsList() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+
+  // Allocate boxes to pallet
+  const [allocatingPalletId, setAllocatingPalletId] = useState<string | null>(null);
+  const [allocateLots, setAllocateLots] = useState<LotSummary[]>([]);
+  const [allocateAssignments, setAllocateAssignments] = useState<Record<string, number>>({});
+  const [allocateSaving, setAllocateSaving] = useState(false);
+  const [allocateLoading, setAllocateLoading] = useState(false);
 
   // Container assignment
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -134,6 +142,127 @@ export default function PalletsList() {
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
       )}
+
+      {/* Allocate boxes form */}
+      {allocatingPalletId && (() => {
+        const pallet = pallets.find((p) => p.id === allocatingPalletId);
+        if (!pallet) return null;
+        const remaining = pallet.capacity_boxes - pallet.current_boxes;
+        const totalAssigning = Object.values(allocateAssignments).reduce((a, b) => a + b, 0);
+        return (
+          <div className="mb-6 bg-white rounded-lg border p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Allocate Boxes to {pallet.pallet_number}
+              </h3>
+              <span className="text-xs text-gray-500">
+                {pallet.current_boxes} / {pallet.capacity_boxes} boxes ({remaining} remaining)
+              </span>
+            </div>
+
+            {allocateLoading ? (
+              <p className="text-gray-400 text-sm">Loading available lots...</p>
+            ) : allocateLots.length === 0 ? (
+              <p className="text-gray-400 text-sm">No lots with unallocated boxes found.</p>
+            ) : (
+              <>
+                <div className="border rounded overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100 text-gray-600 text-xs">
+                      <tr>
+                        <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
+                        <th className="text-left px-2 py-1.5 font-medium">Grade</th>
+                        <th className="text-left px-2 py-1.5 font-medium">Size</th>
+                        <th className="text-right px-2 py-1.5 font-medium">Available</th>
+                        <th className="text-right px-2 py-1.5 font-medium">Assign</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {allocateLots.map((lot) => {
+                        const available = lot.carton_count - (lot.palletized_boxes ?? 0);
+                        const assigned = allocateAssignments[lot.id] ?? 0;
+                        return (
+                          <tr key={lot.id}>
+                            <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                            <td className="px-2 py-1.5">{lot.grade || "—"}</td>
+                            <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                            <td className="px-2 py-1.5 text-right text-gray-500">{available}</td>
+                            <td className="px-2 py-1.5 text-right">
+                              <input
+                                type="number"
+                                value={assigned}
+                                onChange={(e) => setAllocateAssignments({
+                                  ...allocateAssignments,
+                                  [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
+                                })}
+                                min={0}
+                                max={available}
+                                className="w-20 border rounded px-2 py-1 text-sm text-right"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Assigning: <span className="font-medium">{totalAssigning}</span> boxes
+                  {totalAssigning > remaining && (
+                    <span className="text-red-600 ml-2">
+                      Exceeds remaining capacity ({remaining})
+                    </span>
+                  )}
+                </p>
+              </>
+            )}
+
+            <div className="flex gap-2 pt-2 border-t">
+              <button
+                onClick={async () => {
+                  const assignments: LotAssignment[] = Object.entries(allocateAssignments)
+                    .filter(([, count]) => count > 0)
+                    .map(([lot_id, box_count]) => {
+                      const lot = allocateLots.find((l) => l.id === lot_id);
+                      return { lot_id, box_count, size: lot?.size || undefined };
+                    });
+                  if (assignments.length === 0) {
+                    globalToast("error", "Assign boxes from at least one lot.");
+                    return;
+                  }
+                  if (totalAssigning > remaining) {
+                    globalToast("error", "Total exceeds remaining pallet capacity.");
+                    return;
+                  }
+                  setAllocateSaving(true);
+                  try {
+                    await allocateBoxesToPallet(allocatingPalletId, { lot_assignments: assignments });
+                    globalToast("success", `${totalAssigning} box(es) allocated to ${pallet.pallet_number}.`);
+                    setAllocatingPalletId(null);
+                    setAllocateAssignments({});
+                    setAllocateLots([]);
+                    fetchPallets();
+                  } catch {
+                    globalToast("error", "Failed to allocate boxes.");
+                  } finally {
+                    setAllocateSaving(false);
+                  }
+                }}
+                disabled={allocateSaving || totalAssigning === 0 || totalAssigning > remaining}
+                className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              >
+                {allocateSaving ? "Allocating..." : "Allocate Boxes"}
+              </button>
+              <button
+                onClick={() => { setAllocatingPalletId(null); setAllocateAssignments({}); setAllocateLots([]); }}
+                className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Container creation form */}
       {showContainerForm && (
@@ -273,6 +402,7 @@ export default function PalletsList() {
                 <th className="text-right px-4 py-2 font-medium">Boxes</th>
                 <th className="text-left px-4 py-2 font-medium">Status</th>
                 <th className="text-left px-4 py-2 font-medium">Date</th>
+                <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -313,6 +443,35 @@ export default function PalletsList() {
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {new Date(p.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {p.status === "open" && p.current_boxes < p.capacity_boxes && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAllocatingPalletId(p.id);
+                            setAllocateAssignments({});
+                            setAllocateLoading(true);
+                            // Fetch lots with unallocated boxes (created + palletizing)
+                            Promise.all([
+                              listLots({ status: "created" }),
+                              listLots({ status: "palletizing" }),
+                            ])
+                              .then(([created, palletizing]) => {
+                                const all = [...created, ...palletizing];
+                                const available = all.filter(
+                                  (l) => l.carton_count - (l.palletized_boxes ?? 0) > 0
+                                );
+                                setAllocateLots(available);
+                              })
+                              .catch(() => setAllocateLots([]))
+                              .finally(() => setAllocateLoading(false));
+                          }}
+                          className="text-xs text-green-600 hover:text-green-700 font-medium"
+                        >
+                          Allocate
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
