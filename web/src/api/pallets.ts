@@ -123,3 +123,23 @@ export async function allocateBoxesToPallet(
   const { data } = await api.post<PalletSummary>(`/pallets/${palletId}/allocate`, payload);
   return data;
 }
+
+// ── Deallocate (remove lot allocation from pallet) ───────────
+
+export interface DeallocateResult {
+  pallet_id: string;
+  pallet_lot_id: string;
+  boxes_returned: number;
+  pallet_status: string;
+  pallet_current_boxes: number;
+}
+
+export async function deallocateFromPallet(
+  palletId: string,
+  palletLotId: string
+): Promise<DeallocateResult> {
+  const { data } = await api.delete<DeallocateResult>(
+    `/pallets/${palletId}/lots/${palletLotId}`
+  );
+  return data;
+}

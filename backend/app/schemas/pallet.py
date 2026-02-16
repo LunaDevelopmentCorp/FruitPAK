@@ -30,6 +30,17 @@ class AllocateBoxesRequest(BaseModel):
     lot_assignments: list[LotAssignment] = Field(..., min_length=1)
 
 
+# ── Deallocate result ──────────────────────────────────────────
+
+class DeallocateResult(BaseModel):
+    """Response for DELETE /api/pallets/{pallet_id}/lots/{pallet_lot_id}."""
+    pallet_id: str
+    pallet_lot_id: str
+    boxes_returned: int
+    pallet_status: str
+    pallet_current_boxes: int
+
+
 # ── PalletLot (join) ─────────────────────────────────────────
 
 class PalletLotOut(BaseModel):

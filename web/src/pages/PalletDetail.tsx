@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getPallet, PalletDetailType } from "../api/pallets";
+import { getPallet, deallocateFromPallet, PalletDetailType } from "../api/pallets";
+import { showToast as globalToast } from "../store/toastStore";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-50 text-blue-700",
@@ -16,15 +17,37 @@ export default function PalletDetail() {
   const [pallet, setPallet] = useState<PalletDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchPallet = () => {
     if (!palletId) return;
     setLoading(true);
     getPallet(palletId)
       .then(setPallet)
       .catch(() => setError("Failed to load pallet"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPallet();
   }, [palletId]);
+
+  const canModify = pallet && !["loaded", "exported"].includes(pallet.status);
+
+  const handleRemoveLot = async (palletLotId: string, lotCode: string, boxCount: number) => {
+    if (!palletId) return;
+    if (!confirm(`Remove ${boxCount} box(es) from lot ${lotCode}? They will return to available stock.`)) return;
+    setRemovingId(palletLotId);
+    try {
+      const result = await deallocateFromPallet(palletId, palletLotId);
+      globalToast("success", `${result.boxes_returned} box(es) returned to lot ${lotCode}.`);
+      fetchPallet();
+    } catch {
+      globalToast("error", "Failed to remove allocation.");
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   if (loading) return <p className="p-6 text-gray-400 text-sm">Loading pallet...</p>;
   if (error) return <div className="p-6 text-red-600 text-sm">{error}</div>;
@@ -109,6 +132,7 @@ export default function PalletDetail() {
                 <th className="text-left px-2 py-1.5 font-medium">Grade</th>
                 <th className="text-left px-2 py-1.5 font-medium">Size</th>
                 <th className="text-right px-2 py-1.5 font-medium">Boxes</th>
+                {canModify && <th className="px-2 py-1.5 font-medium" />}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -120,6 +144,17 @@ export default function PalletDetail() {
                   <td className="px-2 py-1.5">{pl.grade || "\u2014"}</td>
                   <td className="px-2 py-1.5">{pl.size || "\u2014"}</td>
                   <td className="px-2 py-1.5 text-right font-medium">{pl.box_count}</td>
+                  {canModify && (
+                    <td className="px-2 py-1.5 text-right">
+                      <button
+                        onClick={() => handleRemoveLot(pl.id, pl.lot_code || pl.lot_id, pl.box_count)}
+                        disabled={removingId === pl.id}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+                      >
+                        {removingId === pl.id ? "Removing..." : "Remove"}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

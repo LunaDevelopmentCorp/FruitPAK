@@ -26,6 +26,7 @@ from app.schemas.common import PaginatedResponse
 from app.schemas.pallet import (
     AllocateBoxesRequest,
     BoxSizeOut,
+    DeallocateResult,
     PalletDetail,
     PalletFromLotsRequest,
     PalletLotOut,
@@ -37,6 +38,14 @@ router = APIRouter()
 
 
 # ── Helpers ──────────────────────────────────────────────────
+
+async def _already_palletized(db: AsyncSession, lot_id: str) -> int:
+    """Return total boxes already allocated from a lot across all pallets."""
+    result = await db.scalar(
+        select(func.coalesce(func.sum(PalletLot.box_count), 0))
+        .where(PalletLot.lot_id == lot_id)
+    )
+    return int(result)
 
 def _generate_pallet_number(index: int) -> str:
     today = date.today().strftime("%Y%m%d")
@@ -103,6 +112,18 @@ async def create_pallets_from_lots(
                     detail=f"Lot {assignment.lot_id} not found",
                 )
             lot_map[assignment.lot_id] = lot
+
+    # Validate each lot has enough unallocated boxes
+    for assignment in body.lot_assignments:
+        lot = lot_map[assignment.lot_id]
+        already = await _already_palletized(db, assignment.lot_id)
+        available = lot.carton_count - already
+        if assignment.box_count > available:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Lot {lot.lot_code} has only {available} unallocated box(es), "
+                       f"cannot assign {assignment.box_count}",
+            )
 
     # Build a flat list of box assignments to fill pallets
     box_queue: list[dict] = []
@@ -286,6 +307,16 @@ async def allocate_boxes_to_pallet(
                 detail=f"Lot {assignment.lot_id} not found",
             )
 
+        # Check lot has enough unallocated boxes
+        already = await _already_palletized(db, assignment.lot_id)
+        available = lot.carton_count - already
+        if assignment.box_count > available:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Lot {lot.lot_code} has only {available} unallocated box(es), "
+                       f"cannot assign {assignment.box_count}",
+            )
+
         pallet_lot = PalletLot(
             id=str(uuid.uuid4()),
             pallet_id=pallet.id,
@@ -304,3 +335,77 @@ async def allocate_boxes_to_pallet(
 
     await db.flush()
     return PalletSummary.model_validate(pallet)
+
+
+# ── DELETE /api/pallets/{pallet_id}/lots/{pallet_lot_id} ─────
+
+@router.delete("/{pallet_id}/lots/{pallet_lot_id}", response_model=DeallocateResult)
+async def deallocate_from_pallet(
+    pallet_id: str,
+    pallet_lot_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Remove a lot allocation from a pallet, returning boxes to lot stock."""
+    # Load pallet
+    result = await db.execute(
+        select(Pallet).where(
+            Pallet.id == pallet_id,
+            Pallet.is_deleted == False,  # noqa: E712
+        )
+    )
+    pallet = result.scalar_one_or_none()
+    if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if pallet.status in ("loaded", "exported"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot deallocate from a '{pallet.status}' pallet",
+        )
+
+    # Load the pallet-lot link
+    pl_result = await db.execute(
+        select(PalletLot).where(
+            PalletLot.id == pallet_lot_id,
+            PalletLot.pallet_id == pallet_id,
+        )
+    )
+    pallet_lot = pl_result.scalar_one_or_none()
+    if not pallet_lot:
+        raise HTTPException(status_code=404, detail="Pallet-lot allocation not found")
+
+    boxes_returned = pallet_lot.box_count
+    lot_id = pallet_lot.lot_id
+
+    # Remove the allocation
+    await db.delete(pallet_lot)
+
+    # Update pallet box count
+    pallet.current_boxes = max(0, pallet.current_boxes - boxes_returned)
+
+    # Reopen pallet if it was closed and now has capacity
+    if pallet.status == "closed" and pallet.current_boxes < pallet.capacity_boxes:
+        pallet.status = "open"
+
+    # Check if the lot still has any allocations left
+    lot_result = await db.execute(
+        select(Lot).where(Lot.id == lot_id, Lot.is_deleted == False)  # noqa: E712
+    )
+    lot = lot_result.scalar_one_or_none()
+    if lot and lot.status == "palletizing":
+        remaining = await _already_palletized(db, lot_id)
+        # remaining still includes the deleted record until flush, so flush first
+        await db.flush()
+        remaining_after = await _already_palletized(db, lot_id)
+        if remaining_after == 0:
+            lot.status = "created"
+
+    await db.flush()
+    return DeallocateResult(
+        pallet_id=pallet_id,
+        pallet_lot_id=pallet_lot_id,
+        boxes_returned=boxes_returned,
+        pallet_status=pallet.status,
+        pallet_current_boxes=pallet.current_boxes,
+    )
