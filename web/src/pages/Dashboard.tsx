@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
-import { listBatches, BatchOut } from "../api/batches";
+import { listBatches, BatchOut, listLots, LotSummary } from "../api/batches";
 import { listGrowerPayments, GrowerPaymentOut } from "../api/payments";
 import { getDashboard, DashboardSummary } from "../api/reconciliation";
 
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [batches, setBatches] = useState<BatchOut[]>([]);
   const [payments, setPayments] = useState<GrowerPaymentOut[]>([]);
+  const [lots, setLots] = useState<LotSummary[]>([]);
   const [reconciliation, setReconciliation] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,10 +27,12 @@ export default function Dashboard() {
       listBatches().catch(() => []),
       listGrowerPayments().catch(() => []),
       getDashboard().catch(() => null),
-    ]).then(([b, p, r]) => {
+      listLots().catch(() => []),
+    ]).then(([b, p, r, l]) => {
       setBatches(b);
       setPayments(p);
       setReconciliation(r);
+      setLots(l);
       setLoading(false);
     });
   }, []);
@@ -43,6 +46,10 @@ export default function Dashboard() {
   const pendingPayments = payments.filter((p) => p.status !== "paid").length;
   const openAlerts = reconciliation?.total_open ?? 0;
   const criticalAlerts = reconciliation?.by_severity?.critical ?? 0;
+  const unallocatedBoxes = lots.reduce(
+    (sum, l) => sum + Math.max(0, l.carton_count - (l.palletized_boxes ?? 0)),
+    0,
+  );
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -73,9 +80,14 @@ export default function Dashboard() {
       )}
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-6">
         <StatCard label="Total Batches" value={batches.length} />
         <StatCard label="Received Today" value={receivedToday} accent="blue" />
+        <StatCard
+          label="Unpalletized"
+          value={unallocatedBoxes}
+          accent={unallocatedBoxes > 0 ? "yellow" : "green"}
+        />
         <StatCard
           label="Payments Pending"
           value={pendingPayments}

@@ -4,14 +4,19 @@ Endpoints:
     POST  /api/pallets/from-lots         Create pallets from lot assignments
     GET   /api/pallets/                   List pallets (with filters)
     GET   /api/pallets/{pallet_id}        Single pallet detail
+    GET   /api/pallets/{pallet_id}/qr     QR code SVG for pallet
     GET   /api/pallets/config/box-sizes   Enterprise box sizes
     GET   /api/pallets/config/pallet-types Enterprise pallet types
 """
 
+import io
+import json
 import uuid
 from datetime import date
 
+import segno
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -259,6 +264,44 @@ async def get_pallet(
             pl_out.lot_code = pl_orm.lot.lot_code
             pl_out.grade = pl_orm.lot.grade
     return detail
+
+
+# ── GET /api/pallets/{pallet_id}/qr ──────────────────────────
+
+@router.get("/{pallet_id}/qr")
+async def get_pallet_qr(
+    pallet_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.read")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Return an SVG QR code encoding key pallet information."""
+    result = await db.execute(
+        select(Pallet)
+        .where(Pallet.id == pallet_id, Pallet.is_deleted == False)  # noqa: E712
+        .options(selectinload(Pallet.pallet_lots).selectinload(PalletLot.lot))
+    )
+    pallet = result.scalar_one_or_none()
+    if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+
+    lot_codes = [
+        pl.lot.lot_code for pl in pallet.pallet_lots if pl.lot
+    ]
+    qr_data = json.dumps({
+        "type": "pallet",
+        "pallet_id": pallet.id,
+        "number": pallet.pallet_number,
+        "fruit_type": pallet.fruit_type,
+        "grade": pallet.grade,
+        "boxes": pallet.current_boxes,
+        "lots": lot_codes[:10],
+    }, separators=(",", ":"))
+
+    qr = segno.make(qr_data)
+    buf = io.BytesIO()
+    qr.save(buf, kind="svg", scale=4, dark="#15803d")
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
 
 
 # ── POST /api/pallets/{pallet_id}/allocate ──────────────────

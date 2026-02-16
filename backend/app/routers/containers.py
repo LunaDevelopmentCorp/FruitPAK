@@ -4,12 +4,17 @@ Endpoints:
     POST  /api/containers/from-pallets      Create container and assign pallets
     GET   /api/containers/                   List containers (with filters)
     GET   /api/containers/{container_id}     Detail with pallets + traceability
+    GET   /api/containers/{container_id}/qr  QR code SVG for container
 """
 
+import io
+import json
 import uuid
 from datetime import date, datetime
 
+import segno
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -212,3 +217,40 @@ async def get_container(
 
     detail.traceability = trace_pallets
     return detail
+
+
+# ── GET /api/containers/{container_id}/qr ────────────────────
+
+@router.get("/{container_id}/qr")
+async def get_container_qr(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.read")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Return an SVG QR code encoding key container information."""
+    result = await db.execute(
+        select(Container)
+        .where(Container.id == container_id, Container.is_deleted == False)  # noqa: E712
+        .options(selectinload(Container.pallets))
+    )
+    container = result.scalar_one_or_none()
+    if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+
+    pallet_numbers = [p.pallet_number for p in container.pallets]
+    qr_data = json.dumps({
+        "type": "container",
+        "container_id": container.id,
+        "number": container.container_number,
+        "container_type": container.container_type,
+        "customer": container.customer_name,
+        "destination": container.destination,
+        "pallets": pallet_numbers[:20],
+        "total_cartons": container.total_cartons,
+    }, separators=(",", ":"))
+
+    qr = segno.make(qr_data)
+    buf = io.BytesIO()
+    qr.save(buf, kind="svg", scale=4, dark="#15803d")
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")

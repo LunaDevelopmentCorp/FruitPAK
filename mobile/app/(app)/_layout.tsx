@@ -27,6 +27,7 @@ export default function AppLayout() {
     >
       <Stack.Screen name="index" options={{ title: "FruitPAK" }} />
       <Stack.Screen name="grn-intake" options={{ title: "GRN Intake" }} />
+      <Stack.Screen name="scan-qr" options={{ title: "Scan QR" }} />
     </Stack>
   );
 }

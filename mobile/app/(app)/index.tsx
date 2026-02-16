@@ -33,6 +33,13 @@ export default function HomeScreen() {
         >
           <Text style={styles.primaryBtnText}>New GRN Intake</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => router.push("/(app)/scan-qr")}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.secondaryBtnText}>Scan QR Code</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -57,4 +64,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  secondaryBtn: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center" as const,
+  },
+  secondaryBtnText: { color: "#374151", fontSize: 15, fontWeight: "600" as const },
 });

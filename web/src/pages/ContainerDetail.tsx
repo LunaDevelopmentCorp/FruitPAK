@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
 import { getContainer, ContainerDetailType } from "../api/containers";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -181,6 +182,29 @@ export default function ContainerDetail() {
           </div>
         </div>
       )}
+
+      {/* QR Code */}
+      <div className="bg-white rounded-lg border p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+        <div className="flex flex-col items-center gap-2">
+          <QRCodeSVG
+            value={JSON.stringify({
+              type: "container",
+              container_id: container.id,
+              number: container.container_number,
+              container_type: container.container_type,
+              customer: container.customer_name,
+              destination: container.destination,
+              pallets: container.pallets.map((p) => p.pallet_number).slice(0, 20),
+              total_cartons: container.total_cartons,
+            })}
+            size={160}
+            fgColor="#15803d"
+            level="M"
+          />
+          <span className="text-xs text-gray-500 font-mono">{container.container_number}</span>
+        </div>
+      </div>
 
       {/* Notes */}
       {container.notes && (

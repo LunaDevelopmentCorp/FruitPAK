@@ -1007,6 +1007,7 @@ export default function BatchDetail() {
                       </p>
                       <p className="text-xs text-gray-500">
                         {new Date(event.recorded_at).toLocaleString()}
+                        {event.recorded_by_name && ` · ${event.recorded_by_name}`}
                         {event.location_detail && ` — ${event.location_detail}`}
                       </p>
                       {event.notes && (

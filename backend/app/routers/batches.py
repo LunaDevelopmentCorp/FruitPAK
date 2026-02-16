@@ -167,6 +167,19 @@ async def get_batch(
         if name:
             detail.received_by_name = name
 
+    # Resolve recorded_by UUIDs in history events → user full names
+    recorder_ids = {
+        h.recorded_by for h in batch.history if h.recorded_by
+    }
+    if recorder_ids:
+        name_result = await db.execute(
+            select(User.id, User.full_name).where(User.id.in_(recorder_ids))
+        )
+        name_map = {row[0]: row[1] for row in name_result.all()}
+        for h_out in detail.history:
+            if h_out.recorded_by and h_out.recorded_by in name_map:
+                h_out.recorded_by_name = name_map[h_out.recorded_by]
+
     # Compute palletized box counts per lot
     if batch.lots:
         lot_ids = [lot.id for lot in batch.lots]

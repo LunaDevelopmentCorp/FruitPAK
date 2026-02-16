@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
 import { getPallet, deallocateFromPallet, PalletDetailType } from "../api/pallets";
 import { showToast as globalToast } from "../store/toastStore";
 
@@ -162,6 +163,28 @@ export default function PalletDetail() {
         ) : (
           <p className="text-gray-400 text-sm">No lots linked.</p>
         )}
+      </div>
+
+      {/* QR Code */}
+      <div className="bg-white rounded-lg border p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+        <div className="flex flex-col items-center gap-2">
+          <QRCodeSVG
+            value={JSON.stringify({
+              type: "pallet",
+              pallet_id: pallet.id,
+              number: pallet.pallet_number,
+              fruit_type: pallet.fruit_type,
+              grade: pallet.grade,
+              boxes: pallet.current_boxes,
+              lots: pallet.pallet_lots.map((pl) => pl.lot_code || pl.lot_id).slice(0, 10),
+            })}
+            size={160}
+            fgColor="#15803d"
+            level="M"
+          />
+          <span className="text-xs text-gray-500 font-mono">{pallet.pallet_number}</span>
+        </div>
       </div>
 
       {/* Notes */}

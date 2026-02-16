@@ -74,6 +74,7 @@ export interface BatchHistoryItem {
   location_detail: string | null;
   notes: string | null;
   recorded_by: string | null;
+  recorded_by_name: string | null;
   recorded_at: string;
 }
 

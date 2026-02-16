@@ -161,6 +161,7 @@ class BatchHistoryOut(BaseModel):
     location_detail: str | None = None
     notes: str | None = None
     recorded_by: str | None = None
+    recorded_by_name: str | None = None
     recorded_at: datetime
 
     model_config = {"from_attributes": True}
