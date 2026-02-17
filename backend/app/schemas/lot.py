@@ -11,6 +11,7 @@ class LotFromBatchItem(BaseModel):
     """A single lot to create from a batch (one grade/size combo)."""
     grade: str = Field(..., max_length=50)
     size: str | None = Field(None, max_length=50)
+    box_size_id: str | None = None
     weight_kg: float | None = Field(None, ge=0)
     carton_count: int = Field(0, ge=0)
     pack_date: date | None = None
@@ -40,6 +41,7 @@ class LotCreate(BaseModel):
     size: str | None = None
     product_config_id: str | None = None
     pack_spec_id: str | None = None
+    box_size_id: str | None = None
     target_market: str | None = None
     carton_count: int = 0
     weight_kg: float | None = None
@@ -55,6 +57,7 @@ class LotUpdate(BaseModel):
     size: str | None = None
     product_config_id: str | None = None
     pack_spec_id: str | None = None
+    box_size_id: str | None = None
     target_market: str | None = None
     carton_count: int | None = None
     weight_kg: float | None = None
@@ -81,6 +84,9 @@ class LotOut(BaseModel):
     size: str | None
     product_config_id: str | None
     pack_spec_id: str | None
+    box_size_id: str | None = None
+    box_size_name: str | None = None
+    box_weight_kg: float | None = None
     target_market: str | None
     carton_count: int
     weight_kg: float | None
@@ -108,6 +114,9 @@ class LotOut(BaseModel):
             data.batch_code = lot.batch.batch_code
         if hasattr(lot, "grower") and lot.grower:
             data.grower_name = lot.grower.name
+        if hasattr(lot, "box_size") and lot.box_size:
+            data.box_size_name = lot.box_size.name
+            data.box_weight_kg = lot.box_size.weight_kg
         return data
 
 
@@ -121,6 +130,7 @@ class LotSummary(BaseModel):
     variety: str | None
     grade: str | None
     size: str | None
+    box_size_id: str | None = None
     carton_count: int
     weight_kg: float | None
     waste_kg: float = 0.0

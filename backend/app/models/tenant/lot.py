@@ -59,6 +59,11 @@ class Lot(TenantBase):
     )
     target_market: Mapped[str | None] = mapped_column(String(100))
 
+    # ── Packaging ──────────────────────────────────────────────
+    box_size_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("box_sizes.id")
+    )
+
     # ── Quantities ───────────────────────────────────────────
     carton_count: Mapped[int] = mapped_column(Integer, default=0)
     weight_kg: Mapped[float | None] = mapped_column(Float)
@@ -94,4 +99,5 @@ class Lot(TenantBase):
     packhouse = relationship("Packhouse", backref="lots", lazy="selectin")
     product_config = relationship("ProductConfig", lazy="selectin")
     pack_spec = relationship("PackSpec", lazy="selectin")
+    box_size = relationship("BoxSize", lazy="selectin")
     pallet_lots = relationship("PalletLot", back_populates="lot", lazy="selectin")

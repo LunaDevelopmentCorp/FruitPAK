@@ -145,6 +145,7 @@ export interface LotSummary {
   batch_id: string;
   grade: string | null;
   size: string | null;
+  box_size_id: string | null;
   carton_count: number;
   weight_kg: number | null;
   waste_kg: number;
@@ -158,6 +159,7 @@ export interface LotSummary {
 export interface LotFromBatchItem {
   grade: string;
   size?: string;
+  box_size_id?: string;
   weight_kg?: number;
   carton_count?: number;
   pack_date?: string;
@@ -171,6 +173,8 @@ export interface LotOut extends LotSummary {
   variety: string | null;
   batch_code: string | null;
   grower_name: string | null;
+  box_size_name: string | null;
+  box_weight_kg: number | null;
 }
 
 export async function createLotsFromBatch(

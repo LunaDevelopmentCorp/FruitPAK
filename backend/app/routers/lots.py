@@ -82,6 +82,7 @@ async def create_lots_from_batch(
             variety=batch.variety,
             grade=item.grade,
             size=item.size,
+            box_size_id=item.box_size_id,
             weight_kg=item.weight_kg,
             carton_count=item.carton_count,
             pack_date=item.pack_date,
@@ -105,7 +106,11 @@ async def create_lots_from_batch(
     result = await db.execute(
         select(Lot)
         .where(Lot.id.in_(lot_ids))
-        .options(selectinload(Lot.batch), selectinload(Lot.grower))
+        .options(
+            selectinload(Lot.batch),
+            selectinload(Lot.grower),
+            selectinload(Lot.box_size),
+        )
     )
     lots = result.scalars().all()
 
@@ -181,7 +186,11 @@ async def get_lot(
     result = await db.execute(
         select(Lot)
         .where(Lot.id == lot_id, Lot.is_deleted == False)  # noqa: E712
-        .options(selectinload(Lot.batch), selectinload(Lot.grower))
+        .options(
+            selectinload(Lot.batch),
+            selectinload(Lot.grower),
+            selectinload(Lot.box_size),
+        )
     )
     lot = result.scalar_one_or_none()
     if not lot:
@@ -202,7 +211,11 @@ async def update_lot(
     result = await db.execute(
         select(Lot)
         .where(Lot.id == lot_id, Lot.is_deleted == False)  # noqa: E712
-        .options(selectinload(Lot.batch), selectinload(Lot.grower))
+        .options(
+            selectinload(Lot.batch),
+            selectinload(Lot.grower),
+            selectinload(Lot.box_size),
+        )
     )
     lot = result.scalar_one_or_none()
     if not lot:
