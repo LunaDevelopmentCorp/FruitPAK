@@ -187,6 +187,24 @@ export async function createLotsFromBatch(
   return data;
 }
 
+export interface LotUpdatePayload {
+  carton_count?: number;
+  grade?: string;
+  size?: string;
+  box_size_id?: string;
+  waste_kg?: number;
+  waste_reason?: string;
+  notes?: string;
+}
+
+export async function updateLot(
+  lotId: string,
+  payload: LotUpdatePayload
+): Promise<LotOut> {
+  const { data } = await api.patch<LotOut>(`/lots/${lotId}`, payload);
+  return data;
+}
+
 export async function listLots(
   params?: Record<string, string>
 ): Promise<LotSummary[]> {

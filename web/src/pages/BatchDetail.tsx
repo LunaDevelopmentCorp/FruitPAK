@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import {
   getBatch,
   updateBatch,
+  updateLot,
   createLotsFromBatch,
   closeProductionRun,
   finalizeGRN,
@@ -44,6 +45,11 @@ export default function BatchDetail() {
 
   // Box sizes for lot creation
   const [boxSizes, setBoxSizes] = useState<BoxSizeConfig[]>([]);
+
+  // Inline lot editing state
+  const [editingLotId, setEditingLotId] = useState<string | null>(null);
+  const [editCartonCount, setEditCartonCount] = useState(0);
+  const [lotUpdateSaving, setLotUpdateSaving] = useState(false);
 
   // Pallet creation state
   const [creatingPallet, setCreatingPallet] = useState(false);
@@ -554,7 +560,65 @@ export default function BatchDetail() {
                         <td className="px-2 py-1.5 text-xs text-gray-600">
                           {boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || "—"}
                         </td>
-                        <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
+                        <td className="px-2 py-1.5 text-right">
+                          {editingLotId === lot.id ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                value={editCartonCount}
+                                onChange={(e) => setEditCartonCount(Number(e.target.value))}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape") setEditingLotId(null);
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    (e.target as HTMLInputElement).closest("td")?.querySelector<HTMLButtonElement>("button")?.click();
+                                  }
+                                }}
+                                autoFocus
+                                className="w-20 border rounded px-1.5 py-0.5 text-sm text-right"
+                              />
+                              <button
+                                disabled={lotUpdateSaving}
+                                onClick={async () => {
+                                  if (editCartonCount === lot.carton_count) {
+                                    setEditingLotId(null);
+                                    return;
+                                  }
+                                  setLotUpdateSaving(true);
+                                  try {
+                                    await updateLot(lot.id, { carton_count: editCartonCount });
+                                    const refreshed = await getBatch(batchId!);
+                                    setBatch(refreshed);
+                                    setEditingLotId(null);
+                                    globalToast("success", "Carton count updated.");
+                                  } catch {
+                                    globalToast("error", "Failed to update carton count.");
+                                  } finally {
+                                    setLotUpdateSaving(false);
+                                  }
+                                }}
+                                className="text-green-600 hover:text-green-700 text-xs font-medium"
+                              >
+                                {lotUpdateSaving ? "..." : "Save"}
+                              </button>
+                              <button
+                                onClick={() => setEditingLotId(null)}
+                                className="text-gray-400 hover:text-gray-600 text-xs"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              onClick={() => { setEditingLotId(lot.id); setEditCartonCount(lot.carton_count); }}
+                              className="cursor-pointer hover:text-green-700 hover:underline"
+                              title="Click to edit"
+                            >
+                              {lot.carton_count}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5 text-right">
                           {lot.weight_kg != null ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
                         </td>
