@@ -12,6 +12,7 @@ import PalletsList from "./pages/PalletsList";
 import PalletDetail from "./pages/PalletDetail";
 import ContainersList from "./pages/ContainersList";
 import ContainerDetail from "./pages/ContainerDetail";
+import PackagingStock from "./pages/PackagingStock";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/pallets/:palletId" element={<PalletDetail />} />
             <Route path="/containers" element={<ContainersList />} />
             <Route path="/containers/:containerId" element={<ContainerDetail />} />
+            <Route path="/packaging" element={<PackagingStock />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/reconciliation" element={<ReconciliationDashboard />} />
           </Route>

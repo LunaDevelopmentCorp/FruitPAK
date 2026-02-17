@@ -8,6 +8,7 @@ const NAV_ITEMS_FULL = [
   { to: "/grn-intake", label: "GRN Intake" },
   { to: "/batches", label: "Batches" },
   { to: "/pallets", label: "Pallets" },
+  { to: "/packaging", label: "Packaging" },
   { to: "/containers", label: "Containers" },
   { to: "/payments", label: "Payments" },
   { to: "/reconciliation", label: "Reconciliation" },
