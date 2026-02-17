@@ -175,6 +175,7 @@ class BoxSizeInput(BaseModel):
     size_code: int | None = None
     fruit_count: int | None = None
     weight_kg: float = 4.0
+    cost_per_unit: float | None = None
 
 
 class PalletTypeInput(BaseModel):

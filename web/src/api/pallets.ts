@@ -15,6 +15,7 @@ export interface BoxSizeConfig {
   size_code: number | null;
   fruit_count: number | null;
   weight_kg: number;
+  cost_per_unit: number | null;
 }
 
 export interface PalletTypeConfig {

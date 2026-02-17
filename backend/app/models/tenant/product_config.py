@@ -62,6 +62,7 @@ class BoxSize(TenantBase):
     size_code: Mapped[int | None] = mapped_column(Integer)
     fruit_count: Mapped[int | None] = mapped_column(Integer)
     weight_kg: Mapped[float] = mapped_column(Float, default=4.0)
+    cost_per_unit: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

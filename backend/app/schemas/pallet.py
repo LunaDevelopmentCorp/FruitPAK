@@ -96,6 +96,7 @@ class BoxSizeOut(BaseModel):
     size_code: int | None
     fruit_count: int | None
     weight_kg: float
+    cost_per_unit: float | None = None
 
     model_config = {"from_attributes": True}
 
