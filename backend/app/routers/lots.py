@@ -19,6 +19,7 @@ from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.lot import Lot
+from app.models.tenant.packaging_stock import PackagingMovement, PackagingStock
 from app.models.tenant.pallet import PalletLot
 from app.models.tenant.product_config import BoxSize
 from app.schemas.common import PaginatedResponse
@@ -36,6 +37,43 @@ router = APIRouter()
 def _generate_lot_code(batch_code: str, index: int) -> str:
     """Generate lot code like GRN-20260213-001-L01."""
     return f"{batch_code}-L{index:02d}"
+
+
+async def _adjust_packaging_stock(
+    db: AsyncSession,
+    box_size_id: str,
+    quantity: int,
+    movement_type: str,
+    user_id: str,
+    reference_id: str | None = None,
+) -> None:
+    """Adjust packaging stock for a box size. Positive = add, negative = deduct."""
+    result = await db.execute(
+        select(PackagingStock).where(PackagingStock.box_size_id == box_size_id)
+    )
+    stock = result.scalar_one_or_none()
+    if not stock:
+        # Auto-create stock record (starts at 0)
+        stock = PackagingStock(
+            id=str(uuid.uuid4()),
+            box_size_id=box_size_id,
+            current_quantity=0,
+        )
+        db.add(stock)
+        await db.flush()
+
+    stock.current_quantity += quantity
+
+    movement = PackagingMovement(
+        id=str(uuid.uuid4()),
+        stock_id=stock.id,
+        movement_type=movement_type,
+        quantity=quantity,
+        reference_type="lot",
+        reference_id=reference_id,
+        recorded_by=user_id,
+    )
+    db.add(movement)
 
 
 # ── Create lots from batch ───────────────────────────────────
@@ -116,6 +154,15 @@ async def create_lots_from_batch(
     if batch.status == "received":
         batch.status = "packing"
 
+    await db.flush()
+
+    # Deduct packaging stock for each lot with a box_size_id
+    for lot in created_lots:
+        if lot.box_size_id and lot.carton_count > 0:
+            await _adjust_packaging_stock(
+                db, lot.box_size_id, -lot.carton_count,
+                "consumption", user.id, lot.id,
+            )
     await db.flush()
 
     # Re-query with relationships for response
@@ -222,7 +269,7 @@ async def update_lot(
     lot_id: str,
     body: LotUpdate,
     db: AsyncSession = Depends(get_tenant_db),
-    _user: User = Depends(require_permission("batch.write")),
+    user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
 ):
     result = await db.execute(
@@ -237,6 +284,10 @@ async def update_lot(
     lot = result.scalar_one_or_none()
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
+
+    # Capture old values for packaging stock adjustment
+    old_carton_count = lot.carton_count
+    old_box_size_id = lot.box_size_id
 
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
@@ -254,6 +305,21 @@ async def update_lot(
             bs = bs_result.scalar_one_or_none()
             if bs:
                 lot.weight_kg = lot.carton_count * bs.weight_kg
+
+    # Adjust packaging stock if carton_count or box_size_id changed
+    if "carton_count" in updates or "box_size_id" in updates:
+        # Reverse old consumption (if there was one)
+        if old_box_size_id and old_carton_count > 0:
+            await _adjust_packaging_stock(
+                db, old_box_size_id, old_carton_count,
+                "reversal", user.id, lot.id,
+            )
+        # Record new consumption
+        if lot.box_size_id and lot.carton_count > 0:
+            await _adjust_packaging_stock(
+                db, lot.box_size_id, -lot.carton_count,
+                "consumption", user.id, lot.id,
+            )
 
     await db.flush()
     return LotOut.from_orm_with_names(lot)
