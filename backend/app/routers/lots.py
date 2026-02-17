@@ -20,6 +20,7 @@ from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import PalletLot
+from app.models.tenant.product_config import BoxSize
 from app.schemas.common import PaginatedResponse
 from app.schemas.lot import (
     LotFromBatchItem,
@@ -69,9 +70,25 @@ async def create_lots_from_batch(
     # Determine starting lot index (continue numbering if lots already exist)
     existing_count = len(batch.lots) if batch.lots else 0
 
+    # Pre-load box sizes for auto-weight calculation
+    box_size_ids = [item.box_size_id for item in body.lots if item.box_size_id]
+    box_size_map: dict[str, float] = {}
+    if box_size_ids:
+        bs_result = await db.execute(
+            select(BoxSize).where(BoxSize.id.in_(box_size_ids))
+        )
+        for bs in bs_result.scalars().all():
+            box_size_map[bs.id] = bs.weight_kg
+
     created_lots = []
     for i, item in enumerate(body.lots):
         lot_index = existing_count + i + 1
+
+        # Auto-calculate weight: carton_count × box weight (if box_size provided)
+        weight_kg = item.weight_kg
+        if item.box_size_id and item.box_size_id in box_size_map:
+            weight_kg = item.carton_count * box_size_map[item.box_size_id]
+
         lot = Lot(
             id=str(uuid.uuid4()),
             lot_code=_generate_lot_code(batch.batch_code, lot_index),
@@ -83,7 +100,7 @@ async def create_lots_from_batch(
             grade=item.grade,
             size=item.size,
             box_size_id=item.box_size_id,
-            weight_kg=item.weight_kg,
+            weight_kg=weight_kg,
             carton_count=item.carton_count,
             pack_date=item.pack_date,
             waste_kg=item.waste_kg or 0.0,
@@ -221,8 +238,22 @@ async def update_lot(
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    for field, value in updates.items():
         setattr(lot, field, value)
+
+    # Auto-recalculate weight if carton_count or box_size_id changed
+    recalc = "carton_count" in updates or "box_size_id" in updates
+    if recalc:
+        # Resolve the box size (may have just been changed)
+        effective_box_size_id = lot.box_size_id
+        if effective_box_size_id:
+            bs_result = await db.execute(
+                select(BoxSize).where(BoxSize.id == effective_box_size_id)
+            )
+            bs = bs_result.scalar_one_or_none()
+            if bs:
+                lot.weight_kg = lot.carton_count * bs.weight_kg
 
     await db.flush()
     return LotOut.from_orm_with_names(lot)
