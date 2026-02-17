@@ -12,8 +12,10 @@ import {
   LotFromBatchItem,
 } from "../api/batches";
 import {
+  getBoxSizes,
   getPalletTypes,
   createPalletsFromLots,
+  BoxSizeConfig,
   PalletTypeConfig,
   LotAssignment,
 } from "../api/pallets";
@@ -39,6 +41,9 @@ export default function BatchDetail() {
   const [wasteSaving, setWasteSaving] = useState(false);
   const [closingSaving, setClosingSaving] = useState(false);
   const [finalizeSaving, setFinalizeSaving] = useState(false);
+
+  // Box sizes for lot creation
+  const [boxSizes, setBoxSizes] = useState<BoxSizeConfig[]>([]);
 
   // Pallet creation state
   const [creatingPallet, setCreatingPallet] = useState(false);
@@ -75,6 +80,7 @@ export default function BatchDetail() {
       })
       .catch(() => setError("Failed to load batch"))
       .finally(() => setLoading(false));
+    getBoxSizes().then(setBoxSizes).catch(() => {});
   }, [batchId, reset]);
 
   const onSubmit = async (data: BatchUpdatePayload) => {
@@ -338,7 +344,10 @@ export default function BatchDetail() {
               </h3>
               {!creatingLots && (
                 <button
-                  onClick={() => setCreatingLots(true)}
+                  onClick={() => {
+                    setCreatingLots(true);
+                    getBoxSizes().then(setBoxSizes).catch(() => {});
+                  }}
                   className="text-sm text-green-600 hover:text-green-700 font-medium"
                 >
                   + Create Lots
@@ -352,9 +361,12 @@ export default function BatchDetail() {
                 <p className="text-xs text-gray-500">
                   Split this batch into lots by grade/size. Each row creates one lot.
                 </p>
-                {lotRows.map((row, idx) => (
+                {lotRows.map((row, idx) => {
+                  const selectedBox = boxSizes.find((bs) => bs.id === row.box_size_id);
+                  const autoWeight = selectedBox && row.carton_count ? row.carton_count * selectedBox.weight_kg : null;
+                  return (
                   <div key={idx} className="space-y-1">
-                    <div className="grid grid-cols-5 gap-2 items-end">
+                    <div className="grid grid-cols-6 gap-2 items-end">
                       <div>
                         {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Grade *</label>}
                         <select
@@ -387,17 +399,23 @@ export default function BatchDetail() {
                         />
                       </div>
                       <div>
-                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Weight (kg)</label>}
-                        <input
-                          type="number"
-                          value={row.weight_kg ?? ""}
+                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Box Type *</label>}
+                        <select
+                          value={row.box_size_id || ""}
                           onChange={(e) => {
                             const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], weight_kg: e.target.value ? Number(e.target.value) : undefined };
+                            updated[idx] = { ...updated[idx], box_size_id: e.target.value || undefined };
                             setLotRows(updated);
                           }}
                           className="w-full border rounded px-2 py-1.5 text-sm"
-                        />
+                        >
+                          <option value="">Select box</option>
+                          {boxSizes.map((bs) => (
+                            <option key={bs.id} value={bs.id}>
+                              {bs.name} ({bs.weight_kg} kg)
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Cartons</label>}
@@ -413,6 +431,12 @@ export default function BatchDetail() {
                         />
                       </div>
                       <div>
+                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Weight</label>}
+                        <p className="px-2 py-1.5 text-sm text-gray-600 bg-gray-100 rounded text-right">
+                          {autoWeight != null ? `${autoWeight.toLocaleString()} kg` : "—"}
+                        </p>
+                      </div>
+                      <div>
                         {lotRows.length > 1 && (
                           <button
                             onClick={() => setLotRows(lotRows.filter((_, i) => i !== idx))}
@@ -424,7 +448,7 @@ export default function BatchDetail() {
                       </div>
                     </div>
                     {/* Waste fields */}
-                    <div className="grid grid-cols-5 gap-2 items-end">
+                    <div className="grid grid-cols-6 gap-2 items-end">
                       <div>
                         {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Waste (kg)</label>}
                         <input
@@ -441,7 +465,7 @@ export default function BatchDetail() {
                           className="w-full border border-dashed rounded px-2 py-1.5 text-sm text-gray-600"
                         />
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-4">
                         {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Waste Reason</label>}
                         <input
                           value={row.waste_reason || ""}
@@ -457,7 +481,8 @@ export default function BatchDetail() {
                       <div />
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 <button
                   type="button"
                   onClick={() => setLotRows([...lotRows, { grade: "", carton_count: 0 }])}
@@ -511,6 +536,7 @@ export default function BatchDetail() {
                     <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
                     <th className="text-left px-2 py-1.5 font-medium">Grade</th>
                     <th className="text-left px-2 py-1.5 font-medium">Size</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Box Type</th>
                     <th className="text-right px-2 py-1.5 font-medium">Cartons</th>
                     <th className="text-right px-2 py-1.5 font-medium">Weight</th>
                     <th className="text-right px-2 py-1.5 font-medium">Unallocated</th>
@@ -519,19 +545,18 @@ export default function BatchDetail() {
                 </thead>
                 <tbody className="divide-y">
                   {batch.lots.map((lot) => {
-                    const effectiveWeight = lot.weight_kg ?? lot.carton_count * 4.0;
                     const unallocated = lot.carton_count - (lot.palletized_boxes ?? 0);
                     return (
                       <tr key={lot.id} className="hover:bg-gray-50">
                         <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
                         <td className="px-2 py-1.5">{lot.grade || "—"}</td>
                         <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                        <td className="px-2 py-1.5 text-xs text-gray-600">
+                          {boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || "—"}
+                        </td>
                         <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
                         <td className="px-2 py-1.5 text-right">
-                          {effectiveWeight.toLocaleString()} kg
-                          {!lot.weight_kg && lot.carton_count > 0 && (
-                            <span className="text-gray-400 text-xs ml-1" title="Estimated: cartons × 4.0 kg">est</span>
-                          )}
+                          {lot.weight_kg != null ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
                         </td>
                         <td className="px-2 py-1.5 text-right">
                           {unallocated > 0 ? (
@@ -765,7 +790,7 @@ export default function BatchDetail() {
           {batch.lots && batch.lots.length > 0 && (() => {
             const incomingNet = batch.net_weight_kg ?? 0;
             const totalLotWeight = batch.lots.reduce(
-              (sum, l) => sum + (l.weight_kg ?? l.carton_count * 4.0), 0
+              (sum, l) => sum + (l.weight_kg ?? 0), 0
             );
             const totalLotWaste = batch.lots.reduce(
               (sum, l) => sum + (l.waste_kg ?? 0), 0
@@ -929,7 +954,7 @@ export default function BatchDetail() {
           {batch.status === "complete" && batch.lots && batch.lots.length > 0 && (() => {
             const incomingNet = batch.net_weight_kg ?? 0;
             const lotWeight = batch.lots.reduce(
-              (sum, l) => sum + (l.weight_kg ?? l.carton_count * 4.0), 0
+              (sum, l) => sum + (l.weight_kg ?? 0), 0
             );
             const lotWaste = batch.lots.reduce((sum, l) => sum + (l.waste_kg ?? 0), 0);
             const batchWaste = batch.waste_kg ?? 0;
