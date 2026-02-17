@@ -27,7 +27,9 @@ from app.models.tenant.grower import Grower
 from app.models.tenant.harvest_team import HarvestTeam
 from app.models.tenant.pack_line import PackLine
 from app.models.tenant.packhouse import Packhouse
-from app.models.tenant.product_config import BoxSize, PackSpec, PalletType, ProductConfig
+from app.models.tenant.lot import Lot
+from app.models.tenant.packaging_stock import PackagingStock
+from app.models.tenant.product_config import BinType, BoxSize, PackSpec, PalletType, PalletTypeBoxCapacity, ProductConfig
 from app.models.tenant.supplier import Supplier
 from app.models.tenant.transport_config import TransportConfig
 from app.models.tenant.wizard_state import WizardState
@@ -391,32 +393,152 @@ async def save_step_6(
     if complete:
         Step6Complete(**body.model_dump())
 
+    # ── Products (upsert by fruit_type+variety, safe-delete unreferenced) ──
     if body.products:
-        await db.execute(delete(ProductConfig))
-        await db.flush()
+        result = await db.execute(select(ProductConfig))
+        existing = {}
+        for pc in result.scalars().all():
+            key = (pc.fruit_type, pc.variety or "")
+            existing[key] = pc
+
+        new_keys: set[tuple[str, str]] = set()
         for p in body.products:
-            db.add(ProductConfig(**p.model_dump()))
+            data = p.model_dump()
+            key = (data["fruit_type"], data.get("variety") or "")
+            new_keys.add(key)
+            if key in existing:
+                obj = existing[key]
+                for k, v in data.items():
+                    setattr(obj, k, v)
+            else:
+                db.add(ProductConfig(**data))
         await db.flush()
 
+        for key, obj in existing.items():
+            if key not in new_keys:
+                ref = await db.execute(
+                    select(Lot.id).where(Lot.product_config_id == obj.id).limit(1)
+                )
+                if not ref.scalar_one_or_none():
+                    await db.delete(obj)
+        await db.flush()
+
+    # ── Pack specs (upsert by name, safe-delete unreferenced) ──
     if body.pack_specs:
-        await db.execute(delete(PackSpec))
-        await db.flush()
+        result = await db.execute(select(PackSpec))
+        existing = {ps.name: ps for ps in result.scalars().all()}
+
+        new_names: set[str] = set()
         for ps in body.pack_specs:
-            db.add(PackSpec(**ps.model_dump()))
+            data = ps.model_dump()
+            new_names.add(ps.name)
+            if ps.name in existing:
+                obj = existing[ps.name]
+                for k, v in data.items():
+                    if k != "name":
+                        setattr(obj, k, v)
+            else:
+                db.add(PackSpec(**data))
         await db.flush()
 
+        for name, obj in existing.items():
+            if name not in new_names:
+                ref = await db.execute(
+                    select(Lot.id).where(Lot.pack_spec_id == obj.id).limit(1)
+                )
+                if not ref.scalar_one_or_none():
+                    await db.delete(obj)
+        await db.flush()
+
+    # ── Box sizes (upsert by name, safe-delete unreferenced) ──
     if body.box_sizes:
-        await db.execute(delete(BoxSize))
-        await db.flush()
-        for bs in body.box_sizes:
-            db.add(BoxSize(**bs.model_dump()))
+        # Clear box capacities first — they'll be rebuilt with pallet types
+        await db.execute(delete(PalletTypeBoxCapacity))
         await db.flush()
 
-    if body.pallet_types:
-        await db.execute(delete(PalletType))
+        result = await db.execute(select(BoxSize))
+        existing = {bs.name: bs for bs in result.scalars().all()}
+
+        new_names = set()
+        for bs in body.box_sizes:
+            data = bs.model_dump()
+            new_names.add(bs.name)
+            if bs.name in existing:
+                obj = existing[bs.name]
+                for k, v in data.items():
+                    if k != "name":
+                        setattr(obj, k, v)
+            else:
+                db.add(BoxSize(**data))
         await db.flush()
+
+        for name, obj in existing.items():
+            if name not in new_names:
+                ref_lot = await db.execute(
+                    select(Lot.id).where(Lot.box_size_id == obj.id).limit(1)
+                )
+                ref_pkg = await db.execute(
+                    select(PackagingStock.id).where(PackagingStock.box_size_id == obj.id).limit(1)
+                )
+                if not ref_lot.scalar_one_or_none() and not ref_pkg.scalar_one_or_none():
+                    await db.delete(obj)
+        await db.flush()
+
+    # ── Pallet types (upsert by name, safe-delete unreferenced) ──
+    if body.pallet_types:
+        # Clear box capacities (will be rebuilt below)
+        if not body.box_sizes:  # already cleared above if box_sizes was processed
+            await db.execute(delete(PalletTypeBoxCapacity))
+            await db.flush()
+
+        result = await db.execute(select(PalletType))
+        existing = {pt.name: pt for pt in result.scalars().all()}
+
+        # Build box_size name→id map for capacity resolution
+        bs_result = await db.execute(select(BoxSize))
+        bs_name_map = {bs.name: bs.id for bs in bs_result.scalars().all()}
+
+        new_names = set()
         for pt in body.pallet_types:
-            db.add(PalletType(**pt.model_dump()))
+            data = pt.model_dump(exclude={"box_capacities"})
+            new_names.add(pt.name)
+            if pt.name in existing:
+                pallet_type = existing[pt.name]
+                for k, v in data.items():
+                    if k != "name":
+                        setattr(pallet_type, k, v)
+            else:
+                pallet_type = PalletType(**data)
+                db.add(pallet_type)
+            await db.flush()
+
+            # Rebuild box capacities for this pallet type
+            if pt.box_capacities:
+                for bc in pt.box_capacities:
+                    box_size_id = bs_name_map.get(bc.box_size_name)
+                    if box_size_id:
+                        db.add(PalletTypeBoxCapacity(
+                            pallet_type_id=pallet_type.id,
+                            box_size_id=box_size_id,
+                            capacity=bc.capacity,
+                        ))
+                await db.flush()
+
+        for name, obj in existing.items():
+            if name not in new_names:
+                ref = await db.execute(
+                    select(PackagingStock.id).where(PackagingStock.pallet_type_id == obj.id).limit(1)
+                )
+                if not ref.scalar_one_or_none():
+                    await db.delete(obj)
+        await db.flush()
+
+    # ── Bin types (no FK references, safe to delete-all) ──
+    if body.bin_types:
+        await db.execute(delete(BinType))
+        await db.flush()
+        for bt in body.bin_types:
+            db.add(BinType(**bt.model_dump()))
         await db.flush()
 
     return await _finish_step(db, state, 6, body.model_dump(exclude_unset=True), complete, next_step=7)

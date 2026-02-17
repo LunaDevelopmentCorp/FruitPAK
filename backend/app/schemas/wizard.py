@@ -178,10 +178,23 @@ class BoxSizeInput(BaseModel):
     cost_per_unit: float | None = None
 
 
+class BinTypeInput(BaseModel):
+    name: str
+    default_weight_kg: float = 0.0
+    tare_weight_kg: float = 0.0
+
+
+class BoxCapacityInput(BaseModel):
+    """Per-box-size capacity override for a pallet type."""
+    box_size_name: str
+    capacity: int
+
+
 class PalletTypeInput(BaseModel):
     name: str
     capacity_boxes: int = 240
     notes: str | None = None
+    box_capacities: list[BoxCapacityInput] | None = None
 
 
 class Step6Data(BaseModel):
@@ -189,6 +202,7 @@ class Step6Data(BaseModel):
     pack_specs: list[PackSpecInput] | None = None
     box_sizes: list[BoxSizeInput] | None = None
     pallet_types: list[PalletTypeInput] | None = None
+    bin_types: list[BinTypeInput] | None = None
 
 
 class Step6Complete(Step6Data):

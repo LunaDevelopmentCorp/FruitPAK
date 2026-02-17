@@ -23,10 +23,22 @@ interface BoxTypeForm {
   weight_kg: number;
 }
 
+interface BoxCapacityForm {
+  box_size_name: string;
+  capacity: number;
+}
+
 interface PalletTypeForm {
   name: string;
   capacity_boxes: number;
   notes: string;
+  box_capacities: BoxCapacityForm[];
+}
+
+interface BinTypeForm {
+  name: string;
+  default_weight_kg: number;
+  tare_weight_kg: number;
 }
 
 interface FormData {
@@ -34,6 +46,7 @@ interface FormData {
   pack_specs: PackSpecForm[];
   box_sizes: BoxTypeForm[];
   pallet_types: PalletTypeForm[];
+  bin_types: BinTypeForm[];
 }
 
 const COMMON_PACK_SPECS: PackSpecForm[] = [
@@ -46,23 +59,27 @@ const COMMON_PACK_SPECS: PackSpecForm[] = [
 ];
 
 const EMPTY_BOX: BoxTypeForm = { name: "", weight_kg: 4.0 };
-const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, notes: "" };
+const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, notes: "", box_capacities: [] };
+const EMPTY_BIN: BinTypeForm = { name: "", default_weight_kg: 0, tare_weight_kg: 0 };
 
 export default function Step6ProductPacking({ onSave, saving, draftData }: StepProps) {
-  const { register, control, watch, getValues } = useForm<FormData>({
+  const { register, control, watch, getValues, setValue } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
       products: [{ fruit_type: "", variety: "", grades: "", sizes: "" }],
       pack_specs: [{ name: "", pack_type: "", weight_kg: null, cartons_per_layer: null, layers_per_pallet: null, target_market: "" }],
       box_sizes: [],
       pallet_types: [],
+      bin_types: [],
     },
   });
   const products = useFieldArray({ control, name: "products" });
   const packSpecs = useFieldArray({ control, name: "pack_specs" });
   const boxSizes = useFieldArray({ control, name: "box_sizes" });
   const palletTypes = useFieldArray({ control, name: "pallet_types" });
+  const binTypes = useFieldArray({ control, name: "bin_types" });
 
   const currentSpecs = watch("pack_specs");
+  const currentBoxSizes = watch("box_sizes");
   const addedNames = new Set(currentSpecs?.map((s) => s.name) ?? []);
 
   const addPreset = (preset: PackSpecForm) => {
@@ -83,11 +100,20 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
       })),
     pack_specs: data.pack_specs.filter((s) => s.name?.trim()),
     box_sizes: data.box_sizes.filter((b) => b.name?.trim()),
-    pallet_types: data.pallet_types.filter((p) => p.name?.trim()),
+    pallet_types: data.pallet_types
+      .filter((p) => p.name?.trim())
+      .map((p) => ({
+        ...p,
+        box_capacities: (p.box_capacities || []).filter((bc) => bc.box_size_name?.trim() && bc.capacity > 0),
+      })),
+    bin_types: data.bin_types.filter((b) => b.name?.trim()),
   });
 
   const saveDraft = () => onSave(transform(getValues()), false);
   const saveAndComplete = () => onSave(transform(getValues()), true);
+
+  // Get valid box size names for capacity dropdowns
+  const boxSizeNames = (currentBoxSizes || []).map((b) => b.name).filter((n) => n?.trim());
 
   return (
     <form className="space-y-8 max-w-2xl">
@@ -109,6 +135,78 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           </fieldset>
         ))}
         <button type="button" onClick={() => products.append({ fruit_type: "", variety: "", grades: "", sizes: "" })} className="text-sm text-green-600">+ Add product</button>
+      </div>
+
+      {/* Bin Types */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-gray-700">Bin Types</h3>
+        <p className="text-xs text-gray-500">
+          Define the bin types used for receiving fruit at intake. Tare weight is auto-applied on the GRN form.
+        </p>
+
+        {binTypes.fields.length > 0 && (
+          <div className="border rounded overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600 text-xs">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Bin Name *</th>
+                  <th className="text-right px-3 py-2 font-medium">Default Weight (kg)</th>
+                  <th className="text-right px-3 py-2 font-medium">Tare Weight (kg)</th>
+                  <th className="w-16"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {binTypes.fields.map((field, idx) => (
+                  <tr key={field.id}>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`bin_types.${idx}.name`)}
+                        placeholder="e.g. Plastic bin, Wooden crate"
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`bin_types.${idx}.default_weight_kg`, { valueAsNumber: true })}
+                        type="number"
+                        step="0.1"
+                        min={0}
+                        placeholder="Full bin weight"
+                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`bin_types.${idx}.tare_weight_kg`, { valueAsNumber: true })}
+                        type="number"
+                        step="0.1"
+                        min={0}
+                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button type="button" onClick={() => binTypes.remove(idx)} className="text-xs text-red-500 hover:text-red-700">
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {binTypes.fields.length === 0 && (
+          <p className="text-xs text-gray-400 italic">No bin types defined yet.</p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => binTypes.append({ ...EMPTY_BIN })}
+          className="text-sm text-green-600"
+        >
+          + Add Bin Type
+        </button>
       </div>
 
       {/* Pack specs — presets */}
@@ -227,56 +325,84 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-gray-700">Pallet Structures</h3>
         <p className="text-xs text-gray-500">
-          Define pallet types and their box capacity. Common standards: 240 boxes (full) or 160 boxes (half).
+          Define pallet types and their default box capacity. You can set per-box-type capacities if different boxes have different pallet limits.
         </p>
 
-        {palletTypes.fields.length > 0 && (
-          <div className="border rounded overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600 text-xs">
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium">Pallet Name *</th>
-                  <th className="text-right px-3 py-2 font-medium">Capacity (boxes)</th>
-                  <th className="text-left px-3 py-2 font-medium">Notes</th>
-                  <th className="w-16"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {palletTypes.fields.map((field, idx) => (
-                  <tr key={field.id}>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`pallet_types.${idx}.name`)}
-                        placeholder="e.g. Standard 240"
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`pallet_types.${idx}.capacity_boxes`, { valueAsNumber: true, min: 1 })}
-                        type="number"
-                        min={1}
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`pallet_types.${idx}.notes`)}
-                        placeholder="Optional"
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => palletTypes.remove(idx)} className="text-xs text-red-500 hover:text-red-700">
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {palletTypes.fields.map((field, idx) => {
+          const currentPallet = watch(`pallet_types.${idx}`);
+          return (
+            <fieldset key={field.id} className="p-4 border rounded space-y-3">
+              <div className="flex justify-between items-center">
+                <legend className="text-xs font-medium text-gray-500">Pallet Type {idx + 1}</legend>
+                <button type="button" onClick={() => palletTypes.remove(idx)} className="text-xs text-red-500 hover:text-red-700">
+                  Remove
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <input
+                  {...register(`pallet_types.${idx}.name`)}
+                  placeholder="e.g. Standard 240"
+                  className="border rounded px-2 py-1.5 text-sm"
+                />
+                <input
+                  {...register(`pallet_types.${idx}.capacity_boxes`, { valueAsNumber: true, min: 1 })}
+                  type="number"
+                  min={1}
+                  placeholder="Default capacity"
+                  className="border rounded px-2 py-1.5 text-sm text-right"
+                />
+                <input
+                  {...register(`pallet_types.${idx}.notes`)}
+                  placeholder="Notes (optional)"
+                  className="border rounded px-2 py-1.5 text-sm"
+                />
+              </div>
+
+              {/* Per-box-size capacity overrides */}
+              {boxSizeNames.length > 0 && (
+                <div className="mt-2 bg-gray-50 rounded p-3 space-y-2">
+                  <p className="text-xs text-gray-500 font-medium">Capacity per box type (optional)</p>
+                  <p className="text-xs text-gray-400">
+                    Leave blank to use the default capacity ({currentPallet?.capacity_boxes || 240}) for all box types.
+                  </p>
+                  <div className="space-y-1">
+                    {boxSizeNames.map((bsName) => {
+                      const caps = currentPallet?.box_capacities || [];
+                      const existingIdx = caps.findIndex((c) => c.box_size_name === bsName);
+                      return (
+                        <div key={bsName} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600 w-32 truncate">{bsName}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder={String(currentPallet?.capacity_boxes || 240)}
+                            className="border rounded px-2 py-1 text-xs text-right w-24"
+                            value={existingIdx >= 0 ? caps[existingIdx].capacity || "" : ""}
+                            onChange={(e) => {
+                              const val = e.target.value ? parseInt(e.target.value, 10) : 0;
+                              const newCaps = [...(currentPallet?.box_capacities || [])];
+                              if (existingIdx >= 0) {
+                                if (val > 0) {
+                                  newCaps[existingIdx] = { box_size_name: bsName, capacity: val };
+                                } else {
+                                  newCaps.splice(existingIdx, 1);
+                                }
+                              } else if (val > 0) {
+                                newCaps.push({ box_size_name: bsName, capacity: val });
+                              }
+                              setValue(`pallet_types.${idx}.box_capacities`, newCaps);
+                            }}
+                          />
+                          <span className="text-xs text-gray-400">boxes</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </fieldset>
+          );
+        })}
 
         {palletTypes.fields.length === 0 && (
           <p className="text-xs text-gray-400 italic">No pallet types defined yet.</p>

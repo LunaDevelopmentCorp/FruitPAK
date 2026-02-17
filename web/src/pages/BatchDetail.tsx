@@ -16,11 +16,13 @@ import {
 import {
   getBoxSizes,
   getPalletTypes,
+  getPalletTypeCapacities,
   createPalletsFromLots,
   listPallets,
   allocateBoxesToPallet,
   BoxSizeConfig,
   PalletTypeConfig,
+  PalletTypeCapacity,
   PalletSummary,
   LotAssignment,
 } from "../api/pallets";
@@ -62,6 +64,7 @@ export default function BatchDetail() {
   const [palletTypes, setPalletTypes] = useState<PalletTypeConfig[]>([]);
   const [selectedPalletType, setSelectedPalletType] = useState("");
   const [palletCapacity, setPalletCapacity] = useState(240);
+  const [palletBoxCapacities, setPalletBoxCapacities] = useState<PalletTypeCapacity | null>(null);
   const [lotAssignments, setLotAssignments] = useState<Record<string, number>>({});
   const [palletSaving, setPalletSaving] = useState(false);
 
@@ -751,10 +754,31 @@ export default function BatchDetail() {
                       {palletTypes.length > 0 ? (
                         <select
                           value={selectedPalletType}
-                          onChange={(e) => {
-                            setSelectedPalletType(e.target.value);
-                            const pt = palletTypes.find((t) => t.name === e.target.value);
-                            if (pt) setPalletCapacity(pt.capacity_boxes);
+                          onChange={async (e) => {
+                            const name = e.target.value;
+                            setSelectedPalletType(name);
+                            const pt = palletTypes.find((t) => t.name === name);
+                            if (pt) {
+                              setPalletCapacity(pt.capacity_boxes);
+                              // Fetch per-box-size capacities
+                              try {
+                                const caps = await getPalletTypeCapacities(pt.id);
+                                setPalletBoxCapacities(caps);
+                                // Auto-resolve: if lots share a box_size_id with a specific capacity, use it
+                                if (caps.box_capacities.length > 0 && batch?.lots) {
+                                  const assignedLots = batch.lots.filter((l) => (lotAssignments[l.id] ?? 0) > 0);
+                                  const lotBoxIds = [...new Set(assignedLots.map((l) => l.box_size_id).filter(Boolean))];
+                                  if (lotBoxIds.length === 1) {
+                                    const match = caps.box_capacities.find((bc) => bc.box_size_id === lotBoxIds[0]);
+                                    if (match) setPalletCapacity(match.capacity);
+                                  }
+                                }
+                              } catch {
+                                setPalletBoxCapacities(null);
+                              }
+                            } else {
+                              setPalletBoxCapacities(null);
+                            }
                           }}
                           className="w-full border rounded px-2 py-1.5 text-sm"
                         >
@@ -783,6 +807,13 @@ export default function BatchDetail() {
                         min={1}
                         className="w-full border rounded px-2 py-1.5 text-sm"
                       />
+                      {palletBoxCapacities && palletBoxCapacities.box_capacities.length > 0 && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          Per-box capacities: {palletBoxCapacities.box_capacities.map(
+                            (bc) => `${bc.box_size_name}: ${bc.capacity}`
+                          ).join(", ")}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -814,10 +845,22 @@ export default function BatchDetail() {
                                   <input
                                     type="number"
                                     value={assigned}
-                                    onChange={(e) => setLotAssignments({
-                                      ...lotAssignments,
-                                      [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
-                                    })}
+                                    onChange={(e) => {
+                                      const newAssignments = {
+                                        ...lotAssignments,
+                                        [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
+                                      };
+                                      setLotAssignments(newAssignments);
+                                      // Auto-resolve capacity from per-box-size overrides
+                                      if (palletBoxCapacities && palletBoxCapacities.box_capacities.length > 0 && batch) {
+                                        const assignedLots = batch.lots.filter((l) => (newAssignments[l.id] ?? 0) > 0);
+                                        const boxIds = [...new Set(assignedLots.map((l) => l.box_size_id).filter(Boolean))];
+                                        if (boxIds.length === 1) {
+                                          const match = palletBoxCapacities.box_capacities.find((bc) => bc.box_size_id === boxIds[0]);
+                                          if (match) setPalletCapacity(match.capacity);
+                                        }
+                                      }
+                                    }}
                                     min={0}
                                     max={available}
                                     className="w-20 border rounded px-2 py-1 text-sm text-right"

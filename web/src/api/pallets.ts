@@ -125,6 +125,59 @@ export async function allocateBoxesToPallet(
   return data;
 }
 
+// ── Config: Bin types ────────────────────────────────────────
+
+export interface BinTypeConfig {
+  id: string;
+  name: string;
+  default_weight_kg: number;
+  tare_weight_kg: number;
+}
+
+export async function getBinTypes(): Promise<BinTypeConfig[]> {
+  const { data } = await api.get<BinTypeConfig[]>("/config/bin-types");
+  return data;
+}
+
+// ── Config: Product configs ─────────────────────────────────
+
+export interface ProductConfigItem {
+  id: string;
+  fruit_type: string;
+  variety: string | null;
+  grades: string[];
+  sizes: string[];
+}
+
+export async function getProductConfigs(): Promise<ProductConfigItem[]> {
+  const { data } = await api.get<ProductConfigItem[]>("/config/product-configs");
+  return data;
+}
+
+// ── Config: Pallet type box capacities ──────────────────────
+
+export interface BoxCapacityItem {
+  box_size_id: string;
+  box_size_name: string | null;
+  capacity: number;
+}
+
+export interface PalletTypeCapacity {
+  pallet_type_id: string;
+  pallet_type_name: string;
+  default_capacity: number;
+  box_capacities: BoxCapacityItem[];
+}
+
+export async function getPalletTypeCapacities(
+  palletTypeId: string
+): Promise<PalletTypeCapacity> {
+  const { data } = await api.get<PalletTypeCapacity>(
+    `/config/pallet-type-capacities/${palletTypeId}`
+  );
+  return data;
+}
+
 // ── Deallocate (remove lot allocation from pallet) ───────────
 
 export interface DeallocateResult {

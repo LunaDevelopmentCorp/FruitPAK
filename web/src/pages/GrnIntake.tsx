@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import {
@@ -10,6 +10,12 @@ import {
   Grower,
   Packhouse,
 } from "../api/batches";
+import {
+  getBinTypes,
+  getProductConfigs,
+  BinTypeConfig,
+  ProductConfigItem,
+} from "../api/pallets";
 import BatchQR from "../components/BatchQR";
 import { showToast as globalToast } from "../store/toastStore";
 
@@ -26,6 +32,8 @@ interface FieldError {
 export default function GrnIntake() {
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [packhouses, setPackhouses] = useState<Packhouse[]>([]);
+  const [productConfigs, setProductConfigs] = useState<ProductConfigItem[]>([]);
+  const [binTypes, setBinTypes] = useState<BinTypeConfig[]>([]);
   const [result, setResult] = useState<GRNResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
@@ -37,6 +45,7 @@ export default function GrnIntake() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<GRNPayload>();
 
@@ -48,14 +57,24 @@ export default function GrnIntake() {
       ? Number(grossWeight) - (Number(tareWeight) || 0)
       : null;
 
+  // Track selected fruit type for cascading dropdowns
+  const selectedFruitType = watch("fruit_type");
+
   useEffect(() => {
-    Promise.all([listGrowers(), listPackhouses()])
-      .then(([g, p]) => {
+    Promise.all([
+      listGrowers(),
+      listPackhouses(),
+      getProductConfigs().catch(() => []),
+      getBinTypes().catch(() => []),
+    ])
+      .then(([g, p, pc, bt]) => {
         setGrowers(g);
         setPackhouses(p);
+        setProductConfigs(pc);
+        setBinTypes(bt);
       })
       .catch(() => {
-        setError("Failed to load growers/packhouses. Is the wizard complete?");
+        setError("Failed to load reference data. Is the wizard complete?");
       })
       .finally(() => setLoadingRef(false));
   }, []);
@@ -67,8 +86,56 @@ export default function GrnIntake() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Derive unique fruit types from product configs
+  const fruitTypes = useMemo(() => {
+    const types = [...new Set(productConfigs.map((pc) => pc.fruit_type))];
+    types.sort();
+    return types;
+  }, [productConfigs]);
+
+  // Derive varieties for the selected fruit type
+  const varieties = useMemo(() => {
+    if (!selectedFruitType) return [];
+    const vars = productConfigs
+      .filter((pc) => pc.fruit_type === selectedFruitType && pc.variety)
+      .map((pc) => pc.variety!);
+    return [...new Set(vars)].sort();
+  }, [productConfigs, selectedFruitType]);
+
+
   const getFieldError = (field: string): string | undefined =>
     fieldErrors.find((e) => e.field === field)?.message;
+
+  // When bin type changes, auto-fill weights from config
+  const handleBinTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const binName = e.target.value;
+    setValue("bin_type", binName);
+    const bt = binTypes.find((b) => b.name === binName);
+    if (!bt) return;
+    const count = Number(watch("bin_count")) || 0;
+    if (bt.tare_weight_kg > 0) {
+      setValue("tare_weight_kg", count > 0 ? bt.tare_weight_kg * count : bt.tare_weight_kg);
+    }
+    if (bt.default_weight_kg > 0 && count > 0) {
+      setValue("gross_weight_kg", bt.default_weight_kg * count);
+    }
+  };
+
+  // When bin count changes, recalculate weights if a default-weight bin type is selected
+  const selectedBinType = watch("bin_type");
+  const binCount = watch("bin_count");
+  React.useEffect(() => {
+    const count = Number(binCount) || 0;
+    if (count <= 0 || !selectedBinType) return;
+    const bt = binTypes.find((b) => b.name === selectedBinType);
+    if (!bt) return;
+    if (bt.default_weight_kg > 0) {
+      setValue("gross_weight_kg", bt.default_weight_kg * count);
+    }
+    if (bt.tare_weight_kg > 0) {
+      setValue("tare_weight_kg", bt.tare_weight_kg * count);
+    }
+  }, [binCount, selectedBinType, binTypes, setValue]);
 
   const onSubmit = async (data: GRNPayload) => {
     setError(null);
@@ -88,8 +155,6 @@ export default function GrnIntake() {
       ...data,
       gross_weight_kg: grossNum || undefined,
       tare_weight_kg: data.tare_weight_kg ? Number(data.tare_weight_kg) : undefined,
-      arrival_temp_c: data.arrival_temp_c ? Number(data.arrival_temp_c) : undefined,
-      brix_reading: data.brix_reading ? Number(data.brix_reading) : undefined,
       bin_count: binNum || undefined,
     };
 
@@ -162,7 +227,7 @@ export default function GrnIntake() {
           <div className="space-y-2 text-sm">
             <Row label="Batch Code" value={result.batch.batch_code} mono />
             <Row label="Fruit" value={result.batch.fruit_type} />
-            <Row label="Variety" value={result.batch.variety || "—"} />
+            <Row label="Variety" value={result.batch.variety || "\u2014"} />
             {result.batch.gross_weight_kg != null ? (
               <>
                 <Row
@@ -175,7 +240,7 @@ export default function GrnIntake() {
                 />
                 <Row
                   label="Net Weight"
-                  value={`${result.batch.net_weight_kg?.toLocaleString() ?? "—"} kg`}
+                  value={`${result.batch.net_weight_kg?.toLocaleString() ?? "\u2014"} kg`}
                   bold
                 />
               </>
@@ -211,6 +276,10 @@ export default function GrnIntake() {
       </div>
     );
   }
+
+  // Whether we have config data (controls dropdown vs free-text fallback)
+  const hasProductConfig = fruitTypes.length > 0;
+  const hasBinTypes = binTypes.length > 0;
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
@@ -273,22 +342,46 @@ export default function GrnIntake() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Fruit Type *
             </label>
-            <input
-              {...register("fruit_type", { required: "Fruit type is required" })}
-              className={errors.fruit_type || getFieldError("fruit_type") ? inputError : inputBase}
-              placeholder="e.g. apple, pear, citrus"
-            />
+            {hasProductConfig ? (
+              <select
+                {...register("fruit_type", { required: "Fruit type is required" })}
+                className={errors.fruit_type || getFieldError("fruit_type") ? inputError : inputBase}
+              >
+                <option value="">Select fruit type</option>
+                {fruitTypes.map((ft) => (
+                  <option key={ft} value={ft}>{ft}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                {...register("fruit_type", { required: "Fruit type is required" })}
+                className={errors.fruit_type || getFieldError("fruit_type") ? inputError : inputBase}
+                placeholder="e.g. apple, pear, citrus"
+              />
+            )}
             <FieldMsg error={errors.fruit_type?.message || getFieldError("fruit_type")} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Variety
             </label>
-            <input
-              {...register("variety")}
-              className={getFieldError("variety") ? inputError : inputBase}
-              placeholder="e.g. Fuji, Packham"
-            />
+            {hasProductConfig && varieties.length > 0 ? (
+              <select
+                {...register("variety")}
+                className={getFieldError("variety") ? inputError : inputBase}
+              >
+                <option value="">Select variety</option>
+                {varieties.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                {...register("variety")}
+                className={getFieldError("variety") ? inputError : inputBase}
+                placeholder="e.g. Fuji, Packham"
+              />
+            )}
             <FieldMsg error={getFieldError("variety")} />
           </div>
         </div>
@@ -319,11 +412,31 @@ export default function GrnIntake() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Bin Type
               </label>
-              <input
-                {...register("bin_type")}
-                className={getFieldError("bin_type") ? inputError : inputBase}
-                placeholder="e.g. Plastic bin, Wooden crate"
-              />
+              {hasBinTypes ? (
+                <select
+                  {...register("bin_type")}
+                  onChange={handleBinTypeChange}
+                  className={getFieldError("bin_type") ? inputError : inputBase}
+                >
+                  <option value="">Select bin type</option>
+                  {binTypes.map((bt) => {
+                    const hints = [];
+                    if (bt.default_weight_kg > 0) hints.push(`${bt.default_weight_kg} kg`);
+                    if (bt.tare_weight_kg > 0) hints.push(`${bt.tare_weight_kg} kg tare`);
+                    return (
+                      <option key={bt.id} value={bt.name}>
+                        {bt.name}{hints.length > 0 ? ` (${hints.join(", ")})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <input
+                  {...register("bin_type")}
+                  className={getFieldError("bin_type") ? inputError : inputBase}
+                  placeholder="e.g. Plastic bin, Wooden crate"
+                />
+              )}
               <FieldMsg error={getFieldError("bin_type")} />
             </div>
           </div>
@@ -375,63 +488,18 @@ export default function GrnIntake() {
           )}
         </div>
 
-        {/* Quality + Date */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quality Grade
-            </label>
-            <select
-              {...register("quality_grade")}
-              className={getFieldError("quality_grade") ? inputError : inputBase}
-            >
-              <option value="">Select grade</option>
-              <option value="Class 1">Class 1</option>
-              <option value="Class 2">Class 2</option>
-              <option value="Class 3">Class 3</option>
-              <option value="Industrial">Industrial</option>
-            </select>
-            <FieldMsg error={getFieldError("quality_grade")} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Harvest Date
-            </label>
-            <input
-              type="date"
-              {...register("harvest_date")}
-              className={getFieldError("harvest_date") ? inputError : inputBase}
-            />
-            <FieldMsg error={getFieldError("harvest_date")} />
-          </div>
-        </div>
-
-        {/* Optional quality fields */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Arrival Temp (&deg;C)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              {...register("arrival_temp_c")}
-              className={getFieldError("arrival_temp_c") ? inputError : inputBase}
-            />
-            <FieldMsg error={getFieldError("arrival_temp_c")} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Brix Reading
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              {...register("brix_reading")}
-              className={getFieldError("brix_reading") ? inputError : inputBase}
-            />
-            <FieldMsg error={getFieldError("brix_reading")} />
-          </div>
+        {/* Harvest Date */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Harvest Date
+          </label>
+          <input
+            type="date"
+            {...register("harvest_date")}
+            defaultValue={new Date().toISOString().split("T")[0]}
+            className={getFieldError("harvest_date") ? inputError : inputBase}
+          />
+          <FieldMsg error={getFieldError("harvest_date")} />
         </div>
 
         <div>
