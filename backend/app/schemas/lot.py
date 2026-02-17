@@ -125,6 +125,7 @@ class LotSummary(BaseModel):
     weight_kg: float | None
     waste_kg: float = 0.0
     waste_reason: str | None = None
+    palletized_boxes: int = 0
     status: str
     pack_date: date | None
     created_at: datetime

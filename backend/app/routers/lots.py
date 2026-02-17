@@ -19,6 +19,7 @@ from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.lot import Lot
+from app.models.tenant.pallet import PalletLot
 from app.schemas.common import PaginatedResponse
 from app.schemas.lot import (
     LotFromBatchItem,
@@ -145,8 +146,23 @@ async def list_lots(
     result = await db.execute(items_stmt)
     items = result.scalars().all()
 
+    # Compute palletized box counts per lot
+    lot_ids = [lot.id for lot in items]
+    palletized_map: dict[str, int] = {}
+    if lot_ids:
+        pal_result = await db.execute(
+            select(PalletLot.lot_id, func.sum(PalletLot.box_count))
+            .where(PalletLot.lot_id.in_(lot_ids))
+            .group_by(PalletLot.lot_id)
+        )
+        palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}
+
+    summaries = [LotSummary.model_validate(lot) for lot in items]
+    for s in summaries:
+        s.palletized_boxes = palletized_map.get(s.id, 0)
+
     return PaginatedResponse(
-        items=[LotSummary.model_validate(lot) for lot in items],
+        items=summaries,
         total=total,
         limit=limit,
         offset=offset,
