@@ -223,3 +223,7 @@ export async function finalizeGRN(batchId: string): Promise<BatchDetail> {
   const { data } = await api.post<BatchDetail>(`/batches/${batchId}/finalize`);
   return data;
 }
+
+export async function deleteBatch(batchId: string): Promise<void> {
+  await api.delete(`/batches/${batchId}`);
+}

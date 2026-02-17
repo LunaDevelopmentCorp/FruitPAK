@@ -1,11 +1,12 @@
 """Batch router — GRN intake and batch management.
 
 Endpoints:
-    POST /api/batches/grn           Create batch via GRN intake
-    GET  /api/batches/              List batches (with filters)
-    GET  /api/batches/{batch_id}    Single batch detail
-    GET  /api/batches/{batch_id}/qr QR code SVG for batch
-    PATCH /api/batches/{batch_id}   Update batch fields
+    POST   /api/batches/grn           Create batch via GRN intake
+    GET    /api/batches/              List batches (with filters)
+    GET    /api/batches/{batch_id}    Single batch detail
+    GET    /api/batches/{batch_id}/qr QR code SVG for batch
+    PATCH  /api/batches/{batch_id}   Update batch fields
+    DELETE /api/batches/{batch_id}   Soft-delete batch and its lots
 """
 
 import io
@@ -369,3 +370,35 @@ async def finalize_grn(
     await db.flush()
     await invalidate_cache("batches:*")
     return BatchOut.model_validate(batch)
+
+
+# ── Delete batch ─────────────────────────────────────────────
+
+@router.delete("/{batch_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_batch(
+    batch_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Soft-delete a batch (GRN) and all its lots.
+
+    Marks the batch and its lots as is_deleted=True. Does not remove
+    any associated pallet allocations — the pallet detail pages will
+    simply show the lots as deleted.
+    """
+    result = await db.execute(
+        select(Batch)
+        .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(selectinload(Batch.lots))
+    )
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    batch.is_deleted = True
+    for lot in (batch.lots or []):
+        lot.is_deleted = True
+
+    await db.flush()
+    await invalidate_cache("batches:*")

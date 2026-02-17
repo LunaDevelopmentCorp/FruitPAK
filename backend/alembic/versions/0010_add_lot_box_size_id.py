@@ -18,17 +18,23 @@ import sqlalchemy as sa
 
 
 def upgrade() -> None:
-    op.add_column(
-        "lots",
-        sa.Column("box_size_id", sa.String(36), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_lots_box_size_id",
-        "lots",
-        "box_sizes",
-        ["box_size_id"],
-        ["id"],
-    )
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name='lots' AND column_name='box_size_id'"
+    ))
+    if not result.fetchone():
+        op.add_column(
+            "lots",
+            sa.Column("box_size_id", sa.String(36), nullable=True),
+        )
+        op.create_foreign_key(
+            "fk_lots_box_size_id",
+            "lots",
+            "box_sizes",
+            ["box_size_id"],
+            ["id"],
+        )
 
 
 def downgrade() -> None:

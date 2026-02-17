@@ -17,7 +17,13 @@ import sqlalchemy as sa
 
 
 def upgrade() -> None:
-    op.add_column("box_sizes", sa.Column("cost_per_unit", sa.Float(), nullable=True))
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name='box_sizes' AND column_name='cost_per_unit'"
+    ))
+    if not result.fetchone():
+        op.add_column("box_sizes", sa.Column("cost_per_unit", sa.Float(), nullable=True))
 
 
 def downgrade() -> None:

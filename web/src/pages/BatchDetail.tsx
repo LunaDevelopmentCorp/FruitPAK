@@ -5,6 +5,7 @@ import {
   getBatch,
   updateBatch,
   updateLot,
+  deleteBatch,
   createLotsFromBatch,
   closeProductionRun,
   finalizeGRN,
@@ -45,6 +46,8 @@ export default function BatchDetail() {
   const [wasteSaving, setWasteSaving] = useState(false);
   const [closingSaving, setClosingSaving] = useState(false);
   const [finalizeSaving, setFinalizeSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Box sizes for lot creation
   const [boxSizes, setBoxSizes] = useState<BoxSizeConfig[]>([]);
@@ -196,15 +199,61 @@ export default function BatchDetail() {
             {batch.status}
           </span>
           {!editing && (
-            <button
-              onClick={() => { setEditing(true); setSuccess(null); }}
-              className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
-            >
-              Edit
-            </button>
+            <>
+              <button
+                onClick={() => { setEditing(true); setSuccess(null); }}
+                className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
+              >
+                Delete
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800 font-medium mb-2">
+            Are you sure you want to delete GRN {batch.batch_code}?
+          </p>
+          <p className="text-xs text-red-600 mb-3">
+            This will soft-delete the batch and all its lots. This action can be reversed by an admin.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await deleteBatch(batchId!);
+                  globalToast("success", `Batch ${batch.batch_code} deleted.`);
+                  navigate("/batches");
+                } catch {
+                  globalToast("error", "Failed to delete batch.");
+                  setDeleting(false);
+                  setConfirmDelete(false);
+                }
+              }}
+              disabled={deleting}
+              className="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Yes, Delete"}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>

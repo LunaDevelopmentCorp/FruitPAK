@@ -14,10 +14,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "grower_payments",
-        sa.Column("payment_type", sa.String(20), server_default="final", nullable=False),
-    )
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name='grower_payments' AND column_name='payment_type'"
+    ))
+    if not result.fetchone():
+        op.add_column(
+            "grower_payments",
+            sa.Column("payment_type", sa.String(20), server_default="final", nullable=False),
+        )
 
 
 def downgrade() -> None:

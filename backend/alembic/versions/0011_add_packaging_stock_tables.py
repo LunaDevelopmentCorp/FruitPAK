@@ -18,7 +18,17 @@ from alembic import op
 import sqlalchemy as sa
 
 
+def _table_exists(conn, table_name):
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.tables WHERE table_name = :name"
+    ), {"name": table_name})
+    return result.fetchone() is not None
+
+
 def upgrade() -> None:
+    conn = op.get_bind()
+    if _table_exists(conn, "packaging_stock"):
+        return
     op.create_table(
         "packaging_stock",
         sa.Column("id", sa.String(36), primary_key=True),

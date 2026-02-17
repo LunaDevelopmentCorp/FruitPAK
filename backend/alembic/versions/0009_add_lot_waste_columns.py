@@ -18,8 +18,16 @@ import sqlalchemy as sa
 
 
 def upgrade() -> None:
-    op.add_column("lots", sa.Column("waste_kg", sa.Float(), nullable=False, server_default="0.0"))
-    op.add_column("lots", sa.Column("waste_reason", sa.Text(), nullable=True))
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name='lots' AND column_name IN ('waste_kg', 'waste_reason')"
+    ))
+    existing = {row[0] for row in result.fetchall()}
+    if "waste_kg" not in existing:
+        op.add_column("lots", sa.Column("waste_kg", sa.Float(), nullable=False, server_default="0.0"))
+    if "waste_reason" not in existing:
+        op.add_column("lots", sa.Column("waste_reason", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:

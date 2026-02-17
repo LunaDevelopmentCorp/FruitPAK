@@ -18,10 +18,16 @@ from alembic import op
 
 
 def upgrade() -> None:
-    op.add_column(
-        "wizard_state",
-        sa.Column("completed_data", sa.JSON(), server_default="{}", nullable=False),
-    )
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name='wizard_state' AND column_name='completed_data'"
+    ))
+    if not result.fetchone():
+        op.add_column(
+            "wizard_state",
+            sa.Column("completed_data", sa.JSON(), server_default="{}", nullable=False),
+        )
 
 
 def downgrade() -> None:

@@ -24,75 +24,83 @@ from alembic import op
 import sqlalchemy as sa
 
 
+def _index_exists(conn, index_name):
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM pg_indexes WHERE indexname = :name"
+    ), {"name": index_name})
+    return result.fetchone() is not None
+
+
 def upgrade() -> None:
+    conn = op.get_bind()
+
     # ═══════════════════════════════════════════════════════════
     # 1. Add indexes on Batch table
     # ═══════════════════════════════════════════════════════════
 
-    # Composite index for common query patterns: grower + date + status filters
-    op.create_index(
-        "ix_batches_grower_harvest_status",
-        "batches",
-        ["grower_id", "harvest_date", "status"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_batches_grower_harvest_status"):
+        op.create_index(
+            "ix_batches_grower_harvest_status",
+            "batches",
+            ["grower_id", "harvest_date", "status"],
+            unique=False,
+        )
 
-    # Index on intake_date for date range queries
-    op.create_index(
-        "ix_batches_intake_date",
-        "batches",
-        ["intake_date"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_batches_intake_date"):
+        op.create_index(
+            "ix_batches_intake_date",
+            "batches",
+            ["intake_date"],
+            unique=False,
+        )
 
-    # Index on fruit_type for filtering by product
-    op.create_index(
-        "ix_batches_fruit_type",
-        "batches",
-        ["fruit_type"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_batches_fruit_type"):
+        op.create_index(
+            "ix_batches_fruit_type",
+            "batches",
+            ["fruit_type"],
+            unique=False,
+        )
 
     # ═══════════════════════════════════════════════════════════
     # 2. Add indexes on BatchHistory table
     # ═══════════════════════════════════════════════════════════
 
-    # Composite index for batch event queries (batch_id already indexed)
-    # This helps with "show me all events for batch X in date range Y"
-    op.create_index(
-        "ix_batch_history_batch_recorded",
-        "batch_history",
-        ["batch_id", "recorded_at"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_batch_history_batch_recorded"):
+        op.create_index(
+            "ix_batch_history_batch_recorded",
+            "batch_history",
+            ["batch_id", "recorded_at"],
+            unique=False,
+        )
 
     # ═══════════════════════════════════════════════════════════
     # 3. Add indexes on GrowerPayment table
     # ═══════════════════════════════════════════════════════════
 
-    # Composite index for grower payment queries
-    op.create_index(
-        "ix_grower_payments_grower_date",
-        "grower_payments",
-        ["grower_id", "paid_date"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_grower_payments_grower_date"):
+        op.create_index(
+            "ix_grower_payments_grower_date",
+            "grower_payments",
+            ["grower_id", "paid_date"],
+            unique=False,
+        )
 
-    # Index on paid_date for date range filtering
-    op.create_index(
-        "ix_grower_payments_paid_date",
-        "grower_payments",
-        ["paid_date"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_grower_payments_paid_date"):
+        op.create_index(
+            "ix_grower_payments_paid_date",
+            "grower_payments",
+            ["paid_date"],
+            unique=False,
+        )
 
-    # Index on created_at for sorting/filtering recent payments
-    op.create_index(
-        "ix_grower_payments_created_at",
-        "grower_payments",
-        ["created_at"],
-        unique=False,
-    )
+    if not _index_exists(conn, "ix_grower_payments_created_at"):
+        op.create_index(
+            "ix_grower_payments_created_at",
+            "grower_payments",
+            ["created_at"],
+            unique=False,
+        )
 
     # ═══════════════════════════════════════════════════════════
     # 4. TimescaleDB Compression Policy
