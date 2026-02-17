@@ -33,6 +33,9 @@ from app.models.tenant.credit import Credit
 # ── Reconciliation ───────────────────────────────────────────
 from app.models.tenant.reconciliation_alert import ReconciliationAlert
 
+# ── Packaging stock ─────────────────────────────────────────
+from app.models.tenant.packaging_stock import PackagingStock, PackagingMovement
+
 __all__ = [
     # Setup / config
     "WizardState", "CompanyProfile", "Packhouse", "PackLine",
@@ -45,4 +48,6 @@ __all__ = [
     "GrowerPayment", "LabourCost", "ClientInvoice", "Credit",
     # Reconciliation
     "ReconciliationAlert",
+    # Packaging stock
+    "PackagingStock", "PackagingMovement",
 ]
