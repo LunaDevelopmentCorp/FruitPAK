@@ -16,8 +16,11 @@ import {
   getBoxSizes,
   getPalletTypes,
   createPalletsFromLots,
+  listPallets,
+  allocateBoxesToPallet,
   BoxSizeConfig,
   PalletTypeConfig,
+  PalletSummary,
   LotAssignment,
 } from "../api/pallets";
 import BatchQR from "../components/BatchQR";
@@ -58,6 +61,12 @@ export default function BatchDetail() {
   const [palletCapacity, setPalletCapacity] = useState(240);
   const [lotAssignments, setLotAssignments] = useState<Record<string, number>>({});
   const [palletSaving, setPalletSaving] = useState(false);
+
+  // Allocate to existing pallet state
+  const [allocatingToExisting, setAllocatingToExisting] = useState(false);
+  const [openPallets, setOpenPallets] = useState<PalletSummary[]>([]);
+  const [selectedPalletId, setSelectedPalletId] = useState("");
+  const [allocateSaving, setAllocateSaving] = useState(false);
 
   const {
     register,
@@ -654,20 +663,33 @@ export default function BatchDetail() {
             <div className="bg-white rounded-lg border p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-700">Palletize</h3>
-                {!creatingPallet && (
-                  <button
-                    onClick={() => {
-                      setCreatingPallet(true);
-                      getPalletTypes().then(setPalletTypes).catch(() => {});
-                      // Pre-fill lot assignments with unallocated box counts
-                      const init: Record<string, number> = {};
-                      batch.lots.forEach((l) => { init[l.id] = l.carton_count - (l.palletized_boxes ?? 0); });
-                      setLotAssignments(init);
-                    }}
-                    className="text-sm text-green-600 hover:text-green-700 font-medium"
-                  >
-                    + Create Pallet
-                  </button>
+                {!creatingPallet && !allocatingToExisting && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setCreatingPallet(true);
+                        getPalletTypes().then(setPalletTypes).catch(() => {});
+                        const init: Record<string, number> = {};
+                        batch.lots.forEach((l) => { init[l.id] = l.carton_count - (l.palletized_boxes ?? 0); });
+                        setLotAssignments(init);
+                      }}
+                      className="text-sm text-green-600 hover:text-green-700 font-medium"
+                    >
+                      + Create Pallet
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAllocatingToExisting(true);
+                        listPallets({ status: "open" }).then(setOpenPallets).catch(() => {});
+                        const init: Record<string, number> = {};
+                        batch.lots.forEach((l) => { init[l.id] = l.carton_count - (l.palletized_boxes ?? 0); });
+                        setLotAssignments(init);
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      + Add to Existing
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -834,6 +856,149 @@ export default function BatchDetail() {
                     </button>
                     <button
                       onClick={() => { setCreatingPallet(false); setSelectedPalletType(""); setLotAssignments({}); }}
+                      className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <Link
+                      to="/pallets"
+                      className="ml-auto text-xs text-gray-500 hover:text-gray-700 self-center"
+                    >
+                      View all pallets &rarr;
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Allocate to existing pallet form */}
+              {allocatingToExisting && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Select Open Pallet *</label>
+                    {openPallets.length > 0 ? (
+                      <select
+                        value={selectedPalletId}
+                        onChange={(e) => setSelectedPalletId(e.target.value)}
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Select a pallet</option>
+                        {openPallets.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.pallet_number} — {p.pallet_type_name || "Unknown type"} ({p.current_boxes}/{p.capacity_boxes} boxes)
+                            {p.grade ? ` · ${p.grade}` : ""}
+                            {p.size ? ` · ${p.size}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-sm text-gray-500">No open pallets found. Create a new pallet instead.</p>
+                    )}
+                  </div>
+
+                  {/* Lot assignment table */}
+                  {openPallets.length > 0 && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Assign boxes from lots</label>
+                      <div className="border rounded overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100 text-gray-600 text-xs">
+                            <tr>
+                              <th className="text-left px-2 py-1.5 font-medium">Lot</th>
+                              <th className="text-left px-2 py-1.5 font-medium">Grade</th>
+                              <th className="text-left px-2 py-1.5 font-medium">Size</th>
+                              <th className="text-right px-2 py-1.5 font-medium">Available</th>
+                              <th className="text-right px-2 py-1.5 font-medium">Assign</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {batch.lots.map((lot) => {
+                              const assigned = lotAssignments[lot.id] ?? 0;
+                              const available = lot.carton_count - (lot.palletized_boxes ?? 0);
+                              return (
+                                <tr key={lot.id}>
+                                  <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                                  <td className="px-2 py-1.5">{lot.grade || "—"}</td>
+                                  <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                                  <td className="px-2 py-1.5 text-right text-gray-500">{available}</td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      value={assigned}
+                                      onChange={(e) => setLotAssignments({
+                                        ...lotAssignments,
+                                        [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
+                                      })}
+                                      min={0}
+                                      max={available}
+                                      className="w-20 border rounded px-2 py-1 text-sm text-right"
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {(() => {
+                        const totalAssigned = Object.values(lotAssignments).reduce((a, b) => a + b, 0);
+                        const selected = openPallets.find((p) => p.id === selectedPalletId);
+                        const remaining = selected ? selected.capacity_boxes - selected.current_boxes : 0;
+                        return (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500">
+                              Total: <span className="font-medium">{totalAssigned}</span> boxes
+                              {selected && ` · Pallet has ${remaining} spaces remaining`}
+                              {selected && totalAssigned > remaining && (
+                                <span className="text-yellow-600 ml-2">(exceeds remaining capacity)</span>
+                              )}
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2 border-t">
+                    <button
+                      onClick={async () => {
+                        if (!selectedPalletId) {
+                          globalToast("error", "Select a pallet.");
+                          return;
+                        }
+                        const assignments: LotAssignment[] = Object.entries(lotAssignments)
+                          .filter(([, count]) => count > 0)
+                          .map(([lot_id, box_count]) => {
+                            const lot = batch.lots.find((l) => l.id === lot_id);
+                            return { lot_id, box_count, size: lot?.size || undefined };
+                          });
+                        if (assignments.length === 0) {
+                          globalToast("error", "Assign boxes from at least one lot.");
+                          return;
+                        }
+                        setAllocateSaving(true);
+                        try {
+                          await allocateBoxesToPallet(selectedPalletId, { lot_assignments: assignments });
+                          const selected = openPallets.find((p) => p.id === selectedPalletId);
+                          globalToast("success", `Boxes allocated to ${selected?.pallet_number || "pallet"}.`);
+                          setAllocatingToExisting(false);
+                          setSelectedPalletId("");
+                          setLotAssignments({});
+                          const refreshed = await getBatch(batchId!);
+                          setBatch(refreshed);
+                        } catch {
+                          globalToast("error", "Failed to allocate boxes.");
+                        } finally {
+                          setAllocateSaving(false);
+                        }
+                      }}
+                      disabled={allocateSaving}
+                      className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {allocateSaving ? "Allocating..." : "Allocate to Pallet"}
+                    </button>
+                    <button
+                      onClick={() => { setAllocatingToExisting(false); setSelectedPalletId(""); setLotAssignments({}); }}
                       className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
                     >
                       Cancel
