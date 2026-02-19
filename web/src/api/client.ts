@@ -123,4 +123,24 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * Extract a human-readable error message from an Axios error.
+ * Handles both `{ detail: "..." }` (raw FastAPI) and
+ * `{ error: { message: "..." } }` (our error middleware) formats.
+ */
+export function getErrorMessage(err: unknown, fallback = "Something went wrong"): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const data = (err as { response?: { data?: Record<string, unknown> } }).response?.data;
+    if (data) {
+      // Our middleware format: { error: { message: "..." } }
+      if (data.error && typeof data.error === "object" && "message" in (data.error as object)) {
+        return (data.error as { message: string }).message;
+      }
+      // Raw FastAPI format: { detail: "..." }
+      if (typeof data.detail === "string") return data.detail;
+    }
+  }
+  return fallback;
+}
+
 export default api;

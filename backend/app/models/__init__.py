@@ -32,3 +32,6 @@ from app.models.tenant.credit import Credit  # noqa: F401
 
 # Tenant schema — reconciliation
 from app.models.tenant.reconciliation_alert import ReconciliationAlert  # noqa: F401
+
+# Tenant schema — audit
+from app.models.tenant.activity_log import ActivityLog  # noqa: F401

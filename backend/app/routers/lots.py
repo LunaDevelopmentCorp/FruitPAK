@@ -30,13 +30,10 @@ from app.schemas.lot import (
     LotUpdate,
     LotsFromBatchRequest,
 )
+from app.utils.activity import log_activity
+from app.utils.numbering import generate_code
 
 router = APIRouter()
-
-
-def _generate_lot_code(batch_code: str, index: int) -> str:
-    """Generate lot code like GRN-20260213-001-L01."""
-    return f"{batch_code}-L{index:02d}"
 
 
 async def _adjust_packaging_stock(
@@ -105,9 +102,6 @@ async def create_lots_from_batch(
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    # Determine starting lot index (continue numbering if lots already exist)
-    existing_count = len(batch.lots) if batch.lots else 0
-
     # Pre-load box sizes for auto-weight calculation
     box_size_ids = [item.box_size_id for item in body.lots if item.box_size_id]
     box_size_map: dict[str, float] = {}
@@ -119,9 +113,7 @@ async def create_lots_from_batch(
             box_size_map[bs.id] = bs.weight_kg
 
     created_lots = []
-    for i, item in enumerate(body.lots):
-        lot_index = existing_count + i + 1
-
+    for item in body.lots:
         # Auto-calculate weight: carton_count × box weight (if box_size provided)
         weight_kg = item.weight_kg
         if item.box_size_id and item.box_size_id in box_size_map:
@@ -129,7 +121,7 @@ async def create_lots_from_batch(
 
         lot = Lot(
             id=str(uuid.uuid4()),
-            lot_code=_generate_lot_code(batch.batch_code, lot_index),
+            lot_code=await generate_code(db, "lot", batch_code=batch.batch_code),
             batch_id=batch.id,
             grower_id=batch.grower_id,
             packhouse_id=batch.packhouse_id,
@@ -178,6 +170,17 @@ async def create_lots_from_batch(
     )
     lots = result.scalars().all()
 
+    lot_codes = [lot.lot_code for lot in created_lots]
+    await log_activity(
+        db, user,
+        action="created",
+        entity_type="lot",
+        entity_id=created_lots[0].id if len(created_lots) == 1 else None,
+        entity_code=lot_codes[0] if len(lot_codes) == 1 else f"{lot_codes[0]}…+{len(lot_codes)-1}",
+        summary=f"Created {len(created_lots)} lot(s) from batch {batch.batch_code}",
+        details={"lot_codes": lot_codes, "batch_code": batch.batch_code},
+    )
+
     return [LotOut.from_orm_with_names(lot) for lot in lots]
 
 
@@ -221,7 +224,7 @@ async def list_lots(
     if lot_ids:
         pal_result = await db.execute(
             select(PalletLot.lot_id, func.sum(PalletLot.box_count))
-            .where(PalletLot.lot_id.in_(lot_ids))
+            .where(PalletLot.lot_id.in_(lot_ids), PalletLot.is_deleted == False)  # noqa: E712
             .group_by(PalletLot.lot_id)
         )
         palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}

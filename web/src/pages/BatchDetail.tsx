@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { getErrorMessage } from "../api/client";
 import {
   getBatch,
   updateBatch,
@@ -10,8 +10,8 @@ import {
   closeProductionRun,
   finalizeGRN,
   BatchDetail as BatchDetailType,
-  BatchUpdatePayload,
   LotFromBatchItem,
+  LotUpdatePayload,
 } from "../api/batches";
 import {
   getBoxSizes,
@@ -20,26 +20,35 @@ import {
   createPalletsFromLots,
   listPallets,
   allocateBoxesToPallet,
+  getBinTypes,
   BoxSizeConfig,
+  BinTypeConfig,
   PalletTypeConfig,
   PalletTypeCapacity,
   PalletSummary,
   LotAssignment,
 } from "../api/pallets";
+import { getFruitTypeConfigs, FruitTypeConfig } from "../api/config";
 import BatchQR from "../components/BatchQR";
 import { showToast as globalToast } from "../store/toastStore";
+
+/** Extended lot row with UI-only fields for unit selection. */
+type LotRowForm = LotFromBatchItem & {
+  unit: "cartons" | "bins";
+  bin_type_id?: string;
+  bin_count?: number;
+};
 
 export default function BatchDetail() {
   const { batchId } = useParams<{ batchId: string }>();
   const [batch, setBatch] = useState<BatchDetailType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
   const [creatingLots, setCreatingLots] = useState(false);
-  const [lotRows, setLotRows] = useState<LotFromBatchItem[]>([{ grade: "", carton_count: 0 }]);
+  const [lotRows, setLotRows] = useState<LotRowForm[]>([{ grade: "", carton_count: 0, unit: "cartons" }]);
   const [lotSaving, setLotSaving] = useState(false);
+  const [lotValidationError, setLotValidationError] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Waste entry state
   const [editingWaste, setEditingWaste] = useState(false);
@@ -53,10 +62,14 @@ export default function BatchDetail() {
 
   // Box sizes for lot creation
   const [boxSizes, setBoxSizes] = useState<BoxSizeConfig[]>([]);
+  // Bin types for weight recalculation
+  const [binTypes, setBinTypes] = useState<BinTypeConfig[]>([]);
+  // Fruit type configs for grade/size dropdowns
+  const [fruitConfigs, setFruitConfigs] = useState<FruitTypeConfig[]>([]);
 
   // Inline lot editing state
   const [editingLotId, setEditingLotId] = useState<string | null>(null);
-  const [editCartonCount, setEditCartonCount] = useState(0);
+  const [editLotForm, setEditLotForm] = useState<LotUpdatePayload>({});
   const [lotUpdateSaving, setLotUpdateSaving] = useState(false);
 
   // Pallet creation state
@@ -68,88 +81,45 @@ export default function BatchDetail() {
   const [lotAssignments, setLotAssignments] = useState<Record<string, number>>({});
   const [palletSaving, setPalletSaving] = useState(false);
 
+  // Pallet size & box type selection
+  const [palletSize, setPalletSize] = useState("");
+  const [palletBoxSizeId, setPalletBoxSizeId] = useState("");
+  const [allowMixedSizes, setAllowMixedSizes] = useState(false);
+  const [allowMixedBoxTypes, setAllowMixedBoxTypes] = useState(false);
+
   // Allocate to existing pallet state
   const [allocatingToExisting, setAllocatingToExisting] = useState(false);
   const [openPallets, setOpenPallets] = useState<PalletSummary[]>([]);
   const [selectedPalletId, setSelectedPalletId] = useState("");
   const [allocateSaving, setAllocateSaving] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting },
-  } = useForm<BatchUpdatePayload>();
-
   useEffect(() => {
     if (!batchId) return;
     getBatch(batchId)
-      .then((b) => {
-        setBatch(b);
-        reset({
-          variety: b.variety || "",
-          harvest_date: b.harvest_date?.split("T")[0] || "",
-          gross_weight_kg: b.gross_weight_kg ?? undefined,
-          tare_weight_kg: b.tare_weight_kg,
-          arrival_temp_c: b.arrival_temp_c ?? undefined,
-          brix_reading: b.brix_reading ?? undefined,
-          status: b.status,
-          bin_count: b.bin_count ?? undefined,
-          bin_type: b.bin_type || "",
-          notes: b.notes || "",
-        });
-      })
+      .then(setBatch)
       .catch(() => setError("Failed to load batch"))
       .finally(() => setLoading(false));
     getBoxSizes().then(setBoxSizes).catch(() => {});
-  }, [batchId, reset]);
+    getBinTypes().then(setBinTypes).catch(() => {});
+    getFruitTypeConfigs().then(setFruitConfigs).catch(() => {});
+  }, [batchId]);
 
-  const onSubmit = async (data: BatchUpdatePayload) => {
-    if (!batchId) return;
-    setError(null);
-    setSuccess(null);
+  // Derive available grades & sizes from fruit type configs matching this batch's fruit type
+  const availableGrades = useMemo(() => {
+    if (!batch) return [];
+    const config = fruitConfigs.find(
+      (fc) => fc.fruit_type.toLowerCase() === batch.fruit_type.toLowerCase(),
+    );
+    return config?.grades ?? [];
+  }, [fruitConfigs, batch]);
 
-    // Clean up: only send fields that changed, convert numbers
-    const payload: BatchUpdatePayload = {};
-    if (data.variety) payload.variety = data.variety;
-    if (data.harvest_date) payload.harvest_date = data.harvest_date;
-    if (data.gross_weight_kg) payload.gross_weight_kg = Number(data.gross_weight_kg);
-    if (data.tare_weight_kg !== undefined) payload.tare_weight_kg = Number(data.tare_weight_kg);
-    if (data.arrival_temp_c) payload.arrival_temp_c = Number(data.arrival_temp_c);
-    if (data.brix_reading) payload.brix_reading = Number(data.brix_reading);
-    if (data.status) payload.status = data.status;
-    if (data.bin_count) payload.bin_count = Number(data.bin_count);
-    if (data.bin_type) payload.bin_type = data.bin_type;
-    if (data.notes !== undefined) payload.notes = data.notes;
-
-    try {
-      await updateBatch(batchId, payload);
-      // Re-fetch full detail (PATCH returns BatchOut without names/history)
-      const refreshed = await getBatch(batchId);
-      setBatch(refreshed);
-      reset({
-        variety: refreshed.variety || "",
-        harvest_date: refreshed.harvest_date?.split("T")[0] || "",
-        gross_weight_kg: refreshed.gross_weight_kg ?? undefined,
-        tare_weight_kg: refreshed.tare_weight_kg,
-        arrival_temp_c: refreshed.arrival_temp_c ?? undefined,
-        brix_reading: refreshed.brix_reading ?? undefined,
-        status: refreshed.status,
-        bin_count: refreshed.bin_count ?? undefined,
-        bin_type: refreshed.bin_type || "",
-        notes: refreshed.notes || "",
-      });
-      setEditing(false);
-      setSuccess("Batch updated successfully");
-    } catch (err: unknown) {
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as { response?: { data?: { detail?: string } } };
-        setError(axiosErr.response?.data?.detail || "Update failed");
-      } else {
-        setError("Network error");
-      }
-    }
-  };
+  const availableSizes = useMemo(() => {
+    if (!batch) return [];
+    const config = fruitConfigs.find(
+      (fc) => fc.fruit_type.toLowerCase() === batch.fruit_type.toLowerCase(),
+    );
+    return config?.sizes ?? [];
+  }, [fruitConfigs, batch]);
 
   if (loading) {
     return (
@@ -201,22 +171,12 @@ export default function BatchDetail() {
           >
             {batch.status}
           </span>
-          {!editing && (
-            <>
-              <button
-                onClick={() => { setEditing(true); setSuccess(null); }}
-                className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
-              >
-                Delete
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
+          >
+            Delete
+          </button>
         </div>
       </div>
 
@@ -261,80 +221,8 @@ export default function BatchDetail() {
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
       )}
-      {success && (
-        <div className="mb-4 p-3 bg-green-50 text-green-700 rounded text-sm">{success}</div>
-      )}
 
-      {editing ? (
-        /* ── Edit form ───────────────────────────────────── */
-        <form onSubmit={handleSubmit(onSubmit)} className="bg-white border rounded-lg p-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Variety">
-              <input {...register("variety")} className={inputClass} />
-            </Field>
-            <Field label="Status">
-              <select {...register("status")} className={inputClass}>
-                <option value="received">Received</option>
-                <option value="processing">Processing</option>
-                <option value="packed">Packed</option>
-                <option value="complete">Complete</option>
-                <option value="rejected">Rejected</option>
-                <option value="dispatched">Dispatched</option>
-              </select>
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Gross Weight (kg)">
-              <input type="number" step="0.1" {...register("gross_weight_kg")} className={inputClass} />
-            </Field>
-            <Field label="Tare Weight (kg)">
-              <input type="number" step="0.1" {...register("tare_weight_kg")} className={inputClass} />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Harvest Date">
-              <input type="date" {...register("harvest_date")} className={inputClass} />
-            </Field>
-            <Field label="Bin Count">
-              <input type="number" {...register("bin_count")} className={inputClass} />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Arrival Temp (&deg;C)">
-              <input type="number" step="0.1" {...register("arrival_temp_c")} className={inputClass} />
-            </Field>
-            <Field label="Brix Reading">
-              <input type="number" step="0.1" {...register("brix_reading")} className={inputClass} />
-            </Field>
-          </div>
-
-          <Field label="Notes">
-            <textarea {...register("notes")} rows={3} className={inputClass} />
-          </Field>
-
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "Saving..." : "Save Changes"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        /* ── Read-only detail ────────────────────────────── */
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Weights card */}
           <div className="bg-white rounded-lg border p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Weights</h3>
@@ -392,12 +280,10 @@ export default function BatchDetail() {
             </div>
           </div>
 
-          {/* Quality card */}
+          {/* Notes card */}
           <div className="bg-white rounded-lg border p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Quality</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Notes</h3>
             <div className="grid grid-cols-2 gap-y-2 text-sm">
-              <Row label="Arrival Temp" value={batch.arrival_temp_c ? `${batch.arrival_temp_c}°C` : "—"} />
-              <Row label="Brix Reading" value={batch.brix_reading?.toString() || "—"} />
               <Row label="Rejection Reason" value={batch.rejection_reason || "—"} />
               <Row label="Notes" value={batch.notes || "—"} />
             </div>
@@ -413,6 +299,7 @@ export default function BatchDetail() {
                 <button
                   onClick={() => {
                     setCreatingLots(true);
+                    setLotValidationError(false);
                     getBoxSizes().then(setBoxSizes).catch(() => {});
                   }}
                   className="text-sm text-green-600 hover:text-green-700 font-medium"
@@ -430,75 +317,141 @@ export default function BatchDetail() {
                 </p>
                 {lotRows.map((row, idx) => {
                   const selectedBox = boxSizes.find((bs) => bs.id === row.box_size_id);
-                  const autoWeight = selectedBox && row.carton_count ? row.carton_count * selectedBox.weight_kg : null;
+                  const selectedBin = binTypes.find((bt) => bt.id === row.bin_type_id);
+                  const autoWeight =
+                    row.unit === "bins" && selectedBin && row.bin_count
+                      ? row.bin_count * (selectedBin.default_weight_kg - selectedBin.tare_weight_kg)
+                      : row.unit === "cartons" && selectedBox && row.carton_count
+                        ? row.carton_count * selectedBox.weight_kg
+                        : null;
                   return (
-                  <div key={idx} className="space-y-1">
-                    <div className="grid grid-cols-6 gap-2 items-end">
+                  <div key={idx}>
+                    <div className="grid grid-cols-7 gap-2 items-end">
                       <div>
-                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Grade *</label>}
+                        <label className="block text-xs text-gray-500 mb-1">Grade *</label>
                         <select
                           value={row.grade}
                           onChange={(e) => {
                             const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], grade: e.target.value };
+                            const grade = e.target.value;
+                            const isBinGrade = /^2$|class\s*2|industrial/i.test(grade);
+                            const batchBin = binTypes.find((bt) => bt.name === batch?.bin_type);
+                            updated[idx] = {
+                              ...updated[idx],
+                              grade,
+                              unit: isBinGrade ? "bins" : updated[idx].unit,
+                              bin_type_id: isBinGrade && !updated[idx].bin_type_id ? batchBin?.id : updated[idx].bin_type_id,
+                            };
+                            setLotRows(updated);
+                            if (grade) setLotValidationError(false);
+                          }}
+                          className={`w-full border rounded px-2 py-1.5 text-sm ${lotValidationError && !row.grade ? "border-red-400 bg-red-50" : ""}`}
+                        >
+                          <option value="">Select</option>
+                          {availableGrades.map((g) => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Size</label>
+                        <select
+                          value={row.size || ""}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            updated[idx] = { ...updated[idx], size: e.target.value || undefined };
                             setLotRows(updated);
                           }}
                           className="w-full border rounded px-2 py-1.5 text-sm"
                         >
                           <option value="">Select</option>
-                          <option value="Class 1">Class 1</option>
-                          <option value="Class 2">Class 2</option>
-                          <option value="Class 3">Class 3</option>
-                          <option value="Industrial">Industrial</option>
-                        </select>
-                      </div>
-                      <div>
-                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Size</label>}
-                        <input
-                          value={row.size || ""}
-                          onChange={(e) => {
-                            const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], size: e.target.value };
-                            setLotRows(updated);
-                          }}
-                          placeholder="e.g. Large"
-                          className="w-full border rounded px-2 py-1.5 text-sm"
-                        />
-                      </div>
-                      <div>
-                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Box Type *</label>}
-                        <select
-                          value={row.box_size_id || ""}
-                          onChange={(e) => {
-                            const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], box_size_id: e.target.value || undefined };
-                            setLotRows(updated);
-                          }}
-                          className="w-full border rounded px-2 py-1.5 text-sm"
-                        >
-                          <option value="">Select box</option>
-                          {boxSizes.map((bs) => (
-                            <option key={bs.id} value={bs.id}>
-                              {bs.name} ({bs.weight_kg} kg)
-                            </option>
+                          {availableSizes.map((s) => (
+                            <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Cartons</label>}
-                        <input
-                          type="number"
-                          value={row.carton_count ?? ""}
+                        <label className="block text-xs text-gray-500 mb-1">Unit</label>
+                        <select
+                          value={row.unit}
                           onChange={(e) => {
                             const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], carton_count: e.target.value ? Number(e.target.value) : 0 };
+                            const unit = e.target.value as "cartons" | "bins";
+                            const batchBin = binTypes.find((bt) => bt.name === batch?.bin_type);
+                            updated[idx] = {
+                              ...updated[idx],
+                              unit,
+                              bin_type_id: unit === "bins" && !updated[idx].bin_type_id ? batchBin?.id : updated[idx].bin_type_id,
+                            };
+                            setLotRows(updated);
+                          }}
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        >
+                          <option value="cartons">Cartons</option>
+                          <option value="bins">Bins</option>
+                        </select>
+                      </div>
+                      {row.unit === "cartons" ? (
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Box Type *</label>
+                          <select
+                            value={row.box_size_id || ""}
+                            onChange={(e) => {
+                              const updated = [...lotRows];
+                              updated[idx] = { ...updated[idx], box_size_id: e.target.value || undefined };
+                              setLotRows(updated);
+                            }}
+                            className="w-full border rounded px-2 py-1.5 text-sm"
+                          >
+                            <option value="">Select box</option>
+                            {boxSizes.map((bs) => (
+                              <option key={bs.id} value={bs.id}>
+                                {bs.name} ({bs.weight_kg} kg)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Bin Type *</label>
+                          <select
+                            value={row.bin_type_id || ""}
+                            onChange={(e) => {
+                              const updated = [...lotRows];
+                              updated[idx] = { ...updated[idx], bin_type_id: e.target.value || undefined };
+                              setLotRows(updated);
+                            }}
+                            className="w-full border rounded px-2 py-1.5 text-sm"
+                          >
+                            <option value="">Select bin</option>
+                            {binTypes.map((bt) => (
+                              <option key={bt.id} value={bt.id}>
+                                {bt.name} ({(bt.default_weight_kg - bt.tare_weight_kg).toFixed(0)} kg net)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">{row.unit === "bins" ? "Bins" : "Cartons"}</label>
+                        <input
+                          type="number"
+                          value={row.unit === "bins" ? (row.bin_count || "") : (row.carton_count || "")}
+                          onChange={(e) => {
+                            const updated = [...lotRows];
+                            const val = e.target.value ? Number(e.target.value) : 0;
+                            if (row.unit === "bins") {
+                              updated[idx] = { ...updated[idx], bin_count: val };
+                            } else {
+                              updated[idx] = { ...updated[idx], carton_count: val };
+                            }
                             setLotRows(updated);
                           }}
                           className="w-full border rounded px-2 py-1.5 text-sm"
                         />
                       </div>
                       <div>
-                        {idx === 0 && <label className="block text-xs text-gray-500 mb-1">Weight</label>}
+                        <label className="block text-xs text-gray-500 mb-1">Weight</label>
                         <p className="px-2 py-1.5 text-sm text-gray-600 bg-gray-100 rounded text-right">
                           {autoWeight != null ? `${autoWeight.toLocaleString()} kg` : "—"}
                         </p>
@@ -514,45 +467,38 @@ export default function BatchDetail() {
                         )}
                       </div>
                     </div>
-                    {/* Waste fields */}
-                    <div className="grid grid-cols-6 gap-2 items-end">
-                      <div>
-                        {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Waste (kg)</label>}
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={row.waste_kg ?? ""}
-                          onChange={(e) => {
-                            const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], waste_kg: e.target.value ? Number(e.target.value) : undefined };
-                            setLotRows(updated);
-                          }}
-                          placeholder="0"
-                          className="w-full border border-dashed rounded px-2 py-1.5 text-sm text-gray-600"
-                        />
-                      </div>
-                      <div className="col-span-4">
-                        {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Waste Reason</label>}
-                        <input
-                          value={row.waste_reason || ""}
-                          onChange={(e) => {
-                            const updated = [...lotRows];
-                            updated[idx] = { ...updated[idx], waste_reason: e.target.value };
-                            setLotRows(updated);
-                          }}
-                          placeholder="e.g. Sorting rejects, bruised fruit"
-                          className="w-full border border-dashed rounded px-2 py-1.5 text-sm text-gray-600"
-                        />
-                      </div>
-                      <div />
-                    </div>
                   </div>
                   );
                 })}
+                {/* Auto-waste summary */}
+                {(() => {
+                  const existingLotWeight = (batch.lots || []).reduce((s, l) => s + (l.weight_kg ?? 0), 0);
+                  const existingLotWaste = (batch.lots || []).reduce((s, l) => s + (l.waste_kg ?? 0), 0);
+                  const newLotWeight = lotRows.reduce((s, r) => {
+                    if (r.unit === "bins") {
+                      const bt = binTypes.find((b) => b.id === r.bin_type_id);
+                      return s + (r.bin_count || 0) * (bt ? bt.default_weight_kg - bt.tare_weight_kg : 0);
+                    }
+                    const bs = boxSizes.find((b) => b.id === r.box_size_id);
+                    return s + (r.carton_count || 0) * (bs ? bs.weight_kg : 0);
+                  }, 0);
+                  const incomingNet = batch.net_weight_kg ?? 0;
+                  const autoWaste = incomingNet - existingLotWeight - existingLotWaste - newLotWeight;
+                  return incomingNet > 0 ? (
+                    <div className={`mt-2 p-2 rounded text-xs ${autoWaste >= 0 ? "bg-blue-50 text-blue-700" : "bg-yellow-50 text-yellow-700"}`}>
+                      <span className="font-medium">Auto-waste:</span>{" "}
+                      {autoWaste >= 0
+                        ? `${autoWaste.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg will be recorded to balance mass.`
+                        : `Lot weights exceed incoming net by ${Math.abs(autoWaste).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg — check quantities.`}
+                      <span className="text-gray-500 ml-2">
+                        ({incomingNet.toLocaleString()} net − {(existingLotWeight + newLotWeight).toLocaleString()} lots − {existingLotWaste.toLocaleString()} waste)
+                      </span>
+                    </div>
+                  ) : null;
+                })()}
                 <button
                   type="button"
-                  onClick={() => setLotRows([...lotRows, { grade: "", carton_count: 0 }])}
+                  onClick={() => setLotRows([...lotRows, { grade: "", carton_count: 0, unit: "cartons" as const }])}
                   className="text-xs text-green-600 hover:text-green-700"
                 >
                   + Add row
@@ -560,20 +506,62 @@ export default function BatchDetail() {
                 <div className="flex gap-2 pt-2 border-t">
                   <button
                     onClick={async () => {
-                      const valid = lotRows.filter((r) => r.grade);
-                      if (valid.length === 0) {
-                        globalToast("error", "At least one lot with a grade is required.");
+                      // Check for rows missing a grade
+                      const hasAnyData = lotRows.some(
+                        (r) => r.grade || (r.carton_count ?? 0) > 0 || (r.bin_count && r.bin_count > 0) || r.box_size_id || r.size
+                      );
+                      const missingGrade = lotRows.some(
+                        (r) => !r.grade && ((r.carton_count ?? 0) > 0 || (r.bin_count && r.bin_count > 0) || r.box_size_id || r.size)
+                      );
+                      if (missingGrade || (!hasAnyData)) {
+                        setLotValidationError(true);
+                        globalToast("error", missingGrade
+                          ? "Every row needs a grade selected before saving."
+                          : "At least one lot with a grade is required.");
                         return;
                       }
+                      setLotValidationError(false);
+                      const valid = lotRows.filter((r) => r.grade);
+                      // Map form rows to API payload
+                      const apiLots: LotFromBatchItem[] = valid.map((r) => {
+                        if (r.unit === "bins") {
+                          const bt = binTypes.find((b) => b.id === r.bin_type_id);
+                          const netPerBin = bt ? bt.default_weight_kg - bt.tare_weight_kg : 0;
+                          return {
+                            grade: r.grade,
+                            size: r.size,
+                            carton_count: 0,
+                            weight_kg: (r.bin_count || 0) * netPerBin,
+                            notes: r.notes,
+                          };
+                        }
+                        return {
+                          grade: r.grade,
+                          size: r.size,
+                          box_size_id: r.box_size_id,
+                          carton_count: r.carton_count,
+                          notes: r.notes,
+                        };
+                      });
                       setLotSaving(true);
                       try {
-                        await createLotsFromBatch(batchId!, valid);
-                        globalToast("success", `${valid.length} lot(s) created.`);
+                        await createLotsFromBatch(batchId!, apiLots);
+                        globalToast("success", `${apiLots.length} lot(s) created.`);
                         setCreatingLots(false);
-                        setLotRows([{ grade: "", carton_count: 0 }]);
+                        setLotRows([{ grade: "", carton_count: 0, unit: "cartons" as const }]);
                         // Refresh batch to show new lots
                         const refreshed = await getBatch(batchId!);
                         setBatch(refreshed);
+                        // Auto-calculate and save batch waste to balance mass
+                        const incomingNet = refreshed.net_weight_kg ?? 0;
+                        if (incomingNet > 0) {
+                          const allLotWeight = (refreshed.lots || []).reduce((s, l) => s + (l.weight_kg ?? 0), 0);
+                          const allLotWaste = (refreshed.lots || []).reduce((s, l) => s + (l.waste_kg ?? 0), 0);
+                          const autoWaste = Math.max(0, incomingNet - allLotWeight - allLotWaste);
+                          await updateBatch(batchId!, { waste_kg: autoWaste, waste_reason: "Auto-calculated balance" });
+                          const refreshed2 = await getBatch(batchId!);
+                          setBatch(refreshed2);
+                        }
                       } catch {
                         globalToast("error", "Failed to create lots.");
                       } finally {
@@ -586,7 +574,7 @@ export default function BatchDetail() {
                     {lotSaving ? "Creating..." : "Create Lots"}
                   </button>
                   <button
-                    onClick={() => { setCreatingLots(false); setLotRows([{ grade: "", carton_count: 0 }]); }}
+                    onClick={() => { setCreatingLots(false); setLotRows([{ grade: "", carton_count: 0, unit: "cartons" as const }]); }}
                     className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
                   >
                     Cancel
@@ -608,99 +596,232 @@ export default function BatchDetail() {
                     <th className="text-right px-2 py-1.5 font-medium">Weight</th>
                     <th className="text-right px-2 py-1.5 font-medium">Unallocated</th>
                     <th className="text-left px-2 py-1.5 font-medium">Status</th>
+                    <th className="px-2 py-1.5 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {batch.lots.map((lot) => {
                     const unallocated = lot.carton_count - (lot.palletized_boxes ?? 0);
+                    const isEditing = editingLotId === lot.id;
                     return (
-                      <tr key={lot.id} className="hover:bg-gray-50">
-                        <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
-                        <td className="px-2 py-1.5">{lot.grade || "—"}</td>
-                        <td className="px-2 py-1.5">{lot.size || "—"}</td>
-                        <td className="px-2 py-1.5 text-xs text-gray-600">
-                          {boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          {editingLotId === lot.id ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <input
-                                type="number"
-                                min={0}
-                                value={editCartonCount}
-                                onChange={(e) => setEditCartonCount(Number(e.target.value))}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Escape") setEditingLotId(null);
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    (e.target as HTMLInputElement).closest("td")?.querySelector<HTMLButtonElement>("button")?.click();
-                                  }
-                                }}
-                                autoFocus
-                                className="w-20 border rounded px-1.5 py-0.5 text-sm text-right"
-                              />
-                              <button
-                                disabled={lotUpdateSaving}
-                                onClick={async () => {
-                                  if (editCartonCount === lot.carton_count) {
-                                    setEditingLotId(null);
-                                    return;
-                                  }
-                                  setLotUpdateSaving(true);
-                                  try {
-                                    await updateLot(lot.id, { carton_count: editCartonCount });
-                                    const refreshed = await getBatch(batchId!);
-                                    setBatch(refreshed);
-                                    setEditingLotId(null);
-                                    globalToast("success", "Carton count updated.");
-                                  } catch {
-                                    globalToast("error", "Failed to update carton count.");
-                                  } finally {
-                                    setLotUpdateSaving(false);
-                                  }
-                                }}
-                                className="text-green-600 hover:text-green-700 text-xs font-medium"
-                              >
-                                {lotUpdateSaving ? "..." : "Save"}
-                              </button>
-                              <button
-                                onClick={() => setEditingLotId(null)}
-                                className="text-gray-400 hover:text-gray-600 text-xs"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <span
-                              onClick={() => { setEditingLotId(lot.id); setEditCartonCount(lot.carton_count); }}
-                              className="cursor-pointer hover:text-green-700 hover:underline"
-                              title="Click to edit"
-                            >
-                              {lot.carton_count}
+                      <React.Fragment key={lot.id}>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                          <td className="px-2 py-1.5">{lot.grade || "—"}</td>
+                          <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                          <td className="px-2 py-1.5 text-xs text-gray-600">
+                            {boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
+                          <td className="px-2 py-1.5 text-right">
+                            {lot.weight_kg != null ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            {unallocated > 0 ? (
+                              <span className="text-yellow-600 font-medium">{unallocated}</span>
+                            ) : (
+                              <span className="text-green-600">0</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                              lot.status === "created" ? "bg-blue-50 text-blue-700"
+                              : lot.status === "palletizing" ? "bg-yellow-50 text-yellow-700"
+                              : lot.status === "stored" ? "bg-green-50 text-green-700"
+                              : lot.status === "returned" ? "bg-purple-50 text-purple-700"
+                              : "bg-gray-100 text-gray-600"
+                            }`}>
+                              {lot.status}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          {lot.weight_kg != null ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          {unallocated > 0 ? (
-                            <span className="text-yellow-600 font-medium">{unallocated}</span>
-                          ) : (
-                            <span className="text-green-600">0</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                            lot.status === "created" ? "bg-blue-50 text-blue-700"
-                            : lot.status === "palletizing" ? "bg-yellow-50 text-yellow-700"
-                            : lot.status === "stored" ? "bg-green-50 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                          }`}>
-                            {lot.status}
-                          </span>
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            {!isEditing && (
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingLotId(lot.id);
+                                    setEditLotForm({
+                                      grade: lot.grade || undefined,
+                                      size: lot.size || undefined,
+                                      box_size_id: lot.box_size_id || undefined,
+                                      carton_count: lot.carton_count,
+                                      weight_kg: lot.weight_kg ?? undefined,
+                                      waste_kg: lot.waste_kg ?? 0,
+                                      waste_reason: lot.waste_reason || undefined,
+                                      notes: lot.notes || undefined,
+                                    });
+                                  }}
+                                  className="text-xs text-green-600 hover:text-green-700 font-medium"
+                                >
+                                  Edit
+                                </button>
+                                {/^2$|class\s*2|industrial/i.test(lot.grade || "") && lot.status !== "returned" && (
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`Return lot ${lot.lot_code} to grower?`)) return;
+                                      setLotUpdateSaving(true);
+                                      try {
+                                        await updateLot(lot.id, { status: "returned", notes: "Returned to grower" });
+                                        const refreshed = await getBatch(batchId!);
+                                        setBatch(refreshed);
+                                        globalToast("success", `${lot.lot_code} marked as returned to grower.`);
+                                      } catch {
+                                        globalToast("error", "Failed to update lot status.");
+                                      } finally {
+                                        setLotUpdateSaving(false);
+                                      }
+                                    }}
+                                    disabled={lotUpdateSaving}
+                                    className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                                  >
+                                    Return
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                        {isEditing && (
+                          <tr>
+                            <td colSpan={9} className="px-2 py-3 bg-gray-50 border-t-0">
+                              <div className="grid grid-cols-4 gap-3">
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Grade</label>
+                                  <select
+                                    value={editLotForm.grade || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, grade: e.target.value || undefined })}
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  >
+                                    <option value="">Select</option>
+                                    {availableGrades.map((g) => (
+                                      <option key={g} value={g}>{g}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Size</label>
+                                  <select
+                                    value={editLotForm.size || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, size: e.target.value || undefined })}
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  >
+                                    <option value="">Select</option>
+                                    {availableSizes.map((s) => (
+                                      <option key={s} value={s}>{s}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Box Type</label>
+                                  <select
+                                    value={editLotForm.box_size_id || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, box_size_id: e.target.value || undefined })}
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  >
+                                    <option value="">Select</option>
+                                    {boxSizes.map((bs) => (
+                                      <option key={bs.id} value={bs.id}>
+                                        {bs.name} ({bs.weight_kg} kg)
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Carton Count</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={editLotForm.carton_count || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, carton_count: Number(e.target.value) })}
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-4 gap-3 mt-3">
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Waste (kg)</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min={0}
+                                    value={editLotForm.waste_kg || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, waste_kg: Number(e.target.value) })}
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Waste Reason</label>
+                                  <input
+                                    value={editLotForm.waste_reason || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, waste_reason: e.target.value || undefined })}
+                                    placeholder="e.g. Sorting rejects"
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                                  <input
+                                    value={editLotForm.notes || ""}
+                                    onChange={(e) => setEditLotForm({ ...editLotForm, notes: e.target.value || undefined })}
+                                    className="w-full border rounded px-2 py-1.5 text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  disabled={lotUpdateSaving}
+                                  onClick={async () => {
+                                    setLotUpdateSaving(true);
+                                    try {
+                                      await updateLot(lot.id, editLotForm);
+                                      const refreshed = await getBatch(batchId!);
+                                      setBatch(refreshed);
+                                      setEditingLotId(null);
+                                      globalToast("success", "Lot updated.");
+                                    } catch {
+                                      globalToast("error", "Failed to update lot.");
+                                    } finally {
+                                      setLotUpdateSaving(false);
+                                    }
+                                  }}
+                                  className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  {lotUpdateSaving ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  onClick={() => setEditingLotId(null)}
+                                  className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                                {/^2$|class\s*2|industrial/i.test(lot.grade || "") && lot.status !== "returned" && (
+                                  <button
+                                    disabled={lotUpdateSaving}
+                                    onClick={async () => {
+                                      if (!confirm(`Return lot ${lot.lot_code} to grower?`)) return;
+                                      setLotUpdateSaving(true);
+                                      try {
+                                        await updateLot(lot.id, { status: "returned", notes: "Returned to grower" });
+                                        const refreshed = await getBatch(batchId!);
+                                        setBatch(refreshed);
+                                        setEditingLotId(null);
+                                        globalToast("success", `${lot.lot_code} marked as returned to grower.`);
+                                      } catch {
+                                        globalToast("error", "Failed to update lot status.");
+                                      } finally {
+                                        setLotUpdateSaving(false);
+                                      }
+                                    }}
+                                    className="ml-auto bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                                  >
+                                    Return to Grower
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -802,7 +923,7 @@ export default function BatchDetail() {
                       <label className="block text-xs text-gray-500 mb-1">Capacity (boxes)</label>
                       <input
                         type="number"
-                        value={palletCapacity}
+                        value={palletCapacity || ""}
                         onChange={(e) => setPalletCapacity(Number(e.target.value))}
                         min={1}
                         className="w-full border rounded px-2 py-1.5 text-sm"
@@ -816,6 +937,74 @@ export default function BatchDetail() {
                       )}
                     </div>
                   </div>
+
+                  {/* Pallet size & box type selection — from lot data in this batch */}
+                  {(() => {
+                    const availLots = batch.lots.filter((l) => l.carton_count - (l.palletized_boxes ?? 0) > 0);
+                    const lotSizes = [...new Set(availLots.map((l) => l.size).filter(Boolean))] as string[];
+                    const lotBoxTypes = [...new Set(availLots.map((l) => l.box_size_id).filter(Boolean))] as string[];
+                    const boxTypeOptions = lotBoxTypes
+                      .map((id) => boxSizes.find((bs) => bs.id === id))
+                      .filter((bs): bs is BoxSizeConfig => !!bs);
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Pallet Size *</label>
+                          {lotSizes.length > 0 ? (
+                            <select
+                              value={palletSize}
+                              onChange={(e) => setPalletSize(e.target.value)}
+                              className="w-full border rounded px-2 py-1.5 text-sm"
+                            >
+                              <option value="">Select size</option>
+                              {lotSizes.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p className="text-xs text-yellow-600">
+                              No lot sizes found — set sizes on lots first.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Box Type</label>
+                          {boxTypeOptions.length > 0 ? (
+                            <select
+                              value={palletBoxSizeId}
+                              onChange={async (e) => {
+                                const boxId = e.target.value;
+                                setPalletBoxSizeId(boxId);
+                                if (selectedPalletType && boxId) {
+                                  const pt = palletTypes.find((t) => t.name === selectedPalletType);
+                                  if (pt) {
+                                    try {
+                                      const caps = await getPalletTypeCapacities(pt.id);
+                                      const match = caps.box_capacities.find((bc) => bc.box_size_id === boxId);
+                                      if (match) setPalletCapacity(match.capacity);
+                                    } catch {}
+                                  }
+                                }
+                              }}
+                              className="w-full border rounded px-2 py-1.5 text-sm"
+                            >
+                              <option value="">Select box type</option>
+                              {boxTypeOptions.map((bs) => (
+                                <option key={bs.id} value={bs.id}>{bs.name} ({bs.weight_kg} kg)</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p className="text-xs text-yellow-600">
+                              No lot box types found — set box types on lots first.
+                            </p>
+                          )}
+                        </div>
+                        <p className="col-span-2 text-xs text-gray-400">
+                          Only lots matching the selected size and box type will be shown below.
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Lot assignment table */}
                   <div>
@@ -832,7 +1021,9 @@ export default function BatchDetail() {
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {batch.lots.map((lot) => {
+                          {batch.lots
+                            .filter((lot) => (!palletSize || lot.size === palletSize) && (!palletBoxSizeId || lot.box_size_id === palletBoxSizeId))
+                            .map((lot) => {
                             const assigned = lotAssignments[lot.id] ?? 0;
                             const available = lot.carton_count - (lot.palletized_boxes ?? 0);
                             return (
@@ -844,7 +1035,7 @@ export default function BatchDetail() {
                                 <td className="px-2 py-1.5 text-right">
                                   <input
                                     type="number"
-                                    value={assigned}
+                                    value={assigned || ""}
                                     onChange={(e) => {
                                       const newAssignments = {
                                         ...lotAssignments,
@@ -872,15 +1063,33 @@ export default function BatchDetail() {
                         </tbody>
                       </table>
                     </div>
+                    {(palletSize || palletBoxSizeId) && batch.lots.filter((l) => (!palletSize || l.size === palletSize) && (!palletBoxSizeId || l.box_size_id === palletBoxSizeId)).length === 0 && (
+                      <p className="text-xs text-yellow-600 mt-1">No lots match the selected size/box type filter.</p>
+                    )}
                     {(() => {
-                      const totalAssigned = Object.values(lotAssignments).reduce((a, b) => a + b, 0);
+                      // Only count lots visible in the current size/box type filter
+                      const visibleLots = batch.lots.filter((l) =>
+                        (!palletSize || l.size === palletSize) && (!palletBoxSizeId || l.box_size_id === palletBoxSizeId)
+                      );
+                      const totalAssigned = visibleLots.reduce((sum, l) => sum + (lotAssignments[l.id] ?? 0), 0);
                       const sizes = new Set(
-                        batch.lots
+                        visibleLots
                           .filter((l) => (lotAssignments[l.id] ?? 0) > 0)
                           .map((l) => l.size)
                           .filter(Boolean)
                       );
                       const mixedSizes = sizes.size > 1;
+                      const boxTypeIds = new Set(
+                        visibleLots
+                          .filter((l) => (lotAssignments[l.id] ?? 0) > 0)
+                          .map((l) => l.box_size_id)
+                          .filter(Boolean)
+                      );
+                      const mixedBoxTypes = boxTypeIds.size > 1;
+                      const boxTypeNames = [...boxTypeIds].map((id) => {
+                        const bs = boxSizes.find((b) => b.id === id);
+                        return bs?.name || id;
+                      });
                       return (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs text-gray-500">
@@ -893,9 +1102,26 @@ export default function BatchDetail() {
                             )}
                           </p>
                           {mixedSizes && (
-                            <p className="text-xs text-yellow-600 font-medium">
-                              Warning: Mixed sizes on pallet ({[...sizes].join(", ")})
-                            </p>
+                            <label className="flex items-center gap-2 text-xs text-yellow-600 font-medium">
+                              <input
+                                type="checkbox"
+                                checked={allowMixedSizes}
+                                onChange={(e) => setAllowMixedSizes(e.target.checked)}
+                                className="rounded"
+                              />
+                              Allow mixed sizes on pallet ({[...sizes].join(", ")})
+                            </label>
+                          )}
+                          {mixedBoxTypes && (
+                            <label className="flex items-center gap-2 text-xs text-yellow-600 font-medium">
+                              <input
+                                type="checkbox"
+                                checked={allowMixedBoxTypes}
+                                onChange={(e) => setAllowMixedBoxTypes(e.target.checked)}
+                                className="rounded"
+                              />
+                              Allow mixed box types on pallet ({boxTypeNames.join(", ")})
+                            </label>
                           )}
                         </div>
                       );
@@ -910,8 +1136,18 @@ export default function BatchDetail() {
                           globalToast("error", "Select a pallet type.");
                           return;
                         }
+                        if (!palletSize && !allowMixedSizes) {
+                          globalToast("error", "Select a pallet size.");
+                          return;
+                        }
+                        // Only include lots visible in the current filter
+                        const visibleLotIds = new Set(
+                          batch.lots
+                            .filter((l) => (!palletSize || l.size === palletSize) && (!palletBoxSizeId || l.box_size_id === palletBoxSizeId))
+                            .map((l) => l.id)
+                        );
                         const assignments: LotAssignment[] = Object.entries(lotAssignments)
-                          .filter(([, count]) => count > 0)
+                          .filter(([lot_id, count]) => count > 0 && visibleLotIds.has(lot_id))
                           .map(([lot_id, box_count]) => {
                             const lot = batch.lots.find((l) => l.id === lot_id);
                             return { lot_id, box_count, size: lot?.size || undefined };
@@ -927,16 +1163,22 @@ export default function BatchDetail() {
                             capacity_boxes: palletCapacity,
                             lot_assignments: assignments,
                             packhouse_id: batch.packhouse_id,
+                            size: palletSize || undefined,
+                            allow_mixed_sizes: allowMixedSizes,
+                            allow_mixed_box_types: allowMixedBoxTypes,
                           });
                           globalToast("success", `${pallets.length} pallet(s) created.`);
                           setCreatingPallet(false);
                           setSelectedPalletType("");
+                          setPalletSize("");
+                          setAllowMixedSizes(false);
+                          setAllowMixedBoxTypes(false);
                           setLotAssignments({});
                           // Refresh batch
                           const refreshed = await getBatch(batchId!);
                           setBatch(refreshed);
-                        } catch {
-                          globalToast("error", "Failed to create pallet.");
+                        } catch (err: unknown) {
+                          globalToast("error", getErrorMessage(err, "Failed to create pallet."));
                         } finally {
                           setPalletSaving(false);
                         }
@@ -947,7 +1189,7 @@ export default function BatchDetail() {
                       {palletSaving ? "Creating..." : "Create Pallet"}
                     </button>
                     <button
-                      onClick={() => { setCreatingPallet(false); setSelectedPalletType(""); setLotAssignments({}); }}
+                      onClick={() => { setCreatingPallet(false); setSelectedPalletType(""); setPalletSize(""); setPalletBoxSizeId(""); setAllowMixedSizes(false); setLotAssignments({}); }}
                       className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
                     >
                       Cancel
@@ -963,25 +1205,73 @@ export default function BatchDetail() {
               )}
 
               {/* Allocate to existing pallet form */}
-              {allocatingToExisting && (
+              {allocatingToExisting && (() => {
+                // Filter pallets by selected pallet's size or show all if no pallet selected
+                const selectedPallet = openPallets.find((p) => p.id === selectedPalletId);
+                const palletFilterSize = selectedPallet?.size;
+                const palletFilterBoxSizeId = selectedPallet?.box_size_id;
+                // Show pallets whose size/box type matches the lots being assigned
+                const assignedLotSizes = [...new Set(
+                  batch.lots
+                    .filter((l) => (lotAssignments[l.id] ?? 0) > 0)
+                    .map((l) => l.size)
+                    .filter(Boolean)
+                )];
+                const assignedLotBoxTypeIds = [...new Set(
+                  batch.lots
+                    .filter((l) => (lotAssignments[l.id] ?? 0) > 0)
+                    .map((l) => l.box_size_id)
+                    .filter(Boolean)
+                )];
+                const compatiblePallets = openPallets.filter((p) =>
+                  (!p.size || assignedLotSizes.length === 0 || assignedLotSizes.includes(p.size)) &&
+                  (!p.box_size_id || assignedLotBoxTypeIds.length === 0 || assignedLotBoxTypeIds.includes(p.box_size_id))
+                );
+                return (
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Select Open Pallet *</label>
                     {openPallets.length > 0 ? (
-                      <select
-                        value={selectedPalletId}
-                        onChange={(e) => setSelectedPalletId(e.target.value)}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
-                      >
-                        <option value="">Select a pallet</option>
-                        {openPallets.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.pallet_number} — {p.pallet_type_name || "Unknown type"} ({p.current_boxes}/{p.capacity_boxes} boxes)
-                            {p.grade ? ` · ${p.grade}` : ""}
-                            {p.size ? ` · ${p.size}` : ""}
-                          </option>
-                        ))}
-                      </select>
+                      <>
+                        <select
+                          value={selectedPalletId}
+                          onChange={(e) => {
+                            const pid = e.target.value;
+                            setSelectedPalletId(pid);
+                            // Zero out assignments for lots that don't match the selected pallet's size/box type
+                            const pal = openPallets.find((p) => p.id === pid);
+                            if (pal?.size || pal?.box_size_id) {
+                              const updated: Record<string, number> = {};
+                              for (const lot of batch.lots) {
+                                const avail = lot.carton_count - (lot.palletized_boxes ?? 0);
+                                const sizeMatch = !pal.size || lot.size === pal.size;
+                                const boxTypeMatch = !pal.box_size_id || lot.box_size_id === pal.box_size_id;
+                                updated[lot.id] = (sizeMatch && boxTypeMatch) ? (lotAssignments[lot.id] ?? avail) : 0;
+                              }
+                              setLotAssignments(updated);
+                            }
+                          }}
+                          className="w-full border rounded px-2 py-1.5 text-sm"
+                        >
+                          <option value="">Select a pallet</option>
+                          {compatiblePallets.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.pallet_number} — {p.pallet_type_name || "Unknown type"} ({p.current_boxes}/{p.capacity_boxes} boxes)
+                              {p.grade ? ` · ${p.grade}` : ""}
+                              {p.size ? ` · Size: ${p.size}` : " · No size set"}
+                              {p.box_size_name ? ` · Box: ${p.box_size_name}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        {(palletFilterSize || palletFilterBoxSizeId) && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            {palletFilterSize && <>Pallet size: <span className="font-medium">{palletFilterSize}</span></>}
+                            {palletFilterSize && palletFilterBoxSizeId && " · "}
+                            {palletFilterBoxSizeId && <>Box type: <span className="font-medium">{selectedPallet?.box_size_name || palletFilterBoxSizeId}</span></>}
+                            {" — only matching lots should be assigned."}
+                          </p>
+                        )}
+                      </>
                     ) : (
                       <p className="text-sm text-gray-500">No open pallets found. Create a new pallet instead.</p>
                     )}
@@ -1003,7 +1293,9 @@ export default function BatchDetail() {
                             </tr>
                           </thead>
                           <tbody className="divide-y">
-                            {batch.lots.map((lot) => {
+                            {batch.lots
+                              .filter((lot) => (!palletFilterSize || lot.size === palletFilterSize) && (!palletFilterBoxSizeId || lot.box_size_id === palletFilterBoxSizeId))
+                              .map((lot) => {
                               const assigned = lotAssignments[lot.id] ?? 0;
                               const available = lot.carton_count - (lot.palletized_boxes ?? 0);
                               return (
@@ -1015,7 +1307,7 @@ export default function BatchDetail() {
                                   <td className="px-2 py-1.5 text-right">
                                     <input
                                       type="number"
-                                      value={assigned}
+                                      value={assigned || ""}
                                       onChange={(e) => setLotAssignments({
                                         ...lotAssignments,
                                         [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
@@ -1032,15 +1324,18 @@ export default function BatchDetail() {
                         </table>
                       </div>
                       {(() => {
-                        const totalAssigned = Object.values(lotAssignments).reduce((a, b) => a + b, 0);
-                        const selected = openPallets.find((p) => p.id === selectedPalletId);
-                        const remaining = selected ? selected.capacity_boxes - selected.current_boxes : 0;
+                        // Only count lots visible in the current pallet filter
+                        const visibleAllocLots = batch.lots.filter((l) =>
+                          (!palletFilterSize || l.size === palletFilterSize) && (!palletFilterBoxSizeId || l.box_size_id === palletFilterBoxSizeId)
+                        );
+                        const totalAssigned = visibleAllocLots.reduce((sum, l) => sum + (lotAssignments[l.id] ?? 0), 0);
+                        const remaining = selectedPallet ? selectedPallet.capacity_boxes - selectedPallet.current_boxes : 0;
                         return (
                           <div className="mt-2">
                             <p className="text-xs text-gray-500">
                               Total: <span className="font-medium">{totalAssigned}</span> boxes
-                              {selected && ` · Pallet has ${remaining} spaces remaining`}
-                              {selected && totalAssigned > remaining && (
+                              {selectedPallet && ` · Pallet has ${remaining} spaces remaining`}
+                              {selectedPallet && totalAssigned > remaining && (
                                 <span className="text-yellow-600 ml-2">(exceeds remaining capacity)</span>
                               )}
                             </p>
@@ -1058,8 +1353,17 @@ export default function BatchDetail() {
                           globalToast("error", "Select a pallet.");
                           return;
                         }
+                        const selPal = openPallets.find((p) => p.id === selectedPalletId);
                         const assignments: LotAssignment[] = Object.entries(lotAssignments)
-                          .filter(([, count]) => count > 0)
+                          .filter(([lot_id, count]) => {
+                            if (count <= 0) return false;
+                            const lot = batch.lots.find((l) => l.id === lot_id);
+                            // Only include lots that match the pallet's size
+                            if (selPal?.size && lot && lot.size && lot.size !== selPal.size) return false;
+                            // Only include lots that match the pallet's box type
+                            if (selPal?.box_size_id && lot && lot.box_size_id && lot.box_size_id !== selPal.box_size_id) return false;
+                            return true;
+                          })
                           .map(([lot_id, box_count]) => {
                             const lot = batch.lots.find((l) => l.id === lot_id);
                             return { lot_id, box_count, size: lot?.size || undefined };
@@ -1071,15 +1375,14 @@ export default function BatchDetail() {
                         setAllocateSaving(true);
                         try {
                           await allocateBoxesToPallet(selectedPalletId, { lot_assignments: assignments });
-                          const selected = openPallets.find((p) => p.id === selectedPalletId);
-                          globalToast("success", `Boxes allocated to ${selected?.pallet_number || "pallet"}.`);
+                          globalToast("success", `Boxes allocated to ${selectedPallet?.pallet_number || "pallet"}.`);
                           setAllocatingToExisting(false);
                           setSelectedPalletId("");
                           setLotAssignments({});
                           const refreshed = await getBatch(batchId!);
                           setBatch(refreshed);
-                        } catch {
-                          globalToast("error", "Failed to allocate boxes.");
+                        } catch (err: unknown) {
+                          globalToast("error", getErrorMessage(err, "Failed to allocate boxes."));
                         } finally {
                           setAllocateSaving(false);
                         }
@@ -1103,7 +1406,8 @@ export default function BatchDetail() {
                     </Link>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -1179,7 +1483,7 @@ export default function BatchDetail() {
                       type="number"
                       step="0.1"
                       min="0"
-                      value={wasteKg}
+                      value={wasteKg || ""}
                       onChange={(e) => setWasteKg(Number(e.target.value))}
                       className="w-full border rounded px-2 py-1.5 text-sm"
                     />
@@ -1248,12 +1552,7 @@ export default function BatchDetail() {
                       setBatch(refreshed);
                       globalToast("success", "Production run closed.");
                     } catch (err: unknown) {
-                      if (err && typeof err === "object" && "response" in err) {
-                        const axiosErr = err as { response?: { data?: { detail?: string } } };
-                        globalToast("error", axiosErr.response?.data?.detail || "Failed to close run.");
-                      } else {
-                        globalToast("error", "Failed to close run.");
-                      }
+                      globalToast("error", getErrorMessage(err, "Failed to close run."));
                     } finally {
                       setClosingSaving(false);
                     }
@@ -1300,12 +1599,7 @@ export default function BatchDetail() {
                       setBatch(refreshed);
                       globalToast("success", "GRN finalized — status set to completed.");
                     } catch (err: unknown) {
-                      if (err && typeof err === "object" && "response" in err) {
-                        const axiosErr = err as { response?: { data?: { detail?: string } } };
-                        globalToast("error", axiosErr.response?.data?.detail || "Failed to finalize.");
-                      } else {
-                        globalToast("error", "Failed to finalize GRN.");
-                      }
+                      globalToast("error", getErrorMessage(err, "Failed to finalize GRN."));
                     } finally {
                       setFinalizeSaving(false);
                     }
@@ -1373,22 +1667,10 @@ export default function BatchDetail() {
             <span>Received by: {batch.received_by_name || batch.received_by || "—"}</span>
           </div>
         </div>
-      )}
     </div>
   );
 }
 
-const inputClass =
-  "w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      {children}
-    </div>
-  );
-}
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (

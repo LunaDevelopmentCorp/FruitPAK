@@ -24,6 +24,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { DashboardSummary, ReconciliationAlert } from "../../api/reconciliation";
+import { getErrorMessage } from "../../api/client";
 import { getDashboard, triggerRun, updateAlert } from "../../api/reconciliation";
 import { showToast } from "../../store/toastStore";
 
@@ -160,8 +161,8 @@ export default function ReconciliationDashboard() {
     try {
       setLoading(true);
       setData(await getDashboard());
-    } catch (e: any) {
-      showToast("error", e.response?.data?.detail || "Failed to load dashboard");
+    } catch (e: unknown) {
+      showToast("error", getErrorMessage(e, "Failed to load dashboard"));
     } finally {
       setLoading(false);
     }
@@ -175,8 +176,8 @@ export default function ReconciliationDashboard() {
       const result = await triggerRun();
       showToast("success", `Reconciliation complete: ${result.total_alerts} alert(s) found`);
       await load();
-    } catch (e: any) {
-      showToast("error", e.response?.data?.detail || "Run failed");
+    } catch (e: unknown) {
+      showToast("error", getErrorMessage(e, "Run failed"));
     } finally {
       setRunning(false);
     }
@@ -187,8 +188,8 @@ export default function ReconciliationDashboard() {
       await updateAlert(alertId, { status });
       showToast("success", `Alert ${status}`);
       await load();
-    } catch (e: any) {
-      showToast("error", e.response?.data?.detail || "Action failed");
+    } catch (e: unknown) {
+      showToast("error", getErrorMessage(e, "Action failed"));
     }
   };
 

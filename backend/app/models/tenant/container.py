@@ -36,8 +36,12 @@ class Container(TenantBase):
     capacity_pallets: Mapped[int] = mapped_column(Integer, default=20)
 
     # ── Customer / destination ────────────────────────────────
+    client_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("clients.id"), index=True
+    )
     customer_name: Mapped[str | None] = mapped_column(String(255))
     destination: Mapped[str | None] = mapped_column(String(255))
+    shipping_container_number: Mapped[str | None] = mapped_column(String(100))
     export_date: Mapped[datetime | None] = mapped_column(DateTime)
 
     # ── Loading details ──────────────────────────────────────
@@ -78,6 +82,7 @@ class Container(TenantBase):
     )
 
     # ── Relationships ────────────────────────────────────────
+    client = relationship("Client", lazy="selectin")
     transport_config = relationship("TransportConfig", lazy="selectin")
     packhouse = relationship("Packhouse", lazy="selectin")
     export = relationship("Export", back_populates="containers", lazy="selectin")

@@ -9,29 +9,15 @@ Handles the creation of a new Batch at packhouse intake, including:
 
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tenant.batch import Batch
 from app.models.tenant.batch_history import BatchHistory
 from app.models.tenant.grower import Grower
 from app.models.tenant.grower_payment import GrowerPayment
 from app.models.tenant.packhouse import Packhouse
 from app.schemas.batch import GRNRequest
-
-
-async def _generate_batch_code(db: AsyncSession) -> str:
-    """Generate GRN-YYYYMMDD-NNN where NNN resets daily."""
-    today = datetime.utcnow().strftime("%Y%m%d")
-    prefix = f"GRN-{today}-"
-
-    result = await db.execute(
-        select(func.count(Batch.id)).where(
-            Batch.batch_code.like(f"{prefix}%")
-        )
-    )
-    count = result.scalar() or 0
-    return f"{prefix}{count + 1:03d}"
+from app.utils.numbering import generate_code
 
 
 async def create_grn(
@@ -70,7 +56,7 @@ async def create_grn(
         raise ValueError(f"Packhouse not found: {body.packhouse_id}")
 
     # ── Create Batch ──────────────────────────────────────────
-    batch_code = await _generate_batch_code(db)
+    batch_code = await generate_code(db, "batch")
     net_weight = (
         body.gross_weight_kg - body.tare_weight_kg
         if body.gross_weight_kg is not None
@@ -99,6 +85,7 @@ async def create_grn(
     )
     db.add(batch)
     await db.flush()  # populate batch.id
+    batch.grower = grower  # ensure relationship is available for serialization
 
     # ── Record intake event in BatchHistory ───────────────────
     history = BatchHistory(

@@ -47,6 +47,10 @@ class Pallet(TenantBase):
     variety: Mapped[str | None] = mapped_column(String(100))
     grade: Mapped[str | None] = mapped_column(String(50), index=True)
     size: Mapped[str | None] = mapped_column(String(50))
+    box_size_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("box_sizes.id"), index=True
+    )
+    box_size_name: Mapped[str | None] = mapped_column(String(100))
     target_market: Mapped[str | None] = mapped_column(String(100))
 
     # ── Weight ────────────────────────────────────────────────
@@ -86,6 +90,7 @@ class Pallet(TenantBase):
 
     # ── Relationships ────────────────────────────────────────
     packhouse = relationship("Packhouse", lazy="selectin")
+    box_size = relationship("BoxSize", lazy="selectin")
     container = relationship("Container", back_populates="pallets", lazy="selectin")
     pallet_lots = relationship("PalletLot", back_populates="pallet", lazy="selectin")
 
@@ -105,6 +110,8 @@ class PalletLot(TenantBase):
     )
     box_count: Mapped[int] = mapped_column(Integer, default=0)
     size: Mapped[str | None] = mapped_column(String(50))
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deallocated_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # ── Relationships ────────────────────────────────────────

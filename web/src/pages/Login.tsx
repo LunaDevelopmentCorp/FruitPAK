@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../api/auth";
+import { getErrorMessage } from "../api/client";
 import { useAuthStore } from "../store/authStore";
 
 export default function Login() {
@@ -37,15 +38,11 @@ export default function Login() {
         navigate(from || "/dashboard");
       }
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as { response?: { data?: { detail?: string }; status?: number } };
-        if (axiosErr.response?.status === 401) {
-          setError("Invalid email or password");
-        } else {
-          setError(axiosErr.response?.data?.detail || "Login failed");
-        }
+      const axiosErr = err as { response?: { status?: number } };
+      if (axiosErr.response?.status === 401) {
+        setError("Invalid email or password");
       } else {
-        setError("Network error — is the server running?");
+        setError(getErrorMessage(err, "Login failed"));
       }
     } finally {
       setLoading(false);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getErrorMessage } from "../api/client";
 import {
   completeWizard,
   getWizardProgress,
@@ -42,8 +43,8 @@ export function useWizard() {
       const data = await getWizardProgress();
       setProgress(data);
       setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to load wizard progress");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load wizard progress"));
     } finally {
       setLoading(false);
     }
@@ -61,8 +62,8 @@ export function useWizard() {
         setProgress(updated);
         setError(null);
         return updated;
-      } catch (err: any) {
-        const detail = err.response?.data?.detail || "Failed to save";
+      } catch (err: unknown) {
+        const detail = getErrorMessage(err, "Failed to save");
         setError(detail);
         throw new Error(detail);
       } finally {
@@ -79,8 +80,8 @@ export function useWizard() {
       setProgress(updated);
       setError(null);
       return updated;
-    } catch (err: any) {
-      const detail = err.response?.data?.detail || "Failed to complete wizard";
+    } catch (err: unknown) {
+      const detail = getErrorMessage(err, "Failed to complete wizard");
       setError(detail);
       throw new Error(detail);
     } finally {

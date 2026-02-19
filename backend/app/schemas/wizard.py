@@ -176,6 +176,11 @@ class BoxSizeInput(BaseModel):
     fruit_count: int | None = None
     weight_kg: float = 4.0
     cost_per_unit: float | None = None
+    dimensions: str | None = None
+    tare_weight_kg: float = 0.0
+    net_weight_target_kg: float | None = None
+    min_weight_kg: float | None = None
+    max_weight_kg: float | None = None
 
 
 class BinTypeInput(BaseModel):
@@ -197,12 +202,18 @@ class PalletTypeInput(BaseModel):
     box_capacities: list[BoxCapacityInput] | None = None
 
 
+class PalletRulesInput(BaseModel):
+    allow_mixed_sizes: bool = False
+    allow_mixed_box_types: bool = False
+
+
 class Step6Data(BaseModel):
     products: list[ProductInput] | None = None
     pack_specs: list[PackSpecInput] | None = None
     box_sizes: list[BoxSizeInput] | None = None
     pallet_types: list[PalletTypeInput] | None = None
     bin_types: list[BinTypeInput] | None = None
+    pallet_rules: PalletRulesInput | None = None
 
 
 class Step6Complete(Step6Data):

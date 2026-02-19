@@ -1,22 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import {
   submitGRN,
+  listBatches,
+  updateBatch,
   listGrowers,
   listPackhouses,
   GRNPayload,
   GRNResponse,
+  BatchSummary,
+  BatchUpdatePayload,
   Grower,
   Packhouse,
 } from "../api/batches";
-import {
-  getBinTypes,
-  getProductConfigs,
-  BinTypeConfig,
-  ProductConfigItem,
-} from "../api/pallets";
+import { getBinTypes, BinTypeConfig } from "../api/pallets";
+import { getFruitTypeConfigs, FruitTypeConfig } from "../api/config";
 import BatchQR from "../components/BatchQR";
+import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
 
 const inputBase =
@@ -32,13 +33,18 @@ interface FieldError {
 export default function GrnIntake() {
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [packhouses, setPackhouses] = useState<Packhouse[]>([]);
-  const [productConfigs, setProductConfigs] = useState<ProductConfigItem[]>([]);
+  const [fruitConfigs, setFruitConfigs] = useState<FruitTypeConfig[]>([]);
   const [binTypes, setBinTypes] = useState<BinTypeConfig[]>([]);
   const [result, setResult] = useState<GRNResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [loadingRef, setLoadingRef] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Recent GRNs list + inline edit
+  const [recentBatches, setRecentBatches] = useState<BatchSummary[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(false);
+  const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
 
   const {
     register,
@@ -64,13 +70,13 @@ export default function GrnIntake() {
     Promise.all([
       listGrowers(),
       listPackhouses(),
-      getProductConfigs().catch(() => []),
+      getFruitTypeConfigs().catch(() => []),
       getBinTypes().catch(() => []),
     ])
-      .then(([g, p, pc, bt]) => {
+      .then(([g, p, fc, bt]) => {
         setGrowers(g);
         setPackhouses(p);
-        setProductConfigs(pc);
+        setFruitConfigs(fc);
         setBinTypes(bt);
       })
       .catch(() => {
@@ -86,22 +92,36 @@ export default function GrnIntake() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Derive unique fruit types from product configs
+  // Derive unique fruit types from aggregated configs
   const fruitTypes = useMemo(() => {
-    const types = [...new Set(productConfigs.map((pc) => pc.fruit_type))];
-    types.sort();
-    return types;
-  }, [productConfigs]);
+    return fruitConfigs.map((fc) => fc.fruit_type);
+  }, [fruitConfigs]);
 
   // Derive varieties for the selected fruit type
   const varieties = useMemo(() => {
     if (!selectedFruitType) return [];
-    const vars = productConfigs
-      .filter((pc) => pc.fruit_type === selectedFruitType && pc.variety)
-      .map((pc) => pc.variety!);
-    return [...new Set(vars)].sort();
-  }, [productConfigs, selectedFruitType]);
+    const config = fruitConfigs.find((fc) => fc.fruit_type === selectedFruitType);
+    return config?.varieties ?? [];
+  }, [fruitConfigs, selectedFruitType]);
 
+
+  // Fetch today's GRNs
+  const fetchRecentBatches = useCallback(async () => {
+    setLoadingRecent(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const batches = await listBatches({ date_from: today, limit: "50" });
+      setRecentBatches(batches);
+    } catch {
+      // Silent fail — table is supplementary
+    } finally {
+      setLoadingRecent(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loadingRef) fetchRecentBatches();
+  }, [loadingRef, fetchRecentBatches]);
 
   const getFieldError = (field: string): string | undefined =>
     fieldErrors.find((e) => e.field === field)?.message;
@@ -162,32 +182,27 @@ export default function GrnIntake() {
       const res = await submitGRN(payload);
       setResult(res);
       setToast(`Batch ${res.batch.batch_code} created successfully`);
+      fetchRecentBatches();
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as {
-          response?: { data?: { detail?: string | Array<{ loc?: string[]; msg?: string }> }; status?: number };
-        };
-        const detail = axiosErr.response?.data?.detail;
+      // 422 with field-level errors needs special handling
+      const axiosErr = err as {
+        response?: { data?: { detail?: string | Array<{ loc?: string[]; msg?: string }> }; status?: number };
+      };
+      const detail = axiosErr.response?.data?.detail;
 
-        // 422 with field-level errors
-        if (axiosErr.response?.status === 422 && Array.isArray(detail)) {
-          const mapped: FieldError[] = detail
-            .filter((e) => e.loc && e.msg)
-            .map((e) => ({
-              field: e.loc![e.loc!.length - 1],
-              message: e.msg!,
-            }));
-          setFieldErrors(mapped);
-          setError("Please fix the highlighted fields below.");
-        } else if (typeof detail === "string") {
-          setError(detail);
-        } else {
-          setError("GRN submission failed");
-          globalToast("error", "GRN submission failed.");
-        }
+      if (axiosErr.response?.status === 422 && Array.isArray(detail)) {
+        const mapped: FieldError[] = detail
+          .filter((e) => e.loc && e.msg)
+          .map((e) => ({
+            field: e.loc![e.loc!.length - 1],
+            message: e.msg!,
+          }));
+        setFieldErrors(mapped);
+        setError("Please fix the highlighted fields below.");
       } else {
-        setError("Network error — is the server running?");
-        globalToast("error", "Network error — is the server running?");
+        const msg = getErrorMessage(err, "GRN submission failed");
+        setError(msg);
+        globalToast("error", msg);
       }
     }
   };
@@ -201,7 +216,7 @@ export default function GrnIntake() {
 
   if (loadingRef) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <Spinner />
           Loading reference data...
@@ -210,13 +225,17 @@ export default function GrnIntake() {
     );
   }
 
-  // Success screen
-  if (result) {
-    return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+  // Whether we have config data (controls dropdown vs free-text fallback)
+  const hasProductConfig = fruitConfigs.length > 0;
+  const hasBinTypes = binTypes.length > 0;
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+
+      {result ? (
+        /* ── Success screen ─────────────────────────────── */
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 max-w-2xl">
           <div className="flex items-center gap-2 mb-4">
             <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -273,30 +292,21 @@ export default function GrnIntake() {
             </Link>
           </div>
         </div>
-      </div>
-    );
-  }
+      ) : (
+        /* ── New GRN form ───────────────────────────────── */
+        <>
+          <h1 className="text-2xl font-bold text-gray-800">GRN Intake</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Record a new Goods Received Note for incoming fruit.
+          </p>
 
-  // Whether we have config data (controls dropdown vs free-text fallback)
-  const hasProductConfig = fruitTypes.length > 0;
-  const hasBinTypes = binTypes.length > 0;
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">
+              {error}
+            </div>
+          )}
 
-  return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
-
-      <h1 className="text-2xl font-bold text-gray-800">GRN Intake</h1>
-      <p className="text-sm text-gray-500 mt-1">
-        Record a new Goods Received Note for incoming fruit.
-      </p>
-
-      {error && (
-        <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5 max-w-2xl">
         {/* Grower + Packhouse */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -523,8 +533,241 @@ export default function GrnIntake() {
           {isSubmitting && <Spinner />}
           {isSubmitting ? "Submitting..." : "Submit GRN"}
         </button>
-      </form>
+          </form>
+        </>
+      )}
+
+      {/* ── Today's GRNs table ──────────────────────────── */}
+      <div className="mt-10 border-t pt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-1">Today's GRNs</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Click a row to edit intake details.
+        </p>
+
+        {loadingRecent ? (
+          <div className="flex items-center gap-2 text-gray-400 text-sm">
+            <Spinner /> Loading...
+          </div>
+        ) : recentBatches.length === 0 ? (
+          <p className="text-gray-400 text-sm">No GRNs recorded today.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-gray-500 text-xs border-b">
+                <tr>
+                  <th className="text-left px-2 py-2 font-medium">Batch Code</th>
+                  <th className="text-left px-2 py-2 font-medium">Grower</th>
+                  <th className="text-left px-2 py-2 font-medium">Fruit / Variety</th>
+                  <th className="text-right px-2 py-2 font-medium">Bins</th>
+                  <th className="text-right px-2 py-2 font-medium">Gross (kg)</th>
+                  <th className="text-right px-2 py-2 font-medium">Net (kg)</th>
+                  <th className="text-left px-2 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {recentBatches.map((b) => (
+                  <React.Fragment key={b.id}>
+                    <tr
+                      onClick={() => setEditingBatchId(editingBatchId === b.id ? null : b.id)}
+                      className={`cursor-pointer hover:bg-gray-50 ${editingBatchId === b.id ? "bg-amber-50" : ""}`}
+                    >
+                      <td className="px-2 py-2 font-mono text-xs text-green-700">{b.batch_code}</td>
+                      <td className="px-2 py-2">{b.grower_name || b.grower_id}</td>
+                      <td className="px-2 py-2">
+                        {b.fruit_type}{b.variety ? ` / ${b.variety}` : ""}
+                      </td>
+                      <td className="px-2 py-2 text-right">{b.bin_count ?? "—"}</td>
+                      <td className="px-2 py-2 text-right">
+                        {b.gross_weight_kg != null ? b.gross_weight_kg.toLocaleString() : "—"}
+                      </td>
+                      <td className="px-2 py-2 text-right font-medium">
+                        {b.net_weight_kg != null ? b.net_weight_kg.toLocaleString() : "—"}
+                      </td>
+                      <td className="px-2 py-2">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                          {b.status}
+                        </span>
+                      </td>
+                    </tr>
+                    {editingBatchId === b.id && (
+                      <tr>
+                        <td colSpan={7} className="p-0">
+                          <InlineEditPanel
+                            batch={b}
+                            binTypes={binTypes}
+                            onSave={() => {
+                              setEditingBatchId(null);
+                              fetchRecentBatches();
+                            }}
+                            onCancel={() => setEditingBatchId(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+/* ── Inline edit panel for a recent GRN ──────────────────── */
+
+function InlineEditPanel({
+  batch,
+  binTypes,
+  onSave,
+  onCancel,
+}: {
+  batch: BatchSummary;
+  binTypes: BinTypeConfig[];
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const { register, handleSubmit, watch, setValue } = useForm<BatchUpdatePayload>({
+    defaultValues: {
+      variety: batch.variety || "",
+      bin_type: batch.bin_type || "",
+      bin_count: batch.bin_count ?? undefined,
+      gross_weight_kg: batch.gross_weight_kg ?? undefined,
+      tare_weight_kg: batch.tare_weight_kg,
+      harvest_date: batch.harvest_date?.split("T")[0] || "",
+      notes: batch.notes || "",
+    },
+  });
+
+  // Weight recalculation when bin count or bin type changes
+  const watchedBinCount = watch("bin_count");
+  const watchedBinType = watch("bin_type");
+  const grossWeight = watch("gross_weight_kg");
+  const tareWeight = watch("tare_weight_kg");
+  const netWeight =
+    grossWeight != null && Number(grossWeight) > 0
+      ? Number(grossWeight) - (Number(tareWeight) || 0)
+      : null;
+
+  useEffect(() => {
+    if (!watchedBinType || !watchedBinCount) return;
+    const bt = binTypes.find((b) => b.name === watchedBinType);
+    if (!bt) return;
+    const count = Number(watchedBinCount) || 0;
+    if (count <= 0) return;
+    if (bt.default_weight_kg > 0) {
+      setValue("gross_weight_kg", bt.default_weight_kg * count);
+    }
+    if (bt.tare_weight_kg > 0) {
+      setValue("tare_weight_kg", bt.tare_weight_kg * count);
+    }
+  }, [watchedBinCount, watchedBinType, binTypes, setValue]);
+
+  const onEditSubmit = async (data: BatchUpdatePayload) => {
+    setSaving(true);
+    setEditError(null);
+    try {
+      const payload: BatchUpdatePayload = {};
+      if (data.variety) payload.variety = data.variety;
+      if (data.harvest_date) payload.harvest_date = data.harvest_date;
+      if (data.gross_weight_kg) payload.gross_weight_kg = Number(data.gross_weight_kg);
+      if (data.tare_weight_kg !== undefined) payload.tare_weight_kg = Number(data.tare_weight_kg);
+      if (data.bin_count) payload.bin_count = Number(data.bin_count);
+      if (data.bin_type) payload.bin_type = data.bin_type;
+      if (data.notes !== undefined) payload.notes = data.notes;
+
+      await updateBatch(batch.id, payload);
+      globalToast("success", `Batch ${batch.batch_code} updated.`);
+      onSave();
+    } catch (err: unknown) {
+      setEditError(getErrorMessage(err, "Update failed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = "w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400";
+
+  return (
+    <form onSubmit={handleSubmit(onEditSubmit)} className="bg-amber-50 border border-amber-200 rounded-b-lg p-4 space-y-3">
+      {editError && (
+        <div className="p-2 bg-red-50 text-red-700 rounded text-xs">{editError}</div>
+      )}
+
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Variety</label>
+          <input {...register("variety")} className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Bin Type</label>
+          <select {...register("bin_type")} className={inputCls}>
+            <option value="">— Select —</option>
+            {binTypes.map((bt) => (
+              <option key={bt.id} value={bt.name}>
+                {bt.name}{bt.default_weight_kg > 0 ? ` (${bt.default_weight_kg} kg)` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Bin Count</label>
+          <input type="number" {...register("bin_count", { valueAsNumber: true })} className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Harvest Date</label>
+          <input type="date" {...register("harvest_date")} className={inputCls} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Gross Weight (kg)</label>
+          <input type="number" step="0.1" {...register("gross_weight_kg", { valueAsNumber: true })} className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Tare Weight (kg)</label>
+          <input type="number" step="0.1" {...register("tare_weight_kg", { valueAsNumber: true })} className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Net Weight</label>
+          <p className="px-2 py-1.5 text-sm text-gray-600 bg-amber-100 rounded">
+            {netWeight != null ? `${netWeight.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg` : "—"}
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Notes</label>
+          <input {...register("notes")} className={inputCls} placeholder="Optional" />
+        </div>
+      </div>
+
+      {watchedBinType && binTypes.find((b) => b.name === watchedBinType) && (
+        <p className="text-xs text-gray-500">
+          Weights auto-calculate from bin type when bin count changes.
+        </p>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-amber-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="border text-gray-600 px-4 py-1.5 rounded text-sm hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

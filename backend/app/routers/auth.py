@@ -19,9 +19,10 @@ from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.auth.otp import OTPCooldownError, send_otp, verify_otp
 from app.auth.password import hash_password, verify_password
 from app.auth.permissions import resolve_permissions
-from app.database import get_db
+from app.database import get_db, get_tenant_db
 from app.models.public.enterprise import Enterprise
 from app.models.public.user import User, UserRole
+from app.utils.activity import log_activity
 from app.schemas.auth import (
     LoginRequest,
     OTPRequest,
@@ -199,6 +200,7 @@ async def otp_verify(body: OTPVerify, db: AsyncSession = Depends(get_db)):
 async def signup(
     body: SignupRequest,
     db: AsyncSession = Depends(get_db),
+    tenant_db: AsyncSession = Depends(get_tenant_db),
     admin: User = Depends(require_role(UserRole.ADMINISTRATOR)),
 ):
     """Admin creates a new user within their enterprise.
@@ -241,6 +243,15 @@ async def signup(
     )
     db.add(user)
     await db.flush()
+
+    await log_activity(
+        tenant_db, admin,
+        action="user_created",
+        entity_type="user",
+        entity_id=user.id,
+        entity_code=user.email,
+        summary=f"Created user {user.full_name} ({user.email}) with role {user.role.value}",
+    )
 
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
     return _build_user_out(user, permissions)

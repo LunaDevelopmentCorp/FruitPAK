@@ -41,6 +41,25 @@ export interface BatchOut {
   created_at: string;
 }
 
+export interface BatchSummary {
+  id: string;
+  batch_code: string;
+  grower_id: string;
+  grower_name: string | null;
+  fruit_type: string;
+  variety: string | null;
+  gross_weight_kg: number | null;
+  tare_weight_kg: number;
+  net_weight_kg: number | null;
+  bin_count: number | null;
+  bin_type: string | null;
+  harvest_date: string | null;
+  notes: string | null;
+  status: string;
+  intake_date: string | null;
+  created_at: string;
+}
+
 export interface GRNResponse {
   batch: BatchOut;
   qr_code_url: string;
@@ -112,8 +131,8 @@ export interface BatchUpdatePayload {
   notes?: string;
 }
 
-export async function listBatches(params?: Record<string, string>): Promise<BatchOut[]> {
-  const { data } = await api.get<PaginatedResponse<BatchOut>>("/batches/", { params });
+export async function listBatches(params?: Record<string, string>): Promise<BatchSummary[]> {
+  const { data } = await api.get<PaginatedResponse<BatchSummary>>("/batches/", { params });
   return data.items;
 }
 
@@ -150,6 +169,7 @@ export interface LotSummary {
   weight_kg: number | null;
   waste_kg: number;
   waste_reason: string | null;
+  notes: string | null;
   palletized_boxes: number;
   status: string;
   pack_date: string | null;
@@ -192,8 +212,10 @@ export interface LotUpdatePayload {
   grade?: string;
   size?: string;
   box_size_id?: string;
+  weight_kg?: number;
   waste_kg?: number;
   waste_reason?: string;
+  status?: string;
   notes?: string;
 }
 

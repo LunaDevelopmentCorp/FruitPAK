@@ -46,6 +46,14 @@ class PackagingAdjustmentRequest(BaseModel):
     notes: str | None = None
 
 
+class PackagingWriteOffRequest(BaseModel):
+    """Write off stock as lost, damaged, expired, etc."""
+    stock_id: str
+    quantity: int = Field(..., ge=1)  # always positive; will be negated
+    reason: str  # "lost", "damaged", "expired", "other"
+    notes: str | None = None
+
+
 # ── Min stock level ─────────────────────────────────────────
 
 class UpdateMinStockRequest(BaseModel):

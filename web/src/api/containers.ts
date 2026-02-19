@@ -17,8 +17,10 @@ export interface ContainerSummary {
   pallet_count: number;
   total_cartons: number;
   gross_weight_kg: number | null;
+  client_id: string | null;
   customer_name: string | null;
   destination: string | null;
+  shipping_container_number: string | null;
   status: string;
   created_at: string;
 }
@@ -30,6 +32,7 @@ export interface ContainerPalletItem {
   fruit_type: string | null;
   grade: string | null;
   size: string | null;
+  box_size_name: string | null;
   status: string;
 }
 
@@ -38,6 +41,7 @@ export interface TraceLot {
   grade: string | null;
   size: string | null;
   box_count: number;
+  box_size_name: string | null;
 }
 
 export interface TraceBatch {
@@ -65,13 +69,15 @@ export interface ContainerDetailType extends ContainerSummary {
   traceability: TracePallet[];
 }
 
-// ── Create ───────────────────────────────────────────────────
+// ── Create from pallets ─────────────────────────────────────
 
 export interface ContainerFromPalletsPayload {
   container_type: string;
   capacity_pallets?: number;
   pallet_ids: string[];
+  client_id?: string;
   customer_name?: string;
+  shipping_container_number?: string;
   export_date?: string;
   destination?: string;
   seal_number?: string;
@@ -82,6 +88,43 @@ export async function createContainerFromPallets(
   payload: ContainerFromPalletsPayload
 ): Promise<ContainerSummary> {
   const { data } = await api.post<ContainerSummary>("/containers/from-pallets", payload);
+  return data;
+}
+
+// ── Create empty ────────────────────────────────────────────
+
+export interface CreateEmptyContainerPayload {
+  container_type: string;
+  capacity_pallets?: number;
+  client_id?: string;
+  shipping_container_number?: string;
+  destination?: string;
+  export_date?: string;
+  seal_number?: string;
+  notes?: string;
+}
+
+export async function createEmptyContainer(
+  payload: CreateEmptyContainerPayload
+): Promise<ContainerSummary> {
+  const { data } = await api.post<ContainerSummary>("/containers/", payload);
+  return data;
+}
+
+// ── Load pallets ────────────────────────────────────────────
+
+export interface LoadPalletsPayload {
+  pallet_ids: string[];
+}
+
+export async function loadPalletsIntoContainer(
+  containerId: string,
+  payload: LoadPalletsPayload
+): Promise<ContainerSummary> {
+  const { data } = await api.post<ContainerSummary>(
+    `/containers/${containerId}/load-pallets`,
+    payload
+  );
   return data;
 }
 

@@ -82,6 +82,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      target: development
     restart: unless-stopped
     ports:
       - "3000:3000"

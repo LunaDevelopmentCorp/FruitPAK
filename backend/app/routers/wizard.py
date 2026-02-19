@@ -13,7 +13,7 @@ Design:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user, require_permission
@@ -30,6 +30,7 @@ from app.models.tenant.packhouse import Packhouse
 from app.models.tenant.lot import Lot
 from app.models.tenant.packaging_stock import PackagingStock
 from app.models.tenant.product_config import BinType, BoxSize, PackSpec, PalletType, PalletTypeBoxCapacity, ProductConfig
+from app.models.tenant.tenant_config import TenantConfig
 from app.models.tenant.supplier import Supplier
 from app.models.tenant.transport_config import TransportConfig
 from app.models.tenant.wizard_state import WizardState
@@ -477,11 +478,15 @@ async def save_step_6(
                 ref_lot = await db.execute(
                     select(Lot.id).where(Lot.box_size_id == obj.id).limit(1)
                 )
-                ref_pkg = await db.execute(
-                    select(PackagingStock.id).where(PackagingStock.box_size_id == obj.id).limit(1)
+                if ref_lot.scalar_one_or_none():
+                    continue  # lots reference this box size — keep it
+                # Clear packaging_stock references so the old entry can be deleted
+                await db.execute(
+                    update(PackagingStock)
+                    .where(PackagingStock.box_size_id == obj.id)
+                    .values(box_size_id=None)
                 )
-                if not ref_lot.scalar_one_or_none() and not ref_pkg.scalar_one_or_none():
-                    await db.delete(obj)
+                await db.delete(obj)
         await db.flush()
 
     # ── Pallet types (upsert by name, safe-delete unreferenced) ──
@@ -539,6 +544,24 @@ async def save_step_6(
         await db.flush()
         for bt in body.bin_types:
             db.add(BinType(**bt.model_dump()))
+        await db.flush()
+
+    # ── Pallet rules → tenant_config ──
+    if body.pallet_rules:
+        import uuid as _uuid
+        rules_data = body.pallet_rules.model_dump()
+        result = await db.execute(
+            select(TenantConfig).where(TenantConfig.key == "mixed_pallet_rules")
+        )
+        existing_cfg = result.scalar_one_or_none()
+        if existing_cfg:
+            existing_cfg.value = rules_data
+        else:
+            db.add(TenantConfig(
+                id=str(_uuid.uuid4()),
+                key="mixed_pallet_rules",
+                value=rules_data,
+            ))
         await db.flush()
 
     return await _finish_step(db, state, 6, body.model_dump(exclude_unset=True), complete, next_step=7)

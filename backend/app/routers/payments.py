@@ -20,6 +20,7 @@ from app.models.tenant.grower_payment import GrowerPayment
 from app.schemas.common import PaginatedResponse
 from app.schemas.payment import GrowerPaymentCreate, GrowerPaymentOut
 from app.services.reconciliation import run_full_reconciliation
+from app.utils.activity import log_activity
 
 router = APIRouter()
 
@@ -118,6 +119,16 @@ async def create_grower_payment(
 
     # Auto-run reconciliation to resolve GRN-vs-payment alerts
     await run_full_reconciliation(db)
+
+    await log_activity(
+        db, user,
+        action="created",
+        entity_type="payment",
+        entity_id=str(payment.id),
+        entity_code=payment.payment_ref,
+        summary=f"Recorded {payment.currency} {payment.gross_amount:.2f} payment ({payment.payment_ref}) to {grower.name}",
+        details={"grower_id": grower.id, "amount": float(payment.gross_amount)},
+    )
 
     return GrowerPaymentOut(
         id=payment.id,

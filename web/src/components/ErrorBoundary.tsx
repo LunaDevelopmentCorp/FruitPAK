@@ -124,7 +124,7 @@ class ErrorBoundary extends Component<Props, State> {
               Something went wrong — please try again. The error has been logged.
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mb-4 p-4 bg-gray-100 rounded text-sm">
                 <summary className="cursor-pointer font-medium text-gray-700 mb-2">
                   Error Details (Development Only)

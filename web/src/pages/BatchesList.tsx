@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listBatches, listGrowers, BatchOut, Grower } from "../api/batches";
+import { listBatches, listGrowers, BatchSummary, Grower } from "../api/batches";
 
 const STATUSES = ["received", "grading", "packing", "complete", "rejected"];
 
@@ -16,7 +16,7 @@ const PAGE_SIZE = 25;
 
 export default function BatchesList() {
   const navigate = useNavigate();
-  const [batches, setBatches] = useState<BatchOut[]>([]);
+  const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,12 +103,6 @@ export default function BatchesList() {
             {hasActiveFilters ? " (filtered)" : ""}
           </p>
         </div>
-        <Link
-          to="/grn-intake"
-          className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
-        >
-          New GRN Intake
-        </Link>
       </div>
 
       {error && (
@@ -200,6 +194,7 @@ export default function BatchesList() {
                   <th className="text-left px-4 py-2 font-medium">Grower</th>
                   <th className="text-left px-4 py-2 font-medium">Fruit</th>
                   <th className="text-left px-4 py-2 font-medium">Variety</th>
+                  <th className="text-right px-4 py-2 font-medium">Bins</th>
                   <th className="text-right px-4 py-2 font-medium">
                     Net (kg)
                   </th>
@@ -220,6 +215,7 @@ export default function BatchesList() {
                     <td className="px-4 py-2">{b.grower_name || "\u2014"}</td>
                     <td className="px-4 py-2">{b.fruit_type}</td>
                     <td className="px-4 py-2">{b.variety || "\u2014"}</td>
+                    <td className="px-4 py-2 text-right">{b.bin_count ?? "\u2014"}</td>
                     <td className="px-4 py-2 text-right">
                       {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
                     </td>

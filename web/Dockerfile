@@ -35,9 +35,9 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Install dependencies (production only)
+# Install all dependencies (dev deps needed for build)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -49,7 +49,7 @@ RUN npm run build
 FROM nginx:1.25-alpine AS production
 
 # Copy built assets from build stage
-COPY --from=build /app/build /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy custom nginx configuration for SPA routing
 RUN echo 'server { \

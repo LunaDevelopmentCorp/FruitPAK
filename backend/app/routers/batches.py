@@ -37,6 +37,7 @@ from app.schemas.batch import (
 )
 from app.schemas.common import PaginatedResponse
 from app.services.grn import create_grn
+from app.utils.activity import log_activity
 from app.utils.cache import cached, invalidate_cache
 
 router = APIRouter()
@@ -70,6 +71,15 @@ async def grn_intake(
     qr_url = f"/api/batches/{batch.id}/qr"
 
     await invalidate_cache("batches:*")
+
+    await log_activity(
+        db, user,
+        action="created",
+        entity_type="batch",
+        entity_id=batch.id,
+        entity_code=batch.batch_code,
+        summary=f"Submitted GRN {batch.batch_code} — {batch.fruit_type or 'unknown'}, {batch.net_weight_kg or 0:.1f} kg",
+    )
 
     return GRNResponse(
         batch=BatchOut.model_validate(batch),
@@ -186,7 +196,7 @@ async def get_batch(
         lot_ids = [lot.id for lot in batch.lots]
         pal_result = await db.execute(
             select(PalletLot.lot_id, func.sum(PalletLot.box_count))
-            .where(PalletLot.lot_id.in_(lot_ids))
+            .where(PalletLot.lot_id.in_(lot_ids), PalletLot.is_deleted == False)  # noqa: E712
             .group_by(PalletLot.lot_id)
         )
         palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}
@@ -291,7 +301,7 @@ async def close_production_run(
     if lot_ids:
         pal_result = await db.execute(
             select(PalletLot.lot_id, func.sum(PalletLot.box_count))
-            .where(PalletLot.lot_id.in_(lot_ids))
+            .where(PalletLot.lot_id.in_(lot_ids), PalletLot.is_deleted == False)  # noqa: E712
             .group_by(PalletLot.lot_id)
         )
         palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}
@@ -313,6 +323,16 @@ async def close_production_run(
     batch.status = "complete"
     await db.flush()
     await invalidate_cache("batches:*")
+
+    await log_activity(
+        db, _user,
+        action="status_changed",
+        entity_type="batch",
+        entity_id=batch.id,
+        entity_code=batch.batch_code,
+        summary=f"Closed production run for {batch.batch_code}",
+    )
+
     return BatchOut.model_validate(batch)
 
 
@@ -369,6 +389,16 @@ async def finalize_grn(
     batch.status = "completed"
     await db.flush()
     await invalidate_cache("batches:*")
+
+    await log_activity(
+        db, _user,
+        action="status_changed",
+        entity_type="batch",
+        entity_id=batch.id,
+        entity_code=batch.batch_code,
+        summary=f"Finalized GRN {batch.batch_code}",
+    )
+
     return BatchOut.model_validate(batch)
 
 
@@ -402,3 +432,12 @@ async def delete_batch(
 
     await db.flush()
     await invalidate_cache("batches:*")
+
+    await log_activity(
+        db, _user,
+        action="deleted",
+        entity_type="batch",
+        entity_id=batch.id,
+        entity_code=batch.batch_code,
+        summary=f"Deleted batch {batch.batch_code} and {len(batch.lots or [])} lot(s)",
+    )

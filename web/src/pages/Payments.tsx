@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { listGrowers, listBatches, Grower, BatchOut } from "../api/batches";
+import { listGrowers, listBatches, Grower, BatchSummary } from "../api/batches";
+import { getErrorMessage } from "../api/client";
 import {
   submitGrowerPayment,
   listGrowerPayments,
@@ -21,7 +22,7 @@ interface FieldError {
 
 export default function Payments() {
   const [growers, setGrowers] = useState<Grower[]>([]);
-  const [batches, setBatches] = useState<BatchOut[]>([]);
+  const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [recentPayments, setRecentPayments] = useState<GrowerPaymentOut[]>([]);
   const [result, setResult] = useState<GrowerPaymentOut | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,31 +123,26 @@ export default function Payments() {
       // Refresh recent payments
       listGrowerPayments().then(setRecentPayments).catch(() => {});
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as {
-          response?: {
-            data?: { detail?: string | Array<{ loc?: string[]; msg?: string }> };
-            status?: number;
-          };
+      // 422 with field-level errors needs special handling
+      const axiosErr = err as {
+        response?: {
+          data?: { detail?: string | Array<{ loc?: string[]; msg?: string }> };
+          status?: number;
         };
-        const detail = axiosErr.response?.data?.detail;
+      };
+      const detail = axiosErr.response?.data?.detail;
 
-        if (axiosErr.response?.status === 422 && Array.isArray(detail)) {
-          const mapped: FieldError[] = detail
-            .filter((e) => e.loc && e.msg)
-            .map((e) => ({
-              field: e.loc![e.loc!.length - 1],
-              message: e.msg!,
-            }));
-          setFieldErrors(mapped);
-          setError("Please fix the highlighted fields below.");
-        } else if (typeof detail === "string") {
-          setError(detail);
-        } else {
-          setError("Payment submission failed");
-        }
+      if (axiosErr.response?.status === 422 && Array.isArray(detail)) {
+        const mapped: FieldError[] = detail
+          .filter((e) => e.loc && e.msg)
+          .map((e) => ({
+            field: e.loc![e.loc!.length - 1],
+            message: e.msg!,
+          }));
+        setFieldErrors(mapped);
+        setError("Please fix the highlighted fields below.");
       } else {
-        setError("Network error — is the server running?");
+        setError(getErrorMessage(err, "Payment submission failed"));
       }
     }
   };

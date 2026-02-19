@@ -100,6 +100,7 @@ class BatchOut(BaseModel):
     id: str
     batch_code: str
     grower_id: str
+    grower_name: str | None = None
     harvest_team_id: str | None
     packhouse_id: str
     fruit_type: str
@@ -125,6 +126,13 @@ class BatchOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @model_validator(mode="before")
+    @classmethod
+    def _extract_grower_name(cls, data):
+        if hasattr(data, "grower") and data.grower:
+            data.__dict__["grower_name"] = data.grower.name
+        return data
+
 
 # ── List (lightweight) ───────────────────────────────────────
 
@@ -136,7 +144,12 @@ class BatchSummary(BaseModel):
     fruit_type: str
     variety: str | None
     gross_weight_kg: float | None
+    tare_weight_kg: float = 0.0
     net_weight_kg: float | None
+    bin_count: int | None = None
+    bin_type: str | None = None
+    harvest_date: date | None = None
+    notes: str | None = None
     status: str
     intake_date: datetime | None
     created_at: datetime

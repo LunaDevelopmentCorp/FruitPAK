@@ -2,8 +2,11 @@
 
 Endpoints:
     POST  /api/pallets/from-lots         Create pallets from lot assignments
+    POST  /api/pallets/                  Create an empty pallet
     GET   /api/pallets/                   List pallets (with filters)
     GET   /api/pallets/{pallet_id}        Single pallet detail
+    PATCH /api/pallets/{pallet_id}        Update pallet properties
+    DELETE /api/pallets/{pallet_id}       Soft-delete a pallet (empty only)
     GET   /api/pallets/{pallet_id}/qr     QR code SVG for pallet
     GET   /api/pallets/config/box-sizes   Enterprise box sizes
     GET   /api/pallets/config/pallet-types Enterprise pallet types
@@ -12,10 +15,10 @@ Endpoints:
 import io
 import json
 import uuid
-from datetime import date
+from datetime import datetime
 
 import segno
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,20 +27,26 @@ from sqlalchemy.orm import selectinload
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
+from app.models.tenant.batch import Batch
 from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import Pallet, PalletLot
 from app.models.tenant.product_config import BoxSize, PalletType
+from app.models.tenant.tenant_config import TenantConfig
 from app.schemas.common import PaginatedResponse
 from app.schemas.pallet import (
     AllocateBoxesRequest,
     BoxSizeOut,
+    CreateEmptyPalletRequest,
     DeallocateResult,
     PalletDetail,
     PalletFromLotsRequest,
     PalletLotOut,
     PalletSummary,
     PalletTypeOut,
+    PalletUpdate,
 )
+from app.utils.activity import log_activity
+from app.utils.numbering import generate_code
 
 router = APIRouter()
 
@@ -48,24 +57,25 @@ async def _already_palletized(db: AsyncSession, lot_id: str) -> int:
     """Return total boxes already allocated from a lot across all pallets."""
     result = await db.scalar(
         select(func.coalesce(func.sum(PalletLot.box_count), 0))
-        .where(PalletLot.lot_id == lot_id)
+        .where(PalletLot.lot_id == lot_id, PalletLot.is_deleted == False)  # noqa: E712
     )
     return int(result)
 
-def _generate_pallet_number(index: int) -> str:
-    today = date.today().strftime("%Y%m%d")
-    return f"PAL-{today}-{index:03d}"
 
-
-async def _next_pallet_index(db: AsyncSession) -> int:
-    today_prefix = f"PAL-{date.today().strftime('%Y%m%d')}-"
+async def _get_mixed_pallet_rules(db: AsyncSession) -> dict:
+    """Load mixed pallet rules from tenant_config."""
     result = await db.execute(
-        select(func.count()).where(
-            Pallet.pallet_number.like(f"{today_prefix}%"),
-            Pallet.is_deleted == False,  # noqa: E712
-        )
+        select(TenantConfig).where(TenantConfig.key == "mixed_pallet_rules")
     )
-    return (result.scalar() or 0) + 1
+    config = result.scalar_one_or_none()
+    return config.value if config else {}
+
+
+def _resolve_mixed_flag(request_value: bool | None, tenant_value: bool) -> bool:
+    """Resolve a mixed pallet flag: explicit request overrides tenant default."""
+    if request_value is not None:
+        return request_value
+    return tenant_value
 
 
 # ── Config endpoints (enterprise box sizes & pallet types) ───
@@ -108,7 +118,7 @@ async def create_pallets_from_lots(
                 select(Lot).where(
                     Lot.id == assignment.lot_id,
                     Lot.is_deleted == False,  # noqa: E712
-                )
+                ).options(selectinload(Lot.box_size))
             )
             lot = result.scalar_one_or_none()
             if not lot:
@@ -130,6 +140,15 @@ async def create_pallets_from_lots(
                        f"cannot assign {assignment.box_count}",
             )
 
+    # Load tenant mixed pallet rules and resolve flags
+    tenant_rules = await _get_mixed_pallet_rules(db)
+    allow_mixed_sizes = _resolve_mixed_flag(
+        body.allow_mixed_sizes, tenant_rules.get("allow_mixed_sizes", False)
+    )
+    allow_mixed_box_types = _resolve_mixed_flag(
+        body.allow_mixed_box_types, tenant_rules.get("allow_mixed_box_types", False)
+    )
+
     # Build a flat list of box assignments to fill pallets
     box_queue: list[dict] = []
     for assignment in body.lot_assignments:
@@ -141,12 +160,43 @@ async def create_pallets_from_lots(
             "size": assignment.size or lot.size,
         })
 
-    # Detect size from first lot for denormalization
+    # Validate size consistency
+    lot_sizes = {item["size"] for item in box_queue if item["size"]}
+    if len(lot_sizes) > 1 and not allow_mixed_sizes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mixed sizes on pallet ({', '.join(sorted(lot_sizes))}). "
+                   "Use allow_mixed_sizes to override.",
+        )
+
+    # Validate box type consistency
+    lot_box_ids = {
+        lot_map[a.lot_id].box_size_id
+        for a in body.lot_assignments
+        if lot_map[a.lot_id].box_size_id
+    }
+    if len(lot_box_ids) > 1 and not allow_mixed_box_types:
+        names: list[str] = []
+        for bsid in lot_box_ids:
+            for lot in lot_map.values():
+                if lot.box_size_id == bsid:
+                    bs_name = lot.box_size.name if hasattr(lot, "box_size") and lot.box_size else bsid
+                    names.append(bs_name)
+                    break
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mixed box types on pallet ({', '.join(sorted(set(names)))}). "
+                   "Use allow_mixed_box_types to override.",
+        )
+
+    # Determine pallet size: explicit > detected from lots
+    pallet_size = body.size or (lot_sizes.pop() if len(lot_sizes) == 1 else None)
+
+    # Detect fruit info from first lot for denormalization
     first_lot = lot_map[body.lot_assignments[0].lot_id]
 
     # Fill pallets (auto-overflow)
     created_pallets: list[Pallet] = []
-    pallet_idx = await _next_pallet_index(db)
     remaining_capacity = body.capacity_boxes
     current_pallet: Pallet | None = None
 
@@ -155,9 +205,10 @@ async def create_pallets_from_lots(
         while boxes_left > 0:
             if current_pallet is None or remaining_capacity <= 0:
                 # Create new pallet
+                pallet_number = await generate_code(db, "pallet")
                 current_pallet = Pallet(
                     id=str(uuid.uuid4()),
-                    pallet_number=_generate_pallet_number(pallet_idx),
+                    pallet_number=pallet_number,
                     pallet_type_name=body.pallet_type_name,
                     capacity_boxes=body.capacity_boxes,
                     current_boxes=0,
@@ -165,7 +216,13 @@ async def create_pallets_from_lots(
                     fruit_type=first_lot.fruit_type,
                     variety=first_lot.variety,
                     grade=first_lot.grade,
-                    size=item["size"],
+                    size=pallet_size,
+                    box_size_id=first_lot.box_size_id,
+                    box_size_name=(
+                        first_lot.box_size.name
+                        if hasattr(first_lot, "box_size") and first_lot.box_size
+                        else None
+                    ),
                     palletized_by=user.id,
                     status="open",
                     notes=body.notes,
@@ -173,7 +230,6 @@ async def create_pallets_from_lots(
                 db.add(current_pallet)
                 created_pallets.append(current_pallet)
                 remaining_capacity = body.capacity_boxes
-                pallet_idx += 1
 
             fill = min(boxes_left, remaining_capacity)
             pallet_lot = PalletLot(
@@ -201,6 +257,57 @@ async def create_pallets_from_lots(
 
     await db.flush()
     return [PalletSummary.model_validate(p) for p in created_pallets]
+
+
+# ── POST /api/pallets/ (empty pallet) ────────────────────────
+
+@router.post("/", response_model=PalletSummary, status_code=201)
+async def create_empty_pallet(
+    body: CreateEmptyPalletRequest,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Create an empty pallet shell for later lot allocation."""
+    # Resolve box size name if box_size_id provided
+    box_size_name = None
+    if body.box_size_id:
+        bs_result = await db.execute(
+            select(BoxSize).where(BoxSize.id == body.box_size_id)
+        )
+        bs = bs_result.scalar_one_or_none()
+        if not bs:
+            raise HTTPException(status_code=404, detail="Box size not found")
+        box_size_name = bs.name
+
+    pallet_number = await generate_code(db, "pallet")
+    pallet = Pallet(
+        id=str(uuid.uuid4()),
+        pallet_number=pallet_number,
+        pallet_type_name=body.pallet_type_name,
+        capacity_boxes=body.capacity_boxes,
+        current_boxes=0,
+        packhouse_id=body.packhouse_id,
+        size=body.size,
+        box_size_id=body.box_size_id,
+        box_size_name=box_size_name,
+        palletized_by=user.id,
+        status="open",
+        notes=body.notes,
+    )
+    db.add(pallet)
+    await db.flush()
+
+    await log_activity(
+        db, user,
+        action="created",
+        entity_type="pallet",
+        entity_id=pallet.id,
+        entity_code=pallet.pallet_number,
+        summary=f"Created empty pallet {pallet.pallet_number} (capacity {pallet.capacity_boxes})",
+    )
+
+    return PalletSummary.model_validate(pallet)
 
 
 # ── GET /api/pallets/ ────────────────────────────────────────
@@ -251,19 +358,135 @@ async def get_pallet(
     result = await db.execute(
         select(Pallet)
         .where(Pallet.id == pallet_id, Pallet.is_deleted == False)  # noqa: E712
-        .options(selectinload(Pallet.pallet_lots).selectinload(PalletLot.lot))
+        .options(
+            selectinload(Pallet.pallet_lots)
+            .selectinload(PalletLot.lot)
+            .selectinload(Lot.box_size),
+        )
     )
     pallet = result.scalar_one_or_none()
     if not pallet:
         raise HTTPException(status_code=404, detail="Pallet not found")
 
-    # Enrich pallet_lots with lot_code and grade
+    # Filter to active allocations only and enrich with lot info
     detail = PalletDetail.model_validate(pallet)
-    for pl_out, pl_orm in zip(detail.pallet_lots, pallet.pallet_lots):
+    active_lots = [pl for pl in pallet.pallet_lots if not pl.is_deleted]
+    detail.pallet_lots = [PalletLotOut.model_validate(pl) for pl in active_lots]
+    for pl_out, pl_orm in zip(detail.pallet_lots, active_lots):
         if pl_orm.lot:
             pl_out.lot_code = pl_orm.lot.lot_code
             pl_out.grade = pl_orm.lot.grade
+            pl_out.box_size_name = (
+                pl_orm.lot.box_size.name if pl_orm.lot.box_size else None
+            )
     return detail
+
+
+# ── PATCH /api/pallets/{pallet_id} ────────────────────────────
+
+@router.patch("/{pallet_id}", response_model=PalletDetail)
+async def update_pallet(
+    pallet_id: str,
+    body: PalletUpdate,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Update editable fields on a pallet. Blocked for loaded/exported pallets."""
+    result = await db.execute(
+        select(Pallet)
+        .where(Pallet.id == pallet_id, Pallet.is_deleted == False)  # noqa: E712
+        .options(
+            selectinload(Pallet.pallet_lots)
+            .selectinload(PalletLot.lot)
+            .selectinload(Lot.box_size),
+        )
+    )
+    pallet = result.scalar_one_or_none()
+    if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if pallet.status in ("loaded", "exported"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot edit a '{pallet.status}' pallet",
+        )
+
+    updates = body.model_dump(exclude_unset=True)
+    if "capacity_boxes" in updates and updates["capacity_boxes"] < pallet.current_boxes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Capacity cannot be less than current boxes ({pallet.current_boxes})",
+        )
+
+    # Auto-resolve box_size_name when box_size_id changes
+    if "box_size_id" in updates:
+        new_box_id = updates["box_size_id"]
+        if new_box_id:
+            bs_result = await db.execute(
+                select(BoxSize).where(BoxSize.id == new_box_id)
+            )
+            bs = bs_result.scalar_one_or_none()
+            if not bs:
+                raise HTTPException(status_code=400, detail="Box size not found")
+            updates["box_size_name"] = bs.name
+        else:
+            updates["box_size_name"] = None
+
+    for field, value in updates.items():
+        setattr(pallet, field, value)
+
+    await db.flush()
+
+    detail = PalletDetail.model_validate(pallet)
+    active_lots = [pl for pl in pallet.pallet_lots if not pl.is_deleted]
+    detail.pallet_lots = [PalletLotOut.model_validate(pl) for pl in active_lots]
+    for pl_out, pl_orm in zip(detail.pallet_lots, active_lots):
+        if pl_orm.lot:
+            pl_out.lot_code = pl_orm.lot.lot_code
+            pl_out.grade = pl_orm.lot.grade
+            pl_out.box_size_name = (
+                pl_orm.lot.box_size.name if pl_orm.lot.box_size else None
+            )
+    return detail
+
+
+# ── DELETE /api/pallets/{pallet_id} ──────────────────────────
+
+@router.delete("/{pallet_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_pallet(
+    pallet_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Soft-delete a pallet. Only allowed if current_boxes == 0."""
+    result = await db.execute(
+        select(Pallet).where(
+            Pallet.id == pallet_id,
+            Pallet.is_deleted == False,  # noqa: E712
+        )
+    )
+    pallet = result.scalar_one_or_none()
+    if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if pallet.current_boxes > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete pallet with {pallet.current_boxes} allocated box(es). "
+                   "Deallocate all lots first.",
+        )
+
+    pallet.is_deleted = True
+    await db.flush()
+
+    await log_activity(
+        db, _user,
+        action="deleted",
+        entity_type="pallet",
+        entity_id=pallet.id,
+        entity_code=pallet.pallet_number,
+        summary=f"Deleted pallet {pallet.pallet_number}",
+    )
 
 
 # ── GET /api/pallets/{pallet_id}/qr ──────────────────────────
@@ -286,7 +509,7 @@ async def get_pallet_qr(
         raise HTTPException(status_code=404, detail="Pallet not found")
 
     lot_codes = [
-        pl.lot.lot_code for pl in pallet.pallet_lots if pl.lot
+        pl.lot.lot_code for pl in pallet.pallet_lots if pl.lot and not pl.is_deleted
     ]
     qr_data = json.dumps({
         "type": "pallet",
@@ -336,12 +559,59 @@ async def allocate_boxes_to_pallet(
             detail=f"Cannot fit {total_new_boxes} boxes, only {remaining} capacity remaining",
         )
 
+    # Load tenant mixed pallet rules and resolve flags
+    tenant_rules = await _get_mixed_pallet_rules(db)
+    allow_mixed_sizes = _resolve_mixed_flag(
+        body.allow_mixed_sizes, tenant_rules.get("allow_mixed_sizes", False)
+    )
+    allow_mixed_box_types = _resolve_mixed_flag(
+        body.allow_mixed_box_types, tenant_rules.get("allow_mixed_box_types", False)
+    )
+
+    # Validate size consistency with pallet
+    if pallet.size and not allow_mixed_sizes:
+        mismatched: list[str] = []
+        for a in body.lot_assignments:
+            lot_result_check = await db.execute(
+                select(Lot).where(Lot.id == a.lot_id, Lot.is_deleted == False)  # noqa: E712
+            )
+            lot_check = lot_result_check.scalar_one_or_none()
+            lot_size = a.size or (lot_check.size if lot_check else None)
+            if lot_size and lot_size != pallet.size:
+                code = lot_check.lot_code if lot_check else a.lot_id
+                mismatched.append(f"{code} (size: {lot_size})")
+        if mismatched:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pallet size is '{pallet.size}'. Mismatched lots: "
+                       f"{', '.join(mismatched)}. Use allow_mixed_sizes to override.",
+            )
+
+    # Validate box type consistency with pallet
+    if pallet.box_size_id and not allow_mixed_box_types:
+        mismatched_box: list[str] = []
+        for a in body.lot_assignments:
+            lot_bt_result = await db.execute(
+                select(Lot).where(Lot.id == a.lot_id, Lot.is_deleted == False)  # noqa: E712
+                .options(selectinload(Lot.box_size))
+            )
+            lot_bt = lot_bt_result.scalar_one_or_none()
+            if lot_bt and lot_bt.box_size_id and lot_bt.box_size_id != pallet.box_size_id:
+                lot_box_name = lot_bt.box_size.name if lot_bt.box_size else lot_bt.box_size_id
+                mismatched_box.append(f"{lot_bt.lot_code} (box type: {lot_box_name})")
+        if mismatched_box:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pallet box type is '{pallet.box_size_name}'. Mismatched lots: "
+                       f"{', '.join(mismatched_box)}. Use allow_mixed_box_types to override.",
+            )
+
     for assignment in body.lot_assignments:
         lot_result = await db.execute(
             select(Lot).where(
                 Lot.id == assignment.lot_id,
                 Lot.is_deleted == False,  # noqa: E712
-            )
+            ).options(selectinload(Lot.box_size))
         )
         lot = lot_result.scalar_one_or_none()
         if not lot:
@@ -360,15 +630,31 @@ async def allocate_boxes_to_pallet(
                        f"cannot assign {assignment.box_count}",
             )
 
+        lot_size = assignment.size or lot.size
         pallet_lot = PalletLot(
             id=str(uuid.uuid4()),
             pallet_id=pallet.id,
             lot_id=assignment.lot_id,
             box_count=assignment.box_count,
-            size=assignment.size or lot.size,
+            size=lot_size,
         )
         db.add(pallet_lot)
         pallet.current_boxes += assignment.box_count
+
+        # Auto-set pallet metadata from first allocation if not yet set
+        if not pallet.size and lot_size:
+            pallet.size = lot_size
+        if not pallet.fruit_type and lot.fruit_type:
+            pallet.fruit_type = lot.fruit_type
+        if not pallet.variety and lot.variety:
+            pallet.variety = lot.variety
+        if not pallet.grade and lot.grade:
+            pallet.grade = lot.grade
+        if not pallet.box_size_id and lot.box_size_id:
+            pallet.box_size_id = lot.box_size_id
+            pallet.box_size_name = (
+                lot.box_size.name if lot.box_size else None
+            )
 
         if lot.status == "created":
             lot.status = "palletizing"
@@ -377,6 +663,17 @@ async def allocate_boxes_to_pallet(
         pallet.status = "closed"
 
     await db.flush()
+
+    await log_activity(
+        db, user,
+        action="allocated",
+        entity_type="pallet",
+        entity_id=pallet.id,
+        entity_code=pallet.pallet_number,
+        summary=f"Allocated {total_new_boxes} box(es) to pallet {pallet.pallet_number}",
+        details={"boxes_added": total_new_boxes, "current_boxes": pallet.current_boxes},
+    )
+
     return PalletSummary.model_validate(pallet)
 
 
@@ -407,11 +704,12 @@ async def deallocate_from_pallet(
             detail=f"Cannot deallocate from a '{pallet.status}' pallet",
         )
 
-    # Load the pallet-lot link
+    # Load the pallet-lot link (active only)
     pl_result = await db.execute(
         select(PalletLot).where(
             PalletLot.id == pallet_lot_id,
             PalletLot.pallet_id == pallet_id,
+            PalletLot.is_deleted == False,  # noqa: E712
         )
     )
     pallet_lot = pl_result.scalar_one_or_none()
@@ -421,8 +719,9 @@ async def deallocate_from_pallet(
     boxes_returned = pallet_lot.box_count
     lot_id = pallet_lot.lot_id
 
-    # Remove the allocation
-    await db.delete(pallet_lot)
+    # Soft-delete the allocation (preserves traceability history)
+    pallet_lot.is_deleted = True
+    pallet_lot.deallocated_at = datetime.utcnow()
 
     # Update pallet box count
     pallet.current_boxes = max(0, pallet.current_boxes - boxes_returned)
@@ -444,7 +743,27 @@ async def deallocate_from_pallet(
         if remaining_after == 0:
             lot.status = "created"
 
+    # Revert batch status if it was "complete"/"completed" but now has unallocated lots
+    if lot:
+        batch_result = await db.execute(
+            select(Batch).where(Batch.id == lot.batch_id)
+        )
+        batch = batch_result.scalar_one_or_none()
+        if batch and batch.status in ("complete", "completed"):
+            batch.status = "packing"
+
     await db.flush()
+
+    await log_activity(
+        db, user,
+        action="deallocated",
+        entity_type="pallet",
+        entity_id=pallet.id,
+        entity_code=pallet.pallet_number,
+        summary=f"Deallocated {boxes_returned} box(es) from pallet {pallet.pallet_number}",
+        details={"boxes_returned": boxes_returned, "current_boxes": pallet.current_boxes},
+    )
+
     return DeallocateResult(
         pallet_id=pallet_id,
         pallet_lot_id=pallet_lot_id,

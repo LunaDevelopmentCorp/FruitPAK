@@ -5,7 +5,7 @@
  */
 
 import type { AppError } from '../utils/errorHandling';
-import { api } from '../utils/api';
+import api from '../utils/api';
 
 interface ErrorLogPayload {
   error: AppError;

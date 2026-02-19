@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getErrorMessage } from "../api/client";
 import { createEnterprise, reissueToken } from "../api/enterprise";
 import { useAuthStore } from "../store/authStore";
 
@@ -33,12 +34,7 @@ export default function EnterpriseSetup() {
       // 3. Go to wizard
       navigate("/setup");
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosErr = err as { response?: { data?: { detail?: string } } };
-        setError(axiosErr.response?.data?.detail || "Failed to create enterprise");
-      } else {
-        setError("Network error — is the server running?");
-      }
+      setError(getErrorMessage(err, "Failed to create enterprise"));
     } finally {
       setLoading(false);
     }

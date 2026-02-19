@@ -46,6 +46,15 @@ export interface PackagingReceiptPayload {
   notes?: string;
 }
 
+// ── Movement filter params ──────────────────────────────────
+
+export interface MovementFilters {
+  stock_id?: string;
+  movement_type?: string;
+  limit?: number;
+  offset?: number;
+}
+
 // ── API calls ───────────────────────────────────────────────
 
 export async function getPackagingStock(): Promise<PackagingStockItem[]> {
@@ -84,8 +93,23 @@ export async function adjustStock(
   return data;
 }
 
+export async function writeOffStock(
+  stock_id: string,
+  quantity: number,
+  reason: string,
+  notes?: string
+): Promise<PackagingStockItem> {
+  const { data } = await api.post<PackagingStockItem>("/packaging/write-off", {
+    stock_id,
+    quantity,
+    reason,
+    notes,
+  });
+  return data;
+}
+
 export async function listMovements(
-  params?: Record<string, string>
+  params?: MovementFilters
 ): Promise<PackagingMovement[]> {
   const { data } = await api.get<PaginatedResponse<PackagingMovement>>(
     "/packaging/movements",

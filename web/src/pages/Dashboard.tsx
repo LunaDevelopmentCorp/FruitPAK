@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
-import { listBatches, BatchOut, listLots, LotSummary } from "../api/batches";
+import { listBatches, BatchSummary, listLots, LotSummary } from "../api/batches";
 import { listGrowerPayments, GrowerPaymentOut } from "../api/payments";
 import { getDashboard, DashboardSummary } from "../api/reconciliation";
 
@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
-  const [batches, setBatches] = useState<BatchOut[]>([]);
+  const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [payments, setPayments] = useState<GrowerPaymentOut[]>([]);
   const [lots, setLots] = useState<LotSummary[]>([]);
   const [reconciliation, setReconciliation] = useState<DashboardSummary | null>(null);

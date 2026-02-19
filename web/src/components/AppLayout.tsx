@@ -10,6 +10,7 @@ const NAV_ITEMS_FULL = [
   { to: "/pallets", label: "Pallets" },
   { to: "/packaging", label: "Packaging" },
   { to: "/containers", label: "Containers" },
+  { to: "/clients", label: "Clients" },
   { to: "/payments", label: "Payments" },
   { to: "/reconciliation", label: "Reconciliation" },
 ];
@@ -24,7 +25,10 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const navItems = user?.is_onboarded ? NAV_ITEMS_FULL : NAV_ITEMS_SETUP;
+  const baseNav = user?.is_onboarded ? NAV_ITEMS_FULL : NAV_ITEMS_SETUP;
+  const navItems = user?.role === "administrator"
+    ? [...baseNav, { to: "/admin", label: "Admin" }]
+    : baseNav;
 
   const handleLogout = () => {
     logout();
@@ -47,7 +51,7 @@ export default function AppLayout() {
                     key={item.to}
                     to={item.to}
                     className={`px-3 py-2 rounded text-sm font-medium ${
-                      location.pathname === item.to
+                      location.pathname === item.to || location.pathname.startsWith(item.to + "/")
                         ? "bg-green-50 text-green-700"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }`}

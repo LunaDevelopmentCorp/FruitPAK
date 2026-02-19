@@ -12,11 +12,34 @@ class ContainerFromPalletsRequest(BaseModel):
     container_type: str = Field(..., max_length=50)
     capacity_pallets: int = Field(20, ge=1)
     pallet_ids: list[str] = Field(..., min_length=1)
+    client_id: str | None = None
     customer_name: str | None = None
+    shipping_container_number: str | None = None
     export_date: datetime | None = None
     destination: str | None = None
     seal_number: str | None = None
     notes: str | None = None
+
+
+# ── Create empty container ────────────────────────────────────
+
+class CreateEmptyContainerRequest(BaseModel):
+    """Payload for POST /api/containers/ (empty, no pallets)."""
+    container_type: str = Field(..., max_length=50)
+    capacity_pallets: int = Field(20, ge=1)
+    client_id: str | None = None
+    shipping_container_number: str | None = None
+    destination: str | None = None
+    export_date: datetime | None = None
+    seal_number: str | None = None
+    notes: str | None = None
+
+
+# ── Load pallets into container ───────────────────────────────
+
+class LoadPalletsRequest(BaseModel):
+    """Payload for POST /api/containers/{id}/load-pallets."""
+    pallet_ids: list[str] = Field(..., min_length=1)
 
 
 # ── Pallet in container (traceability) ────────────────────────
@@ -28,6 +51,7 @@ class ContainerPalletOut(BaseModel):
     fruit_type: str | None
     grade: str | None
     size: str | None
+    box_size_name: str | None = None
     status: str
 
     model_config = {"from_attributes": True}
@@ -40,6 +64,7 @@ class TraceLot(BaseModel):
     grade: str | None
     size: str | None
     box_count: int
+    box_size_name: str | None = None
 
 
 class TraceBatch(BaseModel):
@@ -66,8 +91,10 @@ class ContainerSummary(BaseModel):
     pallet_count: int
     total_cartons: int
     gross_weight_kg: float | None
+    client_id: str | None = None
     customer_name: str | None
     destination: str | None
+    shipping_container_number: str | None = None
     status: str
     created_at: datetime
 

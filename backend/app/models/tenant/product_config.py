@@ -63,6 +63,12 @@ class BoxSize(TenantBase):
     fruit_count: Mapped[int | None] = mapped_column(Integer)
     weight_kg: Mapped[float] = mapped_column(Float, default=4.0)
     cost_per_unit: Mapped[float | None] = mapped_column(Float)
+    # Specification fields
+    dimensions: Mapped[str | None] = mapped_column(String(100))
+    tare_weight_kg: Mapped[float] = mapped_column(Float, default=0.0)
+    net_weight_target_kg: Mapped[float | None] = mapped_column(Float)
+    min_weight_kg: Mapped[float | None] = mapped_column(Float)
+    max_weight_kg: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

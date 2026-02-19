@@ -25,6 +25,7 @@ from app.schemas.packaging import (
     PackagingMovementOut,
     PackagingReceiptRequest,
     PackagingStockOut,
+    PackagingWriteOffRequest,
     UpdateMinStockRequest,
 )
 
@@ -226,6 +227,56 @@ async def adjust_stock(
         movement_type="adjustment",
         quantity=body.quantity,
         notes=body.notes,
+        recorded_by=user.id,
+    )
+    db.add(movement)
+    await db.flush()
+
+    # Reload with relationships
+    result = await db.execute(
+        select(PackagingStock).where(PackagingStock.id == stock.id)
+    )
+    stock = result.scalar_one()
+    return _enrich_stock(stock)
+
+
+# ── POST /api/packaging/write-off ─────────────────────────
+
+@router.post("/write-off", response_model=PackagingStockOut)
+async def write_off_stock(
+    body: PackagingWriteOffRequest,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Write off stock as lost, damaged, expired, etc."""
+    result = await db.execute(
+        select(PackagingStock).where(PackagingStock.id == body.stock_id)
+    )
+    stock = result.scalar_one_or_none()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock record not found")
+
+    new_qty = stock.current_quantity - body.quantity
+    if new_qty < 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Write-off would result in negative stock ({new_qty})",
+        )
+
+    stock.current_quantity = new_qty
+
+    # Build notes: "damaged: water damage on delivery" or just "damaged"
+    note_text = body.reason
+    if body.notes:
+        note_text = f"{body.reason}: {body.notes}"
+
+    movement = PackagingMovement(
+        id=str(uuid.uuid4()),
+        stock_id=stock.id,
+        movement_type="write_off",
+        quantity=-body.quantity,
+        notes=note_text,
         recorded_by=user.id,
     )
     db.add(movement)

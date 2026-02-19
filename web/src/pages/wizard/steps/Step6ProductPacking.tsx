@@ -21,6 +21,11 @@ interface PackSpecForm {
 interface BoxTypeForm {
   name: string;
   weight_kg: number;
+  dimensions: string;
+  tare_weight_kg: number;
+  net_weight_target_kg: number | null;
+  min_weight_kg: number | null;
+  max_weight_kg: number | null;
 }
 
 interface BoxCapacityForm {
@@ -41,12 +46,18 @@ interface BinTypeForm {
   tare_weight_kg: number;
 }
 
+interface PalletRulesForm {
+  allow_mixed_sizes: boolean;
+  allow_mixed_box_types: boolean;
+}
+
 interface FormData {
   products: ProductForm[];
   pack_specs: PackSpecForm[];
   box_sizes: BoxTypeForm[];
   pallet_types: PalletTypeForm[];
   bin_types: BinTypeForm[];
+  pallet_rules: PalletRulesForm;
 }
 
 const COMMON_PACK_SPECS: PackSpecForm[] = [
@@ -58,7 +69,7 @@ const COMMON_PACK_SPECS: PackSpecForm[] = [
   { name: "5kg Net Bag", pack_type: "net bag", weight_kg: 5, cartons_per_layer: 18, layers_per_pallet: 8, target_market: "Local" },
 ];
 
-const EMPTY_BOX: BoxTypeForm = { name: "", weight_kg: 4.0 };
+const EMPTY_BOX: BoxTypeForm = { name: "", weight_kg: 4.0, dimensions: "", tare_weight_kg: 0, net_weight_target_kg: null, min_weight_kg: null, max_weight_kg: null };
 const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, notes: "", box_capacities: [] };
 const EMPTY_BIN: BinTypeForm = { name: "", default_weight_kg: 0, tare_weight_kg: 0 };
 
@@ -70,6 +81,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
       box_sizes: [],
       pallet_types: [],
       bin_types: [],
+      pallet_rules: { allow_mixed_sizes: false, allow_mixed_box_types: false },
     },
   });
   const products = useFieldArray({ control, name: "products" });
@@ -107,6 +119,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         box_capacities: (p.box_capacities || []).filter((bc) => bc.box_size_name?.trim() && bc.capacity > 0),
       })),
     bin_types: data.bin_types.filter((b) => b.name?.trim()),
+    pallet_rules: data.pallet_rules,
   });
 
   const saveDraft = () => onSave(transform(getValues()), false);
@@ -264,16 +277,21 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-gray-700">Box Types</h3>
         <p className="text-xs text-gray-500">
-          Define the packaging types used on your pack lines. Size and count are allocated during packing.
+          Define the packaging types used on your pack lines. Includes weight specifications for quality control.
         </p>
 
         {boxSizes.fields.length > 0 && (
-          <div className="border rounded overflow-hidden">
+          <div className="border rounded overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Box Name *</th>
                   <th className="text-right px-3 py-2 font-medium">Weight (kg)</th>
+                  <th className="text-left px-3 py-2 font-medium">Dimensions</th>
+                  <th className="text-right px-3 py-2 font-medium">Tare (kg)</th>
+                  <th className="text-right px-3 py-2 font-medium">Net Target (kg)</th>
+                  <th className="text-right px-3 py-2 font-medium">Min (kg)</th>
+                  <th className="text-right px-3 py-2 font-medium">Max (kg)</th>
                   <th className="w-16"></th>
                 </tr>
               </thead>
@@ -293,6 +311,53 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         type="number"
                         step="0.1"
                         min={0.1}
+                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`box_sizes.${idx}.dimensions`)}
+                        placeholder="e.g. 400x300x120mm"
+                        className="w-full border rounded px-2 py-1.5 text-sm"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`box_sizes.${idx}.tare_weight_kg`, { valueAsNumber: true })}
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        placeholder="0"
+                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`box_sizes.${idx}.net_weight_target_kg`, { valueAsNumber: true })}
+                        type="number"
+                        step="0.1"
+                        min={0}
+                        placeholder="--"
+                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`box_sizes.${idx}.min_weight_kg`, { valueAsNumber: true })}
+                        type="number"
+                        step="0.1"
+                        min={0}
+                        placeholder="--"
+                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        {...register(`box_sizes.${idx}.max_weight_kg`, { valueAsNumber: true })}
+                        type="number"
+                        step="0.1"
+                        min={0}
+                        placeholder="--"
                         className="w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
@@ -415,6 +480,38 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         >
           + Add Pallet Type
         </button>
+      </div>
+
+      {/* Pallet Rules */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-gray-700">Pallet Rules</h3>
+        <p className="text-xs text-gray-500">
+          Set default rules for pallet allocation. These can be overridden per-request during operations.
+        </p>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              {...register("pallet_rules.allow_mixed_sizes")}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <div>
+              <span className="text-sm text-gray-700">Allow mixed sizes on pallets</span>
+              <p className="text-xs text-gray-400">Lots with different sizes can be allocated to the same pallet</p>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              {...register("pallet_rules.allow_mixed_box_types")}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <div>
+              <span className="text-sm text-gray-700">Allow mixed box types on pallets</span>
+              <p className="text-xs text-gray-400">Lots with different box types can be allocated to the same pallet</p>
+            </div>
+          </label>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-4 border-t">

@@ -46,8 +46,11 @@ export interface PalletSummary {
   fruit_type: string | null;
   grade: string | null;
   size: string | null;
+  box_size_id: string | null;
+  box_size_name: string | null;
   net_weight_kg: number | null;
   status: string;
+  notes: string | null;
   created_at: string;
 }
 
@@ -59,9 +62,11 @@ export interface PalletLotItem {
   size: string | null;
   lot_code: string | null;
   grade: string | null;
+  box_size_name: string | null;
 }
 
 export interface PalletDetailType extends PalletSummary {
+  gross_weight_kg: number | null;
   variety: string | null;
   target_market: string | null;
   packhouse_id: string;
@@ -87,6 +92,9 @@ export interface PalletFromLotsPayload {
   capacity_boxes: number;
   lot_assignments: LotAssignment[];
   packhouse_id: string;
+  size?: string;
+  allow_mixed_sizes?: boolean;
+  allow_mixed_box_types?: boolean;
   notes?: string;
 }
 
@@ -95,6 +103,54 @@ export async function createPalletsFromLots(
 ): Promise<PalletSummary[]> {
   const { data } = await api.post<PalletSummary[]>("/pallets/from-lots", payload);
   return data;
+}
+
+// ── Create empty pallet ─────────────────────────────────────
+
+export interface CreateEmptyPalletPayload {
+  pallet_type_name: string;
+  capacity_boxes: number;
+  packhouse_id: string;
+  size?: string;
+  box_size_id?: string;
+  notes?: string;
+}
+
+export async function createEmptyPallet(
+  payload: CreateEmptyPalletPayload
+): Promise<PalletSummary> {
+  const { data } = await api.post<PalletSummary>("/pallets/", payload);
+  return data;
+}
+
+// ── Update & Delete ─────────────────────────────────────────
+
+export interface PalletUpdatePayload {
+  pallet_type_name?: string;
+  capacity_boxes?: number;
+  fruit_type?: string;
+  variety?: string;
+  grade?: string;
+  size?: string;
+  box_size_id?: string | null;
+  target_market?: string;
+  cold_store_room?: string;
+  cold_store_position?: string;
+  notes?: string;
+  net_weight_kg?: number;
+  gross_weight_kg?: number;
+}
+
+export async function updatePallet(
+  id: string,
+  payload: PalletUpdatePayload
+): Promise<PalletDetailType> {
+  const { data } = await api.patch<PalletDetailType>(`/pallets/${id}`, payload);
+  return data;
+}
+
+export async function deletePallet(id: string): Promise<void> {
+  await api.delete(`/pallets/${id}`);
 }
 
 // ── List & Detail ────────────────────────────────────────────
@@ -115,6 +171,8 @@ export async function getPallet(id: string): Promise<PalletDetailType> {
 
 export interface AllocateBoxesPayload {
   lot_assignments: LotAssignment[];
+  allow_mixed_sizes?: boolean;
+  allow_mixed_box_types?: boolean;
 }
 
 export async function allocateBoxesToPallet(

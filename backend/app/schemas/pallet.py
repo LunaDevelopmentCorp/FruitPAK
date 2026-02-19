@@ -20,7 +20,37 @@ class PalletFromLotsRequest(BaseModel):
     capacity_boxes: int = Field(240, ge=1)
     lot_assignments: list[LotAssignment] = Field(..., min_length=1)
     packhouse_id: str
+    size: str | None = None
+    allow_mixed_sizes: bool | None = None  # None = use tenant default
+    allow_mixed_box_types: bool | None = None  # None = use tenant default
     notes: str | None = None
+
+
+class CreateEmptyPalletRequest(BaseModel):
+    """Payload for POST /api/pallets/ (empty pallet creation)."""
+    pallet_type_name: str
+    capacity_boxes: int = Field(240, ge=1)
+    packhouse_id: str
+    size: str | None = None
+    box_size_id: str | None = None
+    notes: str | None = None
+
+
+class PalletUpdate(BaseModel):
+    """Payload for PATCH /api/pallets/{pallet_id}."""
+    pallet_type_name: str | None = None
+    capacity_boxes: int | None = Field(None, ge=1)
+    fruit_type: str | None = None
+    variety: str | None = None
+    grade: str | None = None
+    size: str | None = None
+    box_size_id: str | None = None
+    target_market: str | None = None
+    cold_store_room: str | None = None
+    cold_store_position: str | None = None
+    notes: str | None = None
+    net_weight_kg: float | None = Field(None, ge=0)
+    gross_weight_kg: float | None = Field(None, ge=0)
 
 
 # ── Allocate boxes to existing pallet ────────────────────────
@@ -28,6 +58,8 @@ class PalletFromLotsRequest(BaseModel):
 class AllocateBoxesRequest(BaseModel):
     """Payload for POST /api/pallets/{pallet_id}/allocate."""
     lot_assignments: list[LotAssignment] = Field(..., min_length=1)
+    allow_mixed_sizes: bool | None = None  # None = use tenant default
+    allow_mixed_box_types: bool | None = None  # None = use tenant default
 
 
 # ── Deallocate result ──────────────────────────────────────────
@@ -51,6 +83,7 @@ class PalletLotOut(BaseModel):
     size: str | None
     lot_code: str | None = None
     grade: str | None = None
+    box_size_name: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -66,14 +99,18 @@ class PalletSummary(BaseModel):
     fruit_type: str | None
     grade: str | None
     size: str | None
+    box_size_id: str | None = None
+    box_size_name: str | None = None
     net_weight_kg: float | None
     status: str
+    notes: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class PalletDetail(PalletSummary):
+    gross_weight_kg: float | None = None
     variety: str | None
     target_market: str | None
     packhouse_id: str

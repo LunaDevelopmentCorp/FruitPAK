@@ -13,7 +13,13 @@ import PalletDetail from "./pages/PalletDetail";
 import ContainersList from "./pages/ContainersList";
 import ContainerDetail from "./pages/ContainerDetail";
 import PackagingStock from "./pages/PackagingStock";
+import ClientManagement from "./pages/ClientManagement";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
+import AdminShell from "./pages/admin/AdminShell";
+import AdminOverview from "./pages/admin/AdminOverview";
+import UserManagement from "./pages/admin/UserManagement";
+import ActivityLog from "./pages/admin/ActivityLog";
+import DeletedItems from "./pages/admin/DeletedItems";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -56,8 +62,16 @@ export default function App() {
             <Route path="/containers" element={<ContainersList />} />
             <Route path="/containers/:containerId" element={<ContainerDetail />} />
             <Route path="/packaging" element={<PackagingStock />} />
+            <Route path="/clients" element={<ClientManagement />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/reconciliation" element={<ReconciliationDashboard />} />
+            <Route path="/admin" element={<AdminShell />}>
+              <Route index element={<Navigate to="/admin/overview" replace />} />
+              <Route path="overview" element={<AdminOverview />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="activity" element={<ActivityLog />} />
+              <Route path="deleted-items" element={<DeletedItems />} />
+            </Route>
           </Route>
 
           {/* Fallback */}

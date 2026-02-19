@@ -1,7 +1,20 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { QRCodeSVG } from "qrcode.react";
-import { getPallet, deallocateFromPallet, PalletDetailType } from "../api/pallets";
+import {
+  getPallet,
+  deallocateFromPallet,
+  updatePallet,
+  deletePallet,
+  getPalletTypes,
+  getBoxSizes,
+  PalletDetailType,
+  PalletTypeConfig,
+  BoxSizeConfig,
+  PalletUpdatePayload,
+} from "../api/pallets";
+import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -15,25 +28,107 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function PalletDetail() {
   const { palletId } = useParams<{ palletId: string }>();
+  const navigate = useNavigate();
   const [pallet, setPallet] = useState<PalletDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Edit mode
+  const [editing, setEditing] = useState(false);
+  const [palletTypes, setPalletTypes] = useState<PalletTypeConfig[]>([]);
+  const [boxSizes, setBoxSizes] = useState<BoxSizeConfig[]>([]);
+
+  // Delete
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<PalletUpdatePayload>();
 
   const fetchPallet = () => {
     if (!palletId) return;
     setLoading(true);
     getPallet(palletId)
-      .then(setPallet)
+      .then((p) => {
+        setPallet(p);
+        reset({
+          pallet_type_name: p.pallet_type_name || "",
+          capacity_boxes: p.capacity_boxes,
+          fruit_type: p.fruit_type || "",
+          variety: p.variety || "",
+          grade: p.grade || "",
+          size: p.size || "",
+          box_size_id: p.box_size_id || "",
+          target_market: p.target_market || "",
+          cold_store_room: p.cold_store_room || "",
+          cold_store_position: p.cold_store_position || "",
+          notes: p.notes || "",
+          net_weight_kg: p.net_weight_kg ?? undefined,
+          gross_weight_kg: p.gross_weight_kg ?? undefined,
+        });
+      })
       .catch(() => setError("Failed to load pallet"))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchPallet();
+    getPalletTypes().then(setPalletTypes).catch(() => {});
+    getBoxSizes().then(setBoxSizes).catch(() => {});
   }, [palletId]);
 
   const canModify = pallet && !["loaded", "exported"].includes(pallet.status);
+
+  const onSubmit = async (data: PalletUpdatePayload) => {
+    if (!palletId) return;
+    setError(null);
+    setSuccess(null);
+
+    const payload: PalletUpdatePayload = {};
+    if (data.pallet_type_name) payload.pallet_type_name = data.pallet_type_name;
+    if (data.capacity_boxes) payload.capacity_boxes = Number(data.capacity_boxes);
+    if (data.fruit_type !== undefined) payload.fruit_type = data.fruit_type || null;
+    if (data.variety !== undefined) payload.variety = data.variety || null;
+    if (data.grade !== undefined) payload.grade = data.grade || null;
+    if (data.size !== undefined) payload.size = data.size || null;
+    if (data.box_size_id !== undefined) payload.box_size_id = data.box_size_id || null;
+    if (data.target_market !== undefined) payload.target_market = data.target_market || null;
+    if (data.cold_store_room !== undefined) payload.cold_store_room = data.cold_store_room || null;
+    if (data.cold_store_position !== undefined) payload.cold_store_position = data.cold_store_position || null;
+    if (data.notes !== undefined) payload.notes = data.notes || null;
+    if (data.net_weight_kg) payload.net_weight_kg = Number(data.net_weight_kg);
+    if (data.gross_weight_kg) payload.gross_weight_kg = Number(data.gross_weight_kg);
+
+    try {
+      const updated = await updatePallet(palletId, payload);
+      setPallet(updated);
+      reset({
+        pallet_type_name: updated.pallet_type_name || "",
+        capacity_boxes: updated.capacity_boxes,
+        fruit_type: updated.fruit_type || "",
+        variety: updated.variety || "",
+        grade: updated.grade || "",
+        size: updated.size || "",
+        box_size_id: updated.box_size_id || "",
+        target_market: updated.target_market || "",
+        cold_store_room: updated.cold_store_room || "",
+        cold_store_position: updated.cold_store_position || "",
+        notes: updated.notes || "",
+        net_weight_kg: updated.net_weight_kg ?? undefined,
+        gross_weight_kg: updated.gross_weight_kg ?? undefined,
+      });
+      setEditing(false);
+      setSuccess("Pallet updated successfully");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Update failed"));
+    }
+  };
 
   const handleRemoveLot = async (palletLotId: string, lotCode: string, boxCount: number) => {
     if (!palletId) return;
@@ -51,7 +146,7 @@ export default function PalletDetail() {
   };
 
   if (loading) return <p className="p-6 text-gray-400 text-sm">Loading pallet...</p>;
-  if (error) return <div className="p-6 text-red-600 text-sm">{error}</div>;
+  if (error && !pallet) return <div className="p-6 text-red-600 text-sm">{error}</div>;
   if (!pallet) return <div className="p-6 text-gray-400 text-sm">Pallet not found.</div>;
 
   const fillPct = Math.round((pallet.current_boxes / pallet.capacity_boxes) * 100);
@@ -66,61 +161,231 @@ export default function PalletDetail() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-800 mt-1">{pallet.pallet_number}</h1>
         </div>
-        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-          STATUS_COLORS[pallet.status] || "bg-gray-100 text-gray-600"
-        }`}>
-          {pallet.status}
-        </span>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card label="Boxes" value={`${pallet.current_boxes} / ${pallet.capacity_boxes}`} />
-        <Card label="Fill" value={`${fillPct}%`} />
-        <Card label="Weight" value={pallet.net_weight_kg ? `${pallet.net_weight_kg} kg` : "\u2014"} />
-        <Card label="Type" value={pallet.pallet_type_name || "\u2014"} />
-      </div>
-
-      {/* Capacity bar */}
-      <div className="bg-white rounded-lg border p-4">
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span>Capacity</span>
-          <span>{pallet.current_boxes} / {pallet.capacity_boxes} boxes</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all ${
-              fillPct >= 100 ? "bg-green-500" : fillPct >= 75 ? "bg-yellow-500" : "bg-blue-500"
-            }`}
-            style={{ width: `${Math.min(fillPct, 100)}%` }}
-          />
+        <div className="flex items-center gap-3">
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+            STATUS_COLORS[pallet.status] || "bg-gray-100 text-gray-600"
+          }`}>
+            {pallet.status}
+          </span>
+          {!editing && canModify && (
+            <>
+              <button
+                onClick={() => { setEditing(true); setSuccess(null); }}
+                className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
+              >
+                Edit
+              </button>
+              {pallet.current_boxes === 0 && (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Fruit info */}
-      <div className="bg-white rounded-lg border p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Fruit Details</h3>
-        <div className="grid grid-cols-2 gap-y-2 text-sm">
-          <Row label="Fruit" value={pallet.fruit_type || "\u2014"} />
-          <Row label="Variety" value={pallet.variety || "\u2014"} />
-          <Row label="Grade" value={pallet.grade || "\u2014"} />
-          <Row label="Size" value={pallet.size || "\u2014"} />
-          <Row label="Target Market" value={pallet.target_market || "\u2014"} />
-        </div>
-      </div>
-
-      {/* Cold storage */}
-      {(pallet.cold_store_room || pallet.cold_store_position) && (
-        <div className="bg-white rounded-lg border p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Cold Storage</h3>
-          <div className="grid grid-cols-2 gap-y-2 text-sm">
-            <Row label="Room" value={pallet.cold_store_room || "\u2014"} />
-            <Row label="Position" value={pallet.cold_store_position || "\u2014"} />
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800 font-medium mb-2">
+            Are you sure you want to delete pallet {pallet.pallet_number}?
+          </p>
+          <p className="text-xs text-red-600 mb-3">
+            This will soft-delete the pallet. This action can be reversed by an admin.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await deletePallet(palletId!);
+                  globalToast("success", `Pallet ${pallet.pallet_number} deleted.`);
+                  navigate("/pallets");
+                } catch (err: unknown) {
+                  globalToast("error", getErrorMessage(err, "Failed to delete pallet."));
+                  setDeleting(false);
+                  setConfirmDelete(false);
+                }
+              }}
+              disabled={deleting}
+              className="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Yes, Delete"}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
-      {/* Linked lots */}
+      {error && (
+        <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
+      )}
+      {success && (
+        <div className="p-3 bg-green-50 text-green-700 rounded text-sm">{success}</div>
+      )}
+
+      {editing ? (
+        /* ── Edit form ───────────────────────────────────── */
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-white border rounded-lg p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Pallet Type">
+              {palletTypes.length > 0 ? (
+                <select {...register("pallet_type_name")} className={inputClass}>
+                  <option value="">Select</option>
+                  {palletTypes.map((pt) => (
+                    <option key={pt.id} value={pt.name}>{pt.name} ({pt.capacity_boxes} boxes)</option>
+                  ))}
+                </select>
+              ) : (
+                <input {...register("pallet_type_name")} className={inputClass} />
+              )}
+            </Field>
+            <Field label="Capacity (boxes)">
+              <input type="number" {...register("capacity_boxes", { valueAsNumber: true })} min={1} className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Fruit Type">
+              <input {...register("fruit_type")} placeholder="e.g. Citrus, Mango" className={inputClass} />
+            </Field>
+            <Field label="Variety">
+              <input {...register("variety")} placeholder="e.g. Nadorcott, Kent" className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Grade">
+              <input {...register("grade")} placeholder="e.g. 1, 2, Class A" className={inputClass} />
+            </Field>
+            <Field label="Size">
+              <input {...register("size")} placeholder="e.g. Large, Medium" className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Box Type">
+              {boxSizes.length > 0 ? (
+                <select {...register("box_size_id")} className={inputClass}>
+                  <option value="">None</option>
+                  {boxSizes.map((bs) => (
+                    <option key={bs.id} value={bs.id}>{bs.name} ({bs.weight_kg} kg)</option>
+                  ))}
+                </select>
+              ) : (
+                <input {...register("box_size_id")} placeholder="Box size ID" className={inputClass} />
+              )}
+            </Field>
+            <Field label="Target Market">
+              <input {...register("target_market")} className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Notes">
+              <textarea {...register("notes")} rows={2} className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Cold Store Room">
+              <input {...register("cold_store_room")} className={inputClass} />
+            </Field>
+            <Field label="Cold Store Position">
+              <input {...register("cold_store_position")} className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Net Weight (kg)">
+              <input type="number" step="0.1" {...register("net_weight_kg", { valueAsNumber: true })} className={inputClass} />
+            </Field>
+            <Field label="Gross Weight (kg)">
+              <input type="number" step="0.1" {...register("gross_weight_kg", { valueAsNumber: true })} className={inputClass} />
+            </Field>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        /* ── Read-only detail ────────────────────────────── */
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card label="Boxes" value={`${pallet.current_boxes} / ${pallet.capacity_boxes}`} />
+            <Card label="Fill" value={`${fillPct}%`} />
+            <Card label="Weight" value={pallet.net_weight_kg ? `${pallet.net_weight_kg} kg` : "\u2014"} />
+            <Card label="Type" value={pallet.pallet_type_name || "\u2014"} />
+          </div>
+
+          {/* Capacity bar */}
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+              <span>Capacity</span>
+              <span>{pallet.current_boxes} / {pallet.capacity_boxes} boxes</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full transition-all ${
+                  fillPct >= 100 ? "bg-green-500" : fillPct >= 75 ? "bg-yellow-500" : "bg-blue-500"
+                }`}
+                style={{ width: `${Math.min(fillPct, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Fruit info */}
+          <div className="bg-white rounded-lg border p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Fruit Details</h3>
+            <div className="grid grid-cols-2 gap-y-2 text-sm">
+              <Row label="Fruit" value={pallet.fruit_type || "\u2014"} />
+              <Row label="Variety" value={pallet.variety || "\u2014"} />
+              <Row label="Grade" value={pallet.grade || "\u2014"} />
+              <Row label="Size" value={pallet.size || "\u2014"} />
+              <Row label="Box Type" value={pallet.box_size_name || "\u2014"} />
+              <Row label="Target Market" value={pallet.target_market || "\u2014"} />
+            </div>
+          </div>
+
+          {/* Cold storage */}
+          {(pallet.cold_store_room || pallet.cold_store_position) && (
+            <div className="bg-white rounded-lg border p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Cold Storage</h3>
+              <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <Row label="Room" value={pallet.cold_store_room || "\u2014"} />
+                <Row label="Position" value={pallet.cold_store_position || "\u2014"} />
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {pallet.notes && (
+            <div className="bg-white rounded-lg border p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
+              <p className="text-sm text-gray-600">{pallet.notes}</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Linked lots (always visible) */}
       <div className="bg-white rounded-lg border p-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-3">
           Linked Lots ({pallet.pallet_lots.length})
@@ -132,6 +397,7 @@ export default function PalletDetail() {
                 <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
                 <th className="text-left px-2 py-1.5 font-medium">Grade</th>
                 <th className="text-left px-2 py-1.5 font-medium">Size</th>
+                <th className="text-left px-2 py-1.5 font-medium">Box Type</th>
                 <th className="text-right px-2 py-1.5 font-medium">Boxes</th>
                 {canModify && <th className="px-2 py-1.5 font-medium" />}
               </tr>
@@ -144,6 +410,7 @@ export default function PalletDetail() {
                   </td>
                   <td className="px-2 py-1.5">{pl.grade || "\u2014"}</td>
                   <td className="px-2 py-1.5">{pl.size || "\u2014"}</td>
+                  <td className="px-2 py-1.5">{pl.box_size_name || "\u2014"}</td>
                   <td className="px-2 py-1.5 text-right font-medium">{pl.box_count}</td>
                   {canModify && (
                     <td className="px-2 py-1.5 text-right">
@@ -187,18 +454,22 @@ export default function PalletDetail() {
         </div>
       </div>
 
-      {/* Notes */}
-      {pallet.notes && (
-        <div className="bg-white rounded-lg border p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
-          <p className="text-sm text-gray-600">{pallet.notes}</p>
-        </div>
-      )}
-
       {/* Meta */}
       <div className="text-xs text-gray-400">
         Created: {new Date(pallet.created_at).toLocaleString()} | Updated: {new Date(pallet.updated_at).toLocaleString()}
       </div>
+    </div>
+  );
+}
+
+const inputClass =
+  "w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {children}
     </div>
   );
 }
