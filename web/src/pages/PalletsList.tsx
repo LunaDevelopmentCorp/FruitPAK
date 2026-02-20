@@ -5,15 +5,8 @@ import { listLots, listPackhouses, LotSummary, Packhouse } from "../api/batches"
 import { createContainerFromPallets } from "../api/containers";
 import { listClients, ClientSummary } from "../api/clients";
 import { showToast as globalToast } from "../store/toastStore";
-
-const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-50 text-blue-700",
-  closed: "bg-yellow-50 text-yellow-700",
-  stored: "bg-green-50 text-green-700",
-  allocated: "bg-purple-50 text-purple-700",
-  loaded: "bg-orange-50 text-orange-700",
-  exported: "bg-gray-100 text-gray-600",
-};
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
 const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
 
@@ -158,60 +151,56 @@ export default function PalletsList() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Pallets</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {filtered.length} pallet{filtered.length !== 1 ? "s" : ""}
-            {selectedIds.size > 0 && ` \u00b7 ${selectedIds.size} selected`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {selectedIds.size > 0 && !showContainerForm && (
+      <PageHeader
+        title="Pallets"
+        subtitle={`${filtered.length} pallet${filtered.length !== 1 ? "s" : ""}${selectedIds.size > 0 ? ` \u00b7 ${selectedIds.size} selected` : ""}`}
+        action={
+          <div className="flex gap-2">
+            {selectedIds.size > 0 && !showContainerForm && (
+              <button
+                onClick={() => {
+                  setShowContainerForm(true);
+                  listClients().then(setClients).catch(() => {});
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
+              >
+                Assign to Container ({selectedIds.size})
+              </button>
+            )}
             <button
               onClick={() => {
-                setShowContainerForm(true);
-                listClients().then(setClients).catch(() => {});
+                setShowCreateForm(true);
+                getPalletTypes().then(setPalletTypes).catch(() => {});
+                getBoxSizes().then(setBoxSizes).catch(() => {});
+                Promise.all([
+                  listLots({ status: "created" }),
+                  listLots({ status: "palletizing" }),
+                ]).then(([created, palletizing]) => {
+                  const allLots = [...created, ...palletizing];
+                  const available = allLots.filter((l) => l.carton_count - (l.palletized_boxes ?? 0) > 0);
+                  const sizes = [...new Set(available.map((l) => l.size).filter(Boolean) as string[])];
+                  setAvailableLotSizes(sizes);
+                  const boxIds = [...new Set(available.map((l) => l.box_size_id).filter(Boolean) as string[])];
+                  setAvailableBoxTypeIds(boxIds);
+                }).catch(() => {});
+                listPackhouses().then((phs) => {
+                  setPackhouses(phs);
+                  if (phs.length === 1) setNewPackhouseId(phs[0].id);
+                }).catch(() => {});
               }}
               className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
             >
-              Assign to Container ({selectedIds.size})
+              + Create Pallet
             </button>
-          )}
-          <button
-            onClick={() => {
-              setShowCreateForm(true);
-              getPalletTypes().then(setPalletTypes).catch(() => {});
-              getBoxSizes().then(setBoxSizes).catch(() => {});
-              // Load lot sizes and box types from available lots
-              Promise.all([
-                listLots({ status: "created" }),
-                listLots({ status: "palletizing" }),
-              ]).then(([created, palletizing]) => {
-                const allLots = [...created, ...palletizing];
-                const available = allLots.filter((l) => l.carton_count - (l.palletized_boxes ?? 0) > 0);
-                const sizes = [...new Set(available.map((l) => l.size).filter(Boolean) as string[])];
-                setAvailableLotSizes(sizes);
-                const boxIds = [...new Set(available.map((l) => l.box_size_id).filter(Boolean) as string[])];
-                setAvailableBoxTypeIds(boxIds);
-              }).catch(() => {});
-              listPackhouses().then((phs) => {
-                setPackhouses(phs);
-                if (phs.length === 1) setNewPackhouseId(phs[0].id);
-              }).catch(() => {});
-            }}
-            className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
-          >
-            + Create Pallet
-          </button>
-          <Link
-            to="/containers"
-            className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
-          >
-            View Containers
-          </Link>
-        </div>
-      </div>
+            <Link
+              to="/containers"
+              className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
+            >
+              View Containers
+            </Link>
+          </div>
+        }
+      />
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>
@@ -643,7 +632,7 @@ export default function PalletsList() {
                 return (
                   <tr
                     key={p.id}
-                    className={`hover:bg-gray-50 ${selectedIds.has(p.id) ? "bg-green-50" : ""}`}
+                    className={`hover:bg-green-50/50 even:bg-gray-50/50 ${selectedIds.has(p.id) ? "bg-green-50" : ""}`}
                   >
                     <td className="px-2 py-2 text-center">
                       <input
@@ -671,11 +660,7 @@ export default function PalletsList() {
                       {p.notes || "\u2014"}
                     </td>
                     <td className="px-4 py-2">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        STATUS_COLORS[p.status] || "bg-gray-100 text-gray-600"
-                      }`}>
-                        {p.status}
-                      </span>
+                      <StatusBadge status={p.status} />
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {new Date(p.created_at).toLocaleDateString()}

@@ -1,24 +1,45 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { getContainer, loadPalletsIntoContainer, ContainerDetailType } from "../api/containers";
+import {
+  getContainer,
+  loadPalletsIntoContainer,
+  updateContainer,
+  ContainerDetailType,
+  UpdateContainerPayload,
+} from "../api/containers";
 import { listPallets, PalletSummary } from "../api/pallets";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
-const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-50 text-blue-700",
-  loading: "bg-yellow-50 text-yellow-700",
-  sealed: "bg-green-50 text-green-700",
-  dispatched: "bg-purple-50 text-purple-700",
-  delivered: "bg-gray-100 text-gray-600",
-};
+const CONTAINER_TYPES = [
+  "reefer_20ft",
+  "reefer_40ft",
+  "open_truck",
+  "break_bulk",
+];
 
 export default function ContainerDetail() {
   const { containerId } = useParams<{ containerId: string }>();
   const [container, setContainer] = useState<ContainerDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Edit state
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    container_type: "",
+    capacity_pallets: 20,
+    shipping_container_number: "",
+    customer_name: "",
+    destination: "",
+    export_date: "",
+    seal_number: "",
+    notes: "",
+  });
 
   // Load-pallets modal state
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -40,6 +61,50 @@ export default function ContainerDetail() {
     fetchContainer();
   }, [fetchContainer]);
 
+  const startEditing = () => {
+    if (!container) return;
+    setEditForm({
+      container_type: container.container_type,
+      capacity_pallets: container.capacity_pallets,
+      shipping_container_number: container.shipping_container_number || "",
+      customer_name: container.customer_name || "",
+      destination: container.destination || "",
+      export_date: container.export_date
+        ? new Date(container.export_date).toISOString().slice(0, 10)
+        : "",
+      seal_number: container.seal_number || "",
+      notes: container.notes || "",
+    });
+    setEditing(true);
+  };
+
+  const cancelEditing = () => setEditing(false);
+
+  const handleSaveEdit = async () => {
+    if (!containerId) return;
+    setSaving(true);
+    try {
+      const payload: UpdateContainerPayload = {
+        container_type: editForm.container_type,
+        capacity_pallets: editForm.capacity_pallets,
+        shipping_container_number: editForm.shipping_container_number || null,
+        customer_name: editForm.customer_name || null,
+        destination: editForm.destination || null,
+        export_date: editForm.export_date || null,
+        seal_number: editForm.seal_number || null,
+        notes: editForm.notes || null,
+      };
+      await updateContainer(containerId, payload);
+      showToast("success", "Container updated");
+      setEditing(false);
+      fetchContainer();
+    } catch (err) {
+      showToast("error", getErrorMessage(err, "Failed to update container"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Open the "Load Pallets" modal and fetch available (closed) pallets
   const handleOpenLoadModal = async () => {
     setShowLoadModal(true);
@@ -47,7 +112,6 @@ export default function ContainerDetail() {
     setLoadingPallets(true);
     try {
       const pallets = await listPallets({ status: "closed" });
-      // Exclude pallets already loaded in this container
       const loadedIds = new Set(container?.pallets.map((p) => p.id) ?? []);
       setAvailablePallets(pallets.filter((p) => !loadedIds.has(p.id)));
     } catch (err) {
@@ -98,19 +162,12 @@ export default function ContainerDetail() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Link to="/containers" className="text-sm text-gray-500 hover:text-gray-700">
-            &larr; All Containers
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-800 mt-1">{container.container_number}</h1>
-        </div>
-        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-          STATUS_COLORS[container.status] || "bg-gray-100 text-gray-600"
-        }`}>
-          {container.status}
-        </span>
-      </div>
+      <PageHeader
+        title={container.container_number}
+        backTo="/containers"
+        backLabel="All Containers"
+        action={<StatusBadge status={container.status} className="text-sm px-3 py-1" />}
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -136,17 +193,127 @@ export default function ContainerDetail() {
         </div>
       </div>
 
-      {/* Shipment info */}
+      {/* Shipment info — view or edit mode */}
       <div className="bg-white rounded-lg border p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Shipment Details</h3>
-        <div className="grid grid-cols-2 gap-y-2 text-sm">
-          <Row label="Type" value={container.container_type} />
-          <Row label="Shipping Container #" value={container.shipping_container_number || "\u2014"} />
-          <Row label="Customer" value={container.customer_name || "\u2014"} />
-          <Row label="Destination" value={container.destination || "\u2014"} />
-          <Row label="Export Date" value={container.export_date ? new Date(container.export_date).toLocaleDateString() : "\u2014"} />
-          <Row label="Seal Number" value={container.seal_number || "\u2014"} />
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Shipment Details</h3>
+          {!editing && (
+            <button
+              onClick={startEditing}
+              className="px-3 py-1 text-xs font-medium rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Edit
+            </button>
+          )}
         </div>
+
+        {editing ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Container Type</label>
+                <select
+                  value={editForm.container_type}
+                  onChange={(e) => setEditForm((f) => ({ ...f, container_type: e.target.value }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  {CONTAINER_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Capacity (pallets)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editForm.capacity_pallets}
+                  onChange={(e) => setEditForm((f) => ({ ...f, capacity_pallets: Number(e.target.value) || 1 }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Shipping Container #</label>
+                <input
+                  value={editForm.shipping_container_number}
+                  onChange={(e) => setEditForm((f) => ({ ...f, shipping_container_number: e.target.value }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Customer</label>
+                <input
+                  value={editForm.customer_name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, customer_name: e.target.value }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Destination</label>
+                <input
+                  value={editForm.destination}
+                  onChange={(e) => setEditForm((f) => ({ ...f, destination: e.target.value }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Export Date</label>
+                <input
+                  type="date"
+                  value={editForm.export_date}
+                  onChange={(e) => setEditForm((f) => ({ ...f, export_date: e.target.value }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Seal Number</label>
+              <input
+                value={editForm.seal_number}
+                onChange={(e) => setEditForm((f) => ({ ...f, seal_number: e.target.value }))}
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+              <textarea
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                rows={2}
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button
+                onClick={cancelEditing}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-y-2 text-sm">
+            <Row label="Type" value={container.container_type} />
+            <Row label="Shipping Container #" value={container.shipping_container_number || "\u2014"} />
+            <Row label="Customer" value={container.customer_name || "\u2014"} />
+            <Row label="Destination" value={container.destination || "\u2014"} />
+            <Row label="Export Date" value={container.export_date ? new Date(container.export_date).toLocaleDateString() : "\u2014"} />
+            <Row label="Seal Number" value={container.seal_number || "\u2014"} />
+          </div>
+        )}
       </div>
 
       {/* Pallets table */}
@@ -179,7 +346,7 @@ export default function ContainerDetail() {
             </thead>
             <tbody className="divide-y">
               {container.pallets.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
+                <tr key={p.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                   <td className="px-2 py-1.5">
                     <Link to={`/pallets/${p.id}`} className="font-mono text-xs text-green-700 hover:underline">
                       {p.pallet_number}
@@ -191,9 +358,7 @@ export default function ContainerDetail() {
                   <td className="px-2 py-1.5">{p.box_size_name || "\u2014"}</td>
                   <td className="px-2 py-1.5 text-right font-medium">{p.current_boxes}</td>
                   <td className="px-2 py-1.5">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                      {p.status}
-                    </span>
+                    <StatusBadge status={p.status} />
                   </td>
                 </tr>
               ))}
@@ -280,8 +445,8 @@ export default function ContainerDetail() {
         </div>
       </div>
 
-      {/* Notes */}
-      {container.notes && (
+      {/* Notes (view mode only — editable from edit form above) */}
+      {!editing && container.notes && (
         <div className="bg-white rounded-lg border p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
           <p className="text-sm text-gray-600">{container.notes}</p>

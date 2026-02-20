@@ -8,12 +8,14 @@ import BatchesList from "./pages/BatchesList";
 import BatchDetail from "./pages/BatchDetail";
 import WizardShell from "./pages/wizard/WizardShell";
 import Payments from "./pages/Payments";
+import TeamPayments from "./pages/TeamPayments";
 import PalletsList from "./pages/PalletsList";
 import PalletDetail from "./pages/PalletDetail";
 import ContainersList from "./pages/ContainersList";
 import ContainerDetail from "./pages/ContainerDetail";
 import PackagingStock from "./pages/PackagingStock";
 import ClientManagement from "./pages/ClientManagement";
+import DataManagement from "./pages/DataManagement";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
 import AdminShell from "./pages/admin/AdminShell";
 import AdminOverview from "./pages/admin/AdminOverview";
@@ -63,7 +65,9 @@ export default function App() {
             <Route path="/containers/:containerId" element={<ContainerDetail />} />
             <Route path="/packaging" element={<PackagingStock />} />
             <Route path="/clients" element={<ClientManagement />} />
+            <Route path="/data" element={<DataManagement />} />
             <Route path="/payments" element={<Payments />} />
+            <Route path="/team-payments" element={<TeamPayments />} />
             <Route path="/reconciliation" element={<ReconciliationDashboard />} />
             <Route path="/admin" element={<AdminShell />}>
               <Route index element={<Navigate to="/admin/overview" replace />} />

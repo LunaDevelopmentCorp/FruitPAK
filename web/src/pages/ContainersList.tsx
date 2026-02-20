@@ -4,14 +4,8 @@ import { listContainers, ContainerSummary, createEmptyContainer, CreateEmptyCont
 import { listClients, ClientSummary } from "../api/clients";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
-
-const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-50 text-blue-700",
-  loading: "bg-yellow-50 text-yellow-700",
-  sealed: "bg-green-50 text-green-700",
-  dispatched: "bg-purple-50 text-purple-700",
-  delivered: "bg-gray-100 text-gray-600",
-};
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
 const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
 
@@ -101,20 +95,18 @@ export default function ContainersList() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Containers</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {filtered.length} container{filtered.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <button
-          onClick={handleOpenCreate}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700"
-        >
-          + Create Container
-        </button>
-      </div>
+      <PageHeader
+        title="Containers"
+        subtitle={`${filtered.length} container${filtered.length !== 1 ? "s" : ""}`}
+        action={
+          <button
+            onClick={handleOpenCreate}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700"
+          >
+            + Create Container
+          </button>
+        }
+      />
 
       {showCreate && (
         <div className="mb-6 bg-white border rounded-lg p-4">
@@ -258,7 +250,7 @@ export default function ContainersList() {
                   <tr
                     key={c.id}
                     onClick={() => navigate(`/containers/${c.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-green-50/50 cursor-pointer even:bg-gray-50/50"
                   >
                     <td className="px-4 py-2 font-mono text-xs text-green-700">
                       {c.container_number}
@@ -281,11 +273,7 @@ export default function ContainersList() {
                     </td>
                     <td className="px-4 py-2 text-right">{c.total_cartons.toLocaleString()}</td>
                     <td className="px-4 py-2">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        STATUS_COLORS[c.status] || "bg-gray-100 text-gray-600"
-                      }`}>
-                        {c.status}
-                      </span>
+                      <StatusBadge status={c.status} />
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {new Date(c.created_at).toLocaleDateString()}

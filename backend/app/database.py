@@ -75,7 +75,7 @@ async def get_tenant_db() -> AsyncSession:
 
     async with async_session() as session:
         await session.execute(
-            text(f'SET search_path TO "{schema}", public')
+            text(f'SET search_path TO "{schema}", pg_catalog')
         )
         try:
             yield session

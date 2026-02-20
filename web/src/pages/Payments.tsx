@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { listGrowers, listBatches, Grower, BatchSummary } from "../api/batches";
 import { getErrorMessage } from "../api/client";
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 import {
   submitGrowerPayment,
   listGrowerPayments,
@@ -221,10 +223,10 @@ export default function Payments() {
     <div className="max-w-3xl mx-auto px-6 py-8">
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
-      <h1 className="text-2xl font-bold text-gray-800">Record Grower Payment</h1>
-      <p className="text-sm text-gray-500 mt-1">
-        Record a payment to a grower for delivered fruit. Reconciliation alerts update automatically.
-      </p>
+      <PageHeader
+        title="Record Grower Payment"
+        subtitle="Record a payment to a grower for delivered fruit. Reconciliation alerts update automatically."
+      />
 
       {error && (
         <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">
@@ -232,7 +234,7 @@ export default function Payments() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white border rounded-lg p-6 space-y-5 shadow-sm">
         {/* Grower */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -422,7 +424,7 @@ export default function Payments() {
               </thead>
               <tbody className="divide-y">
                 {recentPayments.slice(0, 10).map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr key={p.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                     <td className="px-4 py-2 font-mono text-xs text-green-700">
                       {p.payment_ref}
                     </td>
@@ -440,15 +442,7 @@ export default function Payments() {
                       </span>
                     </td>
                     <td className="px-4 py-2">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        p.status === "paid"
-                          ? "bg-green-50 text-green-700"
-                          : p.status === "pending"
-                          ? "bg-yellow-50 text-yellow-700"
-                          : "bg-gray-100 text-gray-600"
-                      }`}>
-                        {p.status}
-                      </span>
+                      <StatusBadge status={p.status} />
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {p.paid_date || "—"}

@@ -35,6 +35,22 @@ class CreateEmptyContainerRequest(BaseModel):
     notes: str | None = None
 
 
+# ── Update container ─────────────────────────────────────────
+
+class ContainerUpdate(BaseModel):
+    """Payload for PATCH /api/containers/{id}."""
+    container_type: str | None = None
+    capacity_pallets: int | None = Field(None, ge=1)
+    client_id: str | None = None
+    customer_name: str | None = None
+    shipping_container_number: str | None = None
+    destination: str | None = None
+    export_date: datetime | None = None
+    seal_number: str | None = None
+    notes: str | None = None
+    status: str | None = None
+
+
 # ── Load pallets into container ───────────────────────────────
 
 class LoadPalletsRequest(BaseModel):

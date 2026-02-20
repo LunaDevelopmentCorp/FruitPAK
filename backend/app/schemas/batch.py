@@ -26,7 +26,7 @@ class GRNRequest(BaseModel):
     harvest_date: date | None = None
     variety: str | None = None
     quality_grade: str | None = None
-    harvest_team_id: str | None = None
+    harvest_team_id: str
     tare_weight_kg: float = 0.0
     arrival_temp_c: float | None = None
     brix_reading: float | None = None
@@ -141,6 +141,7 @@ class BatchSummary(BaseModel):
     batch_code: str
     grower_id: str
     grower_name: str | None = None
+    harvest_team_id: str | None = None
     fruit_type: str
     variety: str | None
     gross_weight_kg: float | None

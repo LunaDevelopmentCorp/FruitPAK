@@ -303,11 +303,13 @@ async def save_step_4(
         Step4Complete(**body.model_dump())
 
     if body.growers:
-        # Upsert by name — can't DELETE growers referenced by batches
+        # Upsert by name OR grower_code — can't DELETE growers referenced by batches
         result = await db.execute(select(Grower))
-        existing = {g.name: g for g in result.scalars().all()}
+        all_existing = result.scalars().all()
+        existing_by_name = {g.name: g for g in all_existing}
+        existing_by_code = {g.grower_code: g for g in all_existing if g.grower_code}
 
-        new_names: set[str] = set()
+        seen_ids: set[str] = set()
         for g in body.growers:
             data = g.model_dump()
             if data.get("fields"):
@@ -315,19 +317,20 @@ async def save_step_4(
                     f if isinstance(f, dict) else f.model_dump()
                     for f in data["fields"]
                 ]
-            new_names.add(g.name)
-            if g.name in existing:
-                grower = existing[g.name]
+            # Match by name first, then by grower_code (handles renames)
+            grower = existing_by_name.get(g.name) or existing_by_code.get(data.get("grower_code"))
+            if grower:
+                seen_ids.add(grower.id)
                 for k, v in data.items():
-                    if k != "name":
-                        setattr(grower, k, v)
+                    setattr(grower, k, v)
             else:
-                db.add(Grower(**data))
+                new_grower = Grower(**data)
+                db.add(new_grower)
         await db.flush()
 
         # Remove growers no longer in the list (only if unreferenced)
-        for name, grower in existing.items():
-            if name not in new_names:
+        for grower in all_existing:
+            if grower.id not in seen_ids:
                 ref = await db.execute(
                     select(Batch.id).where(Batch.grower_id == grower.id).limit(1)
                 )

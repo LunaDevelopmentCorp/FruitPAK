@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
-from app.database import get_tenant_db
+from app.database import get_db, get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.lot import Lot
@@ -95,6 +95,7 @@ async def grn_intake(
 @cached(ttl=60, prefix="batches")  # Cache for 1 minute (batches change frequently)
 async def list_batches(
     grower_id: str | None = Query(None),
+    harvest_team_id: str | None = Query(None),
     batch_status: str | None = Query(None, alias="status"),
     fruit_type: str | None = Query(None),
     date_from: date | None = Query(None),
@@ -110,6 +111,8 @@ async def list_batches(
 
     if grower_id:
         base_stmt = base_stmt.where(Batch.grower_id == grower_id)
+    if harvest_team_id:
+        base_stmt = base_stmt.where(Batch.harvest_team_id == harvest_team_id)
     if batch_status:
         base_stmt = base_stmt.where(Batch.status == batch_status)
     if fruit_type:
@@ -149,6 +152,7 @@ async def list_batches(
 async def get_batch(
     batch_id: str,
     db: AsyncSession = Depends(get_tenant_db),
+    public_db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
 ):
@@ -168,10 +172,9 @@ async def get_batch(
 
     detail = BatchDetailOut.model_validate(batch)
 
-    # Resolve received_by UUID → user full_name
-    # Tenant session search_path includes public, so User table is accessible
+    # Resolve received_by UUID → user full_name (User lives in public schema)
     if batch.received_by:
-        user_result = await db.execute(
+        user_result = await public_db.execute(
             select(User.full_name).where(User.id == batch.received_by)
         )
         name = user_result.scalar_one_or_none()
@@ -183,7 +186,7 @@ async def get_batch(
         h.recorded_by for h in batch.history if h.recorded_by
     }
     if recorder_ids:
-        name_result = await db.execute(
+        name_result = await public_db.execute(
             select(User.id, User.full_name).where(User.id.in_(recorder_ids))
         )
         name_map = {row[0]: row[1] for row in name_result.all()}

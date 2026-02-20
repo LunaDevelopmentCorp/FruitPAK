@@ -34,6 +34,7 @@ from app.schemas.container import (
     ContainerFromPalletsRequest,
     ContainerPalletOut,
     ContainerSummary,
+    ContainerUpdate,
     CreateEmptyContainerRequest,
     LoadPalletsRequest,
     TraceBatch,
@@ -267,6 +268,56 @@ async def load_pallets_into_container(
         entity_code=container.container_number,
         summary=f"Loaded {len(pallets)} pallet(s) into {container.container_number}",
         details={"pallets_added": len(pallets), "total_pallets": container.pallet_count},
+    )
+
+    return ContainerSummary.model_validate(container)
+
+
+# ── PATCH /api/containers/{id} ────────────────────────────────
+
+@router.patch("/{container_id}", response_model=ContainerSummary)
+async def update_container(
+    container_id: str,
+    body: ContainerUpdate,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+):
+    """Update container details (type, customer, destination, etc.)."""
+    result = await db.execute(
+        select(Container).where(
+            Container.id == container_id,
+            Container.is_deleted == False,  # noqa: E712
+        )
+    )
+    container = result.scalar_one_or_none()
+    if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+
+    updates = body.model_dump(exclude_unset=True)
+
+    # Resolve client if changed
+    if "client_id" in updates:
+        client_id, customer_name = await _resolve_client(db, updates["client_id"])
+        container.client_id = client_id
+        if customer_name:
+            container.customer_name = customer_name
+        updates.pop("client_id")
+        updates.pop("customer_name", None)
+
+    for field, value in updates.items():
+        if hasattr(container, field):
+            setattr(container, field, value)
+
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user,
+        action="updated",
+        entity_type="container",
+        entity_id=container.id,
+        entity_code=container.container_number,
+        summary=f"Updated container {container.container_number}",
     )
 
     return ContainerSummary.model_validate(container)

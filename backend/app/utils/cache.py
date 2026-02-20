@@ -12,6 +12,7 @@ from typing import Any, Callable, Optional
 
 import redis.asyncio as redis
 from app.config import settings
+from app.tenancy import _tenant_ctx
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +79,12 @@ def cached(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Build cache key
+            # Build cache key — always include tenant schema for isolation
+            tenant = _tenant_ctx.get()  # None when outside tenant context
             if key_builder:
                 key = key_builder(*args, **kwargs)
+                if tenant:
+                    key = f"t:{tenant}:{key}"
             else:
                 # Filter kwargs to only include simple types for cache key
                 # Exclude dependency-injected objects (User, AsyncSession, etc.)
@@ -91,7 +95,10 @@ def cached(
                 }
                 # Skip all args (they're usually injected dependencies)
                 key_hash = cache_key(**cache_kwargs)
-                key = f"{prefix}:{func.__name__}:{key_hash}"
+                if tenant:
+                    key = f"t:{tenant}:{prefix}:{func.__name__}:{key_hash}"
+                else:
+                    key = f"{prefix}:{func.__name__}:{key_hash}"
 
             try:
                 # Try to get from cache
@@ -144,23 +151,30 @@ def cached(
 
 
 async def invalidate_cache(pattern: str):
-    """Invalidate all cache keys matching a pattern.
+    """Invalidate cache keys matching a pattern, scoped to the current tenant.
+
+    Automatically prepends the tenant prefix so callers don't need to know
+    about the key structure.  If no tenant context is active, the pattern
+    is used as-is (for public-scope invalidation).
 
     Args:
         pattern: Redis key pattern (e.g., "growers:*")
 
     Example:
-        await invalidate_cache("growers:*")  # Clear all grower caches
+        await invalidate_cache("growers:*")  # Clears current tenant's grower caches
     """
     try:
+        tenant = _tenant_ctx.get()
+        scoped_pattern = f"t:{tenant}:{pattern}" if tenant else pattern
+
         redis_client = await get_redis()
         keys = []
-        async for key in redis_client.scan_iter(match=pattern):
+        async for key in redis_client.scan_iter(match=scoped_pattern):
             keys.append(key)
 
         if keys:
             await redis_client.delete(*keys)
-            logger.info(f"Invalidated {len(keys)} cache keys matching {pattern}")
+            logger.info(f"Invalidated {len(keys)} cache keys matching {scoped_pattern}")
     except redis.RedisError as e:
         logger.warning(f"Failed to invalidate cache: {e}")
 

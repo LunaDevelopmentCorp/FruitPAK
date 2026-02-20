@@ -48,3 +48,80 @@ export async function listGrowerPayments(
   const { data } = await api.get<PaginatedResponse<GrowerPaymentOut>>("/payments/grower", { params });
   return data.items;
 }
+
+// ── Harvest Teams (for payment forms) ────────────────────────
+
+export interface HarvestTeamItem {
+  id: string;
+  name: string;
+  team_leader: string | null;
+  team_size: number | null;
+}
+
+export async function listHarvestTeams(): Promise<HarvestTeamItem[]> {
+  const { data } = await api.get<HarvestTeamItem[]>("/payments/harvest-teams");
+  return data;
+}
+
+// ── Harvest Team Payments ────────────────────────────────────
+
+export interface TeamPaymentPayload {
+  harvest_team_id: string;
+  amount: number;
+  currency: string;
+  payment_type: string;
+  payment_date: string;
+  notes?: string;
+  batch_ids: string[];
+}
+
+export interface TeamPaymentOut {
+  id: string;
+  payment_ref: string;
+  harvest_team_id: string;
+  team_name: string | null;
+  team_leader: string | null;
+  batch_ids: string[];
+  currency: string;
+  amount: number;
+  total_kg: number | null;
+  total_bins: number | null;
+  payment_type: string;
+  payment_date: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface TeamSummary {
+  harvest_team_id: string;
+  team_name: string;
+  team_leader: string | null;
+  total_batches: number;
+  total_kg: number;
+  total_bins: number;
+  total_advances: number;
+  total_finals: number;
+  total_paid: number;
+  balance: number;
+}
+
+export async function submitTeamPayment(
+  payload: TeamPaymentPayload
+): Promise<TeamPaymentOut> {
+  const { data } = await api.post<TeamPaymentOut>("/payments/team", payload);
+  return data;
+}
+
+export async function listTeamPayments(
+  harvest_team_id?: string
+): Promise<TeamPaymentOut[]> {
+  const params = harvest_team_id ? { harvest_team_id } : {};
+  const { data } = await api.get<PaginatedResponse<TeamPaymentOut>>("/payments/team", { params });
+  return data.items;
+}
+
+export async function getTeamSummary(): Promise<TeamSummary[]> {
+  const { data } = await api.get<TeamSummary[]>("/payments/team/summary");
+  return data;
+}

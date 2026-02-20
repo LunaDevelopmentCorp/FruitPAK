@@ -15,6 +15,7 @@ export interface GRNPayload {
   variety?: string;
   harvest_date?: string;
   quality_grade?: string;
+  harvest_team_id: string;
   tare_weight_kg?: number;
   arrival_temp_c?: number;
   brix_reading?: number;
@@ -46,6 +47,7 @@ export interface BatchSummary {
   batch_code: string;
   grower_id: string;
   grower_name: string | null;
+  harvest_team_id: string | null;
   fruit_type: string;
   variety: string | null;
   gross_weight_kg: number | null;
@@ -78,6 +80,8 @@ export interface Packhouse {
   id: string;
   name: string;
   location: string | null;
+  capacity_tons_per_day: number | null;
+  cold_rooms: number | null;
 }
 
 export async function submitGRN(payload: GRNPayload): Promise<GRNResponse> {

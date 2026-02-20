@@ -16,15 +16,8 @@ import {
 } from "../api/pallets";
 import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
-
-const STATUS_COLORS: Record<string, string> = {
-  open: "bg-blue-50 text-blue-700",
-  closed: "bg-yellow-50 text-yellow-700",
-  stored: "bg-green-50 text-green-700",
-  allocated: "bg-purple-50 text-purple-700",
-  loaded: "bg-orange-50 text-orange-700",
-  exported: "bg-gray-100 text-gray-600",
-};
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
 export default function PalletDetail() {
   const { palletId } = useParams<{ palletId: string }>();
@@ -154,39 +147,34 @@ export default function PalletDetail() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Link to="/pallets" className="text-sm text-gray-500 hover:text-gray-700">
-            &larr; All Pallets
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-800 mt-1">{pallet.pallet_number}</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-            STATUS_COLORS[pallet.status] || "bg-gray-100 text-gray-600"
-          }`}>
-            {pallet.status}
-          </span>
-          {!editing && canModify && (
-            <>
-              <button
-                onClick={() => { setEditing(true); setSuccess(null); }}
-                className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
-              >
-                Edit
-              </button>
-              {pallet.current_boxes === 0 && (
+      <PageHeader
+        title={pallet.pallet_number}
+        backTo="/pallets"
+        backLabel="All Pallets"
+        action={
+          <div className="flex items-center gap-3">
+            <StatusBadge status={pallet.status} className="text-sm px-3 py-1" />
+            {!editing && canModify && (
+              <>
                 <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
+                  onClick={() => { setEditing(true); setSuccess(null); }}
+                  className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
                 >
-                  Delete
+                  Edit
                 </button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+                {pallet.current_boxes === 0 && (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
+                  >
+                    Delete
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        }
+      />
 
       {/* Delete confirmation */}
       {confirmDelete && (
@@ -404,7 +392,7 @@ export default function PalletDetail() {
             </thead>
             <tbody className="divide-y">
               {pallet.pallet_lots.map((pl) => (
-                <tr key={pl.id} className="hover:bg-gray-50">
+                <tr key={pl.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                   <td className="px-2 py-1.5 font-mono text-xs text-green-700">
                     {pl.lot_code || pl.lot_id}
                   </td>

@@ -1,16 +1,10 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listBatches, listGrowers, BatchSummary, Grower } from "../api/batches";
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
 const STATUSES = ["received", "grading", "packing", "complete", "rejected"];
-
-const STATUS_COLORS: Record<string, string> = {
-  received: "bg-blue-50 text-blue-700",
-  grading: "bg-purple-50 text-purple-700",
-  packing: "bg-yellow-50 text-yellow-700",
-  complete: "bg-green-50 text-green-700",
-  rejected: "bg-red-50 text-red-700",
-};
 
 const PAGE_SIZE = 25;
 
@@ -95,15 +89,10 @@ export default function BatchesList() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Batches</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {filtered.length} batch{filtered.length !== 1 ? "es" : ""}
-            {hasActiveFilters ? " (filtered)" : ""}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Batches"
+        subtitle={`${filtered.length} batch${filtered.length !== 1 ? "es" : ""}${hasActiveFilters ? " (filtered)" : ""}`}
+      />
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded text-sm">
@@ -207,7 +196,7 @@ export default function BatchesList() {
                   <tr
                     key={b.id}
                     onClick={() => navigate(`/batches/${b.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-green-50/50 cursor-pointer even:bg-gray-50/50"
                   >
                     <td className="px-4 py-2 font-mono text-xs text-green-700">
                       {b.batch_code}
@@ -220,13 +209,7 @@ export default function BatchesList() {
                       {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
                     </td>
                     <td className="px-4 py-2">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          STATUS_COLORS[b.status] || "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {b.status}
-                      </span>
+                      <StatusBadge status={b.status} />
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {b.intake_date

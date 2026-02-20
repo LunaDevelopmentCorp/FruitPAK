@@ -10,6 +10,9 @@ import {
 } from "../api/clients";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
+import CsvImport from "../components/CsvImport";
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
 const INCOTERMS = ["FOB", "CIF", "CFR", "EXW", "DDP"] as const;
 const CURRENCIES = ["USD", "EUR", "GBP", "ZAR"] as const;
@@ -200,17 +203,22 @@ export default function ClientManagement() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-500">{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
-        <button
-          onClick={openCreate}
-          className="bg-green-600 text-white text-sm px-4 py-2 rounded font-medium hover:bg-green-700"
-        >
-          + New Client
-        </button>
-      </div>
+      <PageHeader
+        title="Clients"
+        subtitle={`${clients.length} client${clients.length !== 1 ? "s" : ""}`}
+        action={
+          <button
+            onClick={openCreate}
+            className="bg-green-600 text-white text-sm px-4 py-2 rounded font-medium hover:bg-green-700"
+          >
+            + New Client
+          </button>
+        }
+      />
 
-      <div className="bg-white border rounded-lg overflow-hidden">
+      <CsvImport entity="clients" label="Clients" onSuccess={fetchData} />
+
+      <div className="mt-4 bg-white border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
@@ -228,7 +236,7 @@ export default function ClientManagement() {
           </thead>
           <tbody className="divide-y">
             {clients.map((c) => (
-              <tr key={c.id} className={`hover:bg-gray-50 ${!c.is_active ? "opacity-50" : ""}`}>
+              <tr key={c.id} className={`hover:bg-green-50/50 even:bg-gray-50/50 ${!c.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-2 font-medium text-gray-800">{c.name}</td>
                 <td className="px-4 py-2 text-gray-600">{c.contact_person || "\u2014"}</td>
                 <td className="px-4 py-2 text-gray-600">{c.email || "\u2014"}</td>
@@ -242,15 +250,7 @@ export default function ClientManagement() {
                   {formatCurrency(c.credit_limit, c.currency)}
                 </td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                      c.is_active
-                        ? "bg-green-50 text-green-700"
-                        : "bg-red-50 text-red-600"
-                    }`}
-                  >
-                    {c.is_active ? "Active" : "Inactive"}
-                  </span>
+                  <StatusBadge status={c.is_active ? "active" : "inactive"} />
                 </td>
                 <td className="px-4 py-2 text-right">
                   <div className="flex items-center justify-end gap-2">

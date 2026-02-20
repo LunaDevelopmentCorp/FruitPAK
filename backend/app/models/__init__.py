@@ -23,9 +23,11 @@ from app.models.tenant.lot import Lot  # noqa: F401
 from app.models.tenant.pallet import Pallet  # noqa: F401
 from app.models.tenant.container import Container  # noqa: F401
 from app.models.tenant.export import Export  # noqa: F401
+from app.models.tenant.client import Client  # noqa: F401
 
 # Tenant schema — financial
 from app.models.tenant.grower_payment import GrowerPayment  # noqa: F401
+from app.models.tenant.harvest_team_payment import HarvestTeamPayment  # noqa: F401
 from app.models.tenant.labour_cost import LabourCost  # noqa: F401
 from app.models.tenant.client_invoice import ClientInvoice  # noqa: F401
 from app.models.tenant.credit import Credit  # noqa: F401

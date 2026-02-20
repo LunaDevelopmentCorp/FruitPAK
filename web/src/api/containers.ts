@@ -128,6 +128,29 @@ export async function loadPalletsIntoContainer(
   return data;
 }
 
+// ── Update container ─────────────────────────────────────────
+
+export interface UpdateContainerPayload {
+  container_type?: string;
+  capacity_pallets?: number;
+  client_id?: string | null;
+  customer_name?: string | null;
+  shipping_container_number?: string | null;
+  destination?: string | null;
+  export_date?: string | null;
+  seal_number?: string | null;
+  notes?: string | null;
+  status?: string;
+}
+
+export async function updateContainer(
+  id: string,
+  payload: UpdateContainerPayload
+): Promise<ContainerSummary> {
+  const { data } = await api.patch<ContainerSummary>(`/containers/${id}`, payload);
+  return data;
+}
+
 // ── List & Detail ────────────────────────────────────────────
 
 export async function listContainers(

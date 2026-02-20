@@ -41,7 +41,7 @@ async def _run_reconciliation_for_tenant(tenant_schema: str) -> dict | None:
     try:
         async with async_session() as db:
             await db.execute(
-                text(f'SET search_path TO "{tenant_schema}", public')
+                text(f'SET search_path TO "{tenant_schema}", pg_catalog')
             )
             try:
                 summary = await run_full_reconciliation(db)

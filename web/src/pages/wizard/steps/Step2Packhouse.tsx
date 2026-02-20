@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
+import { listPackhouses } from "../../../api/batches";
 
 interface PackLine {
   name: string;
@@ -21,17 +22,23 @@ interface FormData {
   packhouses: PackhouseForm[];
 }
 
+const EMPTY_PACKHOUSE: PackhouseForm = {
+  name: "",
+  location: "",
+  capacity_tons_per_day: null,
+  cold_rooms: null,
+  pack_lines: [],
+};
+
 export default function Step2Packhouse({
   onSave,
   saving,
   draftData,
 }: StepProps) {
-  const { register, control, getValues } = useForm<FormData>({
-    defaultValues: (draftData as Partial<FormData>) ?? {
-      packhouses: [
-        { name: "", location: "", capacity_tons_per_day: null, cold_rooms: null, pack_lines: [] },
-      ],
-    },
+  const [loading, setLoading] = useState(true);
+
+  const { register, control, getValues, reset } = useForm<FormData>({
+    defaultValues: { packhouses: [{ ...EMPTY_PACKHOUSE }] },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -39,11 +46,46 @@ export default function Step2Packhouse({
     name: "packhouses",
   });
 
+  // Load live packhouses from DB on mount — the source of truth
+  useEffect(() => {
+    listPackhouses()
+      .then((live) => {
+        if (live.length > 0) {
+          reset({
+            packhouses: live.map((ph) => ({
+              name: ph.name,
+              location: ph.location ?? "",
+              capacity_tons_per_day: ph.capacity_tons_per_day ?? null,
+              cold_rooms: ph.cold_rooms ?? null,
+              pack_lines: [],
+            })),
+          });
+        } else if (draftData && (draftData as Partial<FormData>).packhouses?.length) {
+          reset(draftData as FormData);
+        }
+      })
+      .catch(() => {
+        // Fallback to draft data if API fails
+        if (draftData && (draftData as Partial<FormData>).packhouses?.length) {
+          reset(draftData as FormData);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const filterEmpty = (data: FormData) => ({
     packhouses: data.packhouses.filter((p) => p.name?.trim()),
   });
   const saveDraft = () => onSave(filterEmpty(getValues()), false);
   const saveAndComplete = () => onSave(filterEmpty(getValues()), true);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-8 text-sm text-gray-500">
+        <Spinner /> Loading packhouses…
+      </div>
+    );
+  }
 
   return (
     <form className="space-y-6 max-w-2xl">
@@ -95,15 +137,7 @@ export default function Step2Packhouse({
 
       <button
         type="button"
-        onClick={() =>
-          append({
-            name: "",
-            location: "",
-            capacity_tons_per_day: null,
-            cold_rooms: null,
-            pack_lines: [],
-          })
-        }
+        onClick={() => append({ ...EMPTY_PACKHOUSE })}
         className="text-sm text-green-600 hover:text-green-700"
       >
         + Add another packhouse

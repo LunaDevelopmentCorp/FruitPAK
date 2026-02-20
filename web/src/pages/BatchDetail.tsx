@@ -30,6 +30,8 @@ import {
 } from "../api/pallets";
 import { getFruitTypeConfigs, FruitTypeConfig } from "../api/config";
 import BatchQR from "../components/BatchQR";
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 import { showToast as globalToast } from "../store/toastStore";
 
 /** Extended lot row with UI-only fields for unit selection. */
@@ -142,43 +144,23 @@ export default function BatchDetail() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <Link to="/batches" className="text-sm text-gray-500 hover:text-gray-700">
-            &larr; Back to Batches
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-800 mt-1">
-            {batch.batch_code}
-          </h1>
-          <p className="text-sm text-gray-500">
-            Intake: {batch.intake_date ? new Date(batch.intake_date).toLocaleString() : "—"}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span
-            className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-              batch.status === "received"
-                ? "bg-blue-50 text-blue-700"
-                : batch.status === "processing"
-                ? "bg-yellow-50 text-yellow-700"
-                : batch.status === "complete"
-                ? "bg-green-50 text-green-700"
-                : batch.status === "rejected"
-                ? "bg-red-50 text-red-700"
-                : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {batch.status}
-          </span>
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={batch.batch_code}
+        subtitle={`Intake: ${batch.intake_date ? new Date(batch.intake_date).toLocaleString() : "—"}`}
+        backTo="/batches"
+        backLabel="Back to Batches"
+        action={
+          <div className="flex items-center gap-3">
+            <StatusBadge status={batch.status} className="text-sm px-3 py-1" />
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      />
 
       {/* Delete confirmation */}
       {confirmDelete && (
@@ -624,15 +606,7 @@ export default function BatchDetail() {
                             )}
                           </td>
                           <td className="px-2 py-1.5">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                              lot.status === "created" ? "bg-blue-50 text-blue-700"
-                              : lot.status === "palletizing" ? "bg-yellow-50 text-yellow-700"
-                              : lot.status === "stored" ? "bg-green-50 text-green-700"
-                              : lot.status === "returned" ? "bg-purple-50 text-purple-700"
-                              : "bg-gray-100 text-gray-600"
-                            }`}>
-                              {lot.status}
-                            </span>
+                            <StatusBadge status={lot.status} />
                           </td>
                           <td className="px-2 py-1.5 text-right">
                             {!isEditing && (

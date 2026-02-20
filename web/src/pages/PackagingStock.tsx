@@ -12,6 +12,7 @@ import {
 } from "../api/packaging";
 import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
+import PageHeader from "../components/PageHeader";
 
 const MOVEMENT_TYPES = [
   { value: "", label: "All types" },
@@ -262,15 +263,17 @@ export default function PackagingStock() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Packaging Stock</h1>
-        <button
-          onClick={() => setShowReceive(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
-        >
-          + Receive Stock
-        </button>
-      </div>
+      <PageHeader
+        title="Packaging Stock"
+        action={
+          <button
+            onClick={() => setShowReceive(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
+          >
+            + Receive Stock
+          </button>
+        }
+      />
 
       {/* Receive stock form */}
       {showReceive && (
@@ -427,7 +430,7 @@ export default function PackagingStock() {
                   {boxes.map((s) => {
                     const low = s.min_stock_level > 0 && s.current_quantity <= s.min_stock_level;
                     return (
-                      <tr key={s.id} className="hover:bg-gray-50">
+                      <tr key={s.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                         <td className="px-4 py-2 font-medium text-gray-800">{s.name || "—"}</td>
                         <td className="px-4 py-2 text-right text-gray-600">{s.weight_kg ? `${s.weight_kg} kg` : "—"}</td>
                         <td className="px-4 py-2 text-right text-gray-600">{s.cost_per_unit != null ? `$${s.cost_per_unit.toFixed(2)}` : "—"}</td>
@@ -513,7 +516,7 @@ export default function PackagingStock() {
                   {pallets.map((s) => {
                     const low = s.min_stock_level > 0 && s.current_quantity <= s.min_stock_level;
                     return (
-                      <tr key={s.id} className="hover:bg-gray-50">
+                      <tr key={s.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                         <td className="px-4 py-2 font-medium text-gray-800">{s.name || "—"}</td>
                         <td className="px-4 py-2 text-right font-semibold">{s.current_quantity}</td>
                         <td className="px-4 py-2 text-right">
@@ -664,7 +667,7 @@ export default function PackagingStock() {
                   {filteredMovements.map((m) => {
                     const stockItem = stock.find((s) => s.id === m.stock_id);
                     return (
-                      <tr key={m.id} className="hover:bg-gray-50">
+                      <tr key={m.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                         <td className="px-4 py-2 text-gray-600 text-xs">
                           {new Date(m.recorded_at).toLocaleString()}
                         </td>

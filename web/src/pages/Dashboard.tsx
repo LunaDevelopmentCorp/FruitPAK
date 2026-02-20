@@ -4,14 +4,9 @@ import { useAuthStore } from "../store/authStore";
 import { listBatches, BatchSummary, listLots, LotSummary } from "../api/batches";
 import { listGrowerPayments, GrowerPaymentOut } from "../api/payments";
 import { getDashboard, DashboardSummary } from "../api/reconciliation";
+import PageHeader from "../components/PageHeader";
+import StatusBadge from "../components/StatusBadge";
 
-const STATUS_COLORS: Record<string, string> = {
-  received: "bg-blue-50 text-blue-700",
-  grading: "bg-purple-50 text-purple-700",
-  packing: "bg-yellow-50 text-yellow-700",
-  complete: "bg-green-50 text-green-700",
-  rejected: "bg-red-50 text-red-700",
-};
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
@@ -53,12 +48,10 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-800">
-        Welcome, {user?.full_name}
-      </h1>
-      <p className="text-sm text-gray-500 mt-1">
-        {user?.role} &middot; Enterprise: {user?.enterprise_id ? "Active" : "Not set up"}
-      </p>
+      <PageHeader
+        title={`Welcome, ${user?.full_name}`}
+        subtitle={`${user?.role} · Enterprise: ${user?.enterprise_id ? "Active" : "Not set up"}`}
+      />
 
       {/* Alert banner */}
       {openAlerts > 0 && (
@@ -166,7 +159,7 @@ export default function Dashboard() {
                       <tr
                         key={b.id}
                         onClick={() => navigate(`/batches/${b.id}`)}
-                        className="hover:bg-gray-50 cursor-pointer"
+                        className="hover:bg-green-50/50 cursor-pointer even:bg-gray-50/50"
                       >
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {b.batch_code}
@@ -177,13 +170,7 @@ export default function Dashboard() {
                           {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
                         </td>
                         <td className="px-4 py-2">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                              STATUS_COLORS[b.status] || "bg-gray-100 text-gray-600"
-                            }`}
-                          >
-                            {b.status}
-                          </span>
+                          <StatusBadge status={b.status} />
                         </td>
                         <td className="px-4 py-2 text-gray-500">
                           {b.intake_date
@@ -227,7 +214,7 @@ export default function Dashboard() {
                   </thead>
                   <tbody className="divide-y">
                     {payments.slice(0, 5).map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50">
+                      <tr key={p.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {p.payment_ref}
                         </td>
@@ -237,15 +224,7 @@ export default function Dashboard() {
                         </td>
                         <td className="px-4 py-2 capitalize">{p.payment_type}</td>
                         <td className="px-4 py-2">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                              p.status === "paid"
-                                ? "bg-green-50 text-green-700"
-                                : "bg-yellow-50 text-yellow-700"
-                            }`}
-                          >
-                            {p.status}
-                          </span>
+                          <StatusBadge status={p.status} />
                         </td>
                         <td className="px-4 py-2 text-gray-500">
                           {p.paid_date
