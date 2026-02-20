@@ -11,12 +11,12 @@ Endpoints:
 
 import io
 import json
-from datetime import date
+from datetime import date, datetime
 
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +25,7 @@ from app.database import get_db, get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.batch_history import BatchHistory
+from app.models.tenant.grower import Grower
 from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import PalletLot
 from app.schemas.batch import (
@@ -37,7 +38,7 @@ from app.schemas.batch import (
     GRNResponse,
     LotSummaryWithAllocation,
 )
-from app.schemas.common import PaginatedResponse
+from app.schemas.common import CursorPaginatedResponse, PaginatedResponse
 from app.services.grn import create_grn
 from app.utils.activity import log_activity
 from app.utils.cache import cached, invalidate_cache
@@ -93,7 +94,7 @@ async def grn_intake(
 
 # ── List batches ─────────────────────────────────────────────
 
-@router.get("/", response_model=PaginatedResponse[BatchSummary])
+@router.get("/", response_model=CursorPaginatedResponse[BatchSummary])
 @cached(ttl=60, prefix="batches")  # Cache for 1 minute (batches change frequently)
 async def list_batches(
     grower_id: str | None = Query(None),
@@ -102,8 +103,9 @@ async def list_batches(
     fruit_type: str | None = Query(None),
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    search: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    cursor: str | None = Query(None),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
@@ -123,28 +125,51 @@ async def list_batches(
         base_stmt = base_stmt.where(Batch.intake_date >= date_from)
     if date_to:
         base_stmt = base_stmt.where(Batch.intake_date <= date_to)
+    if search:
+        q = f"%{search}%"
+        base_stmt = base_stmt.join(Grower, Batch.grower_id == Grower.id, isouter=True).where(
+            or_(
+                Batch.batch_code.ilike(q),
+                Batch.fruit_type.ilike(q),
+                Grower.name.ilike(q),
+            )
+        )
 
     # Count total matching records
     count_stmt = select(func.count()).select_from(base_stmt.subquery())
     total = await db.scalar(count_stmt) or 0
 
-    # Get paginated items with eager loading for grower relationship
-    # This prevents N+1 query problem when accessing batch.grower
+    # Apply cursor (created_at of last item from previous page)
+    if cursor:
+        try:
+            cursor_dt = datetime.fromisoformat(cursor)
+            base_stmt = base_stmt.where(Batch.created_at < cursor_dt)
+        except ValueError:
+            pass
+
+    # Fetch limit+1 to detect has_more without a second COUNT query
     items_stmt = (
         base_stmt
-        .options(selectinload(Batch.grower))  # Eager load grower relationship
+        .options(selectinload(Batch.grower))
         .order_by(Batch.created_at.desc())
-        .limit(limit)
-        .offset(offset)
+        .limit(limit + 1)
     )
     result = await db.execute(items_stmt)
-    items = result.scalars().all()
+    rows = list(result.scalars().all())
 
-    return PaginatedResponse(
+    has_more = len(rows) > limit
+    items = rows[:limit]
+
+    next_cursor = None
+    if has_more and items:
+        next_cursor = items[-1].created_at.isoformat()
+
+    return CursorPaginatedResponse(
         items=[BatchSummary.model_validate(b) for b in items],
         total=total,
         limit=limit,
-        offset=offset,
+        next_cursor=next_cursor,
+        has_more=has_more,
     )
 
 

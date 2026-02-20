@@ -7,6 +7,14 @@ interface PaginatedResponse<T> {
   offset: number;
 }
 
+export interface CursorPaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
 export interface GRNPayload {
   grower_id: string;
   packhouse_id: string;
@@ -135,9 +143,9 @@ export interface BatchUpdatePayload {
   notes?: string;
 }
 
-export async function listBatches(params?: Record<string, string>): Promise<BatchSummary[]> {
-  const { data } = await api.get<PaginatedResponse<BatchSummary>>("/batches/", { params });
-  return data.items;
+export async function listBatches(params?: Record<string, string>): Promise<CursorPaginatedResponse<BatchSummary>> {
+  const { data } = await api.get<CursorPaginatedResponse<BatchSummary>>("/batches/", { params });
+  return data;
 }
 
 export async function getBatch(id: string): Promise<BatchDetail> {

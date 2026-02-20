@@ -115,8 +115,8 @@ export default function GrnIntake() {
     setLoadingRecent(true);
     try {
       const today = new Date().toISOString().split("T")[0];
-      const batches = await listBatches({ date_from: today, limit: "50" });
-      setRecentBatches(batches);
+      const resp = await listBatches({ date_from: today, limit: "50" });
+      setRecentBatches(resp.items);
     } catch {
       // Silent fail — table is supplementary
     } finally {

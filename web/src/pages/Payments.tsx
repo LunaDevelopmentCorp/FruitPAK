@@ -62,7 +62,7 @@ export default function Payments() {
 
   // Load reference data
   useEffect(() => {
-    Promise.all([listGrowers(), listBatches(), listGrowerPayments()])
+    Promise.all([listGrowers(), listBatches().then((r) => r.items), listGrowerPayments()])
       .then(([g, b, p]) => {
         setGrowers(g);
         setBatches(b);

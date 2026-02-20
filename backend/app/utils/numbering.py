@@ -111,3 +111,37 @@ async def generate_code(
     code = re.sub(r"\{seq:\d+\}", f"{seq_num:0{seq_width}d}", code)
 
     return code
+
+
+async def generate_codes(
+    db: AsyncSession,
+    entity: str,
+    count: int,
+    batch_code: str | None = None,
+) -> list[str]:
+    """Generate N sequential codes in one batch (2 DB queries total).
+
+    Instead of calling generate_code() N times (2N queries), this reads
+    the format and existing count once, then builds all codes in memory.
+    """
+    if count <= 0:
+        return []
+
+    fmt = await _get_format(db, entity)
+    today_str = date.today().strftime("%Y%m%d")
+    prefix = _build_prefix(fmt, today_str, batch_code)
+    existing = await _count_existing(db, entity, prefix)
+
+    seq_match = re.search(r"\{seq:(\d+)\}", fmt)
+    seq_width = int(seq_match.group(1)) if seq_match else 3
+
+    codes: list[str] = []
+    for i in range(count):
+        seq_num = existing + 1 + i
+        code = fmt.replace("{date}", today_str)
+        if batch_code is not None:
+            code = code.replace("{batch}", batch_code)
+        code = re.sub(r"\{seq:\d+\}", f"{seq_num:0{seq_width}d}", code)
+        codes.append(code)
+
+    return codes

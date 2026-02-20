@@ -54,7 +54,7 @@ export default function TeamPayments() {
       return;
     }
     listBatches({ harvest_team_id: selectedTeamId })
-      .then((all) => all.filter((b) => b.status !== "rejected"))
+      .then((resp) => resp.items.filter((b) => b.status !== "rejected"))
       .then(setBatches)
       .catch(() => setBatches([]));
   }, [selectedTeamId]);

@@ -14,6 +14,7 @@ Endpoints:
 
 import io
 import json
+import math
 import uuid
 from datetime import datetime
 
@@ -47,7 +48,7 @@ from app.schemas.pallet import (
 )
 from app.utils.activity import log_activity
 from app.utils.cache import cached
-from app.utils.numbering import generate_code
+from app.utils.numbering import generate_code, generate_codes
 
 router = APIRouter()
 
@@ -213,6 +214,12 @@ async def create_pallets_from_lots(
     # Detect fruit info from first lot for denormalization
     first_lot = lot_map[body.lot_assignments[0].lot_id]
 
+    # Pre-generate all pallet codes in one batch (2 DB queries instead of 2N)
+    total_boxes = sum(item["box_count"] for item in box_queue)
+    estimated_pallets = math.ceil(total_boxes / body.capacity_boxes)
+    pallet_codes = await generate_codes(db, "pallet", estimated_pallets)
+    code_idx = 0
+
     # Fill pallets (auto-overflow)
     created_pallets: list[Pallet] = []
     remaining_capacity = body.capacity_boxes
@@ -222,8 +229,9 @@ async def create_pallets_from_lots(
         boxes_left = item["box_count"]
         while boxes_left > 0:
             if current_pallet is None or remaining_capacity <= 0:
-                # Create new pallet
-                pallet_number = await generate_code(db, "pallet")
+                # Create new pallet using pre-generated code
+                pallet_number = pallet_codes[code_idx]
+                code_idx += 1
                 current_pallet = Pallet(
                     id=str(uuid.uuid4()),
                     pallet_number=pallet_number,

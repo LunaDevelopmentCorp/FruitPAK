@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { listBatches, listGrowers, BatchSummary, Grower } from "../api/batches";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { listBatches, listGrowers, Grower } from "../api/batches";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
 const STATUSES = ["received", "grading", "packing", "complete", "rejected"];
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 50;
 
 export default function BatchesList() {
   const navigate = useNavigate();
@@ -14,84 +14,93 @@ export default function BatchesList() {
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
-  // Filters
+  // Filters (all server-side now)
   const [statusFilter, setStatusFilter] = useState("");
   const [growerFilter, setGrowerFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Cursor-based pagination: stack of cursors for back-navigation
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+
+  // Debounce search input (300ms)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    searchTimer.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(searchTimer.current);
+  }, [search]);
 
   // Load growers once for the dropdown
   useEffect(() => {
     listGrowers().catch(() => []).then(setGrowers);
   }, []);
 
-  useEffect(() => {
+  // Fetch batches from API (all filtering is server-side)
+  const fetchBatches = useCallback(async (cursor: string | null) => {
     setLoading(true);
     setError(null);
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = { limit: String(PAGE_SIZE) };
     if (statusFilter) params.status = statusFilter;
+    if (growerFilter) params.grower_id = growerFilter;
+    if (dateFrom) params.date_from = dateFrom;
+    if (dateTo) params.date_to = dateTo;
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    if (cursor) params.cursor = cursor;
 
-    listBatches(params)
-      .then(setBatches)
-      .catch(() => setError("Failed to load batches"))
-      .finally(() => setLoading(false));
-  }, [statusFilter]);
-
-  // Client-side search + grower + date filter
-  const filtered = useMemo(() => {
-    let result = batches;
-
-    if (growerFilter) {
-      result = result.filter((b) => b.grower_id === growerFilter);
+    try {
+      const resp = await listBatches(params);
+      setBatches(resp.items);
+      setTotal(resp.total);
+      setHasMore(resp.has_more);
+      setNextCursor(resp.next_cursor);
+    } catch {
+      setError("Failed to load batches");
+    } finally {
+      setLoading(false);
     }
+  }, [statusFilter, growerFilter, dateFrom, dateTo, debouncedSearch]);
 
-    if (dateFrom) {
-      result = result.filter((b) => {
-        const d = b.intake_date || b.created_at;
-        return d && d.slice(0, 10) >= dateFrom;
-      });
-    }
-
-    if (dateTo) {
-      result = result.filter((b) => {
-        const d = b.intake_date || b.created_at;
-        return d && d.slice(0, 10) <= dateTo;
-      });
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (b) =>
-          b.batch_code.toLowerCase().includes(q) ||
-          (b.grower_name && b.grower_name.toLowerCase().includes(q)) ||
-          b.fruit_type.toLowerCase().includes(q),
-      );
-    }
-
-    return result;
-  }, [batches, growerFilter, dateFrom, dateTo, search]);
-
-  // Pagination
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  // Reset page when filters change
+  // Re-fetch when filters change (reset to first page)
   useEffect(() => {
-    setPage(0);
-  }, [statusFilter, growerFilter, dateFrom, dateTo, search]);
+    setCursorStack([]);
+    setCurrentCursor(null);
+    fetchBatches(null);
+  }, [fetchBatches]);
 
-  const hasActiveFilters = statusFilter || growerFilter || dateFrom || dateTo || search;
+  const pageNumber = cursorStack.length + 1;
+
+  const goNext = () => {
+    if (!nextCursor) return;
+    setCursorStack((s) => [...s, currentCursor ?? ""]);
+    setCurrentCursor(nextCursor);
+    fetchBatches(nextCursor);
+  };
+
+  const goPrev = () => {
+    if (cursorStack.length === 0) return;
+    const stack = [...cursorStack];
+    const prev = stack.pop()!;
+    setCursorStack(stack);
+    const cursor = prev || null;
+    setCurrentCursor(cursor);
+    fetchBatches(cursor);
+  };
+
+  const hasActiveFilters = statusFilter || growerFilter || dateFrom || dateTo || debouncedSearch;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       {/* Header */}
       <PageHeader
         title="Batches"
-        subtitle={`${filtered.length} batch${filtered.length !== 1 ? "es" : ""}${hasActiveFilters ? " (filtered)" : ""}`}
+        subtitle={`${total.toLocaleString()} batch${total !== 1 ? "es" : ""}${hasActiveFilters ? " (filtered)" : ""}`}
       />
 
       {error && (
@@ -171,7 +180,7 @@ export default function BatchesList() {
       {/* Table */}
       {loading ? (
         <p className="text-gray-400 text-sm">Loading batches...</p>
-      ) : paged.length === 0 ? (
+      ) : batches.length === 0 ? (
         <p className="text-gray-400 text-sm">No batches found.</p>
       ) : (
         <>
@@ -192,7 +201,7 @@ export default function BatchesList() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {paged.map((b) => (
+                {batches.map((b) => (
                   <tr
                     key={b.id}
                     onClick={() => navigate(`/batches/${b.id}`)}
@@ -224,24 +233,23 @@ export default function BatchesList() {
             </table>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Cursor-based pagination */}
+          {(cursorStack.length > 0 || hasMore) && (
             <div className="flex items-center justify-between mt-4">
               <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
+                onClick={goPrev}
+                disabled={cursorStack.length === 0}
                 className="border text-gray-600 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <span className="text-sm text-gray-500">
-                Page {page + 1} of {totalPages}
+                Page {pageNumber}
+                {total > 0 && ` \u00B7 ${total.toLocaleString()} total`}
               </span>
               <button
-                onClick={() =>
-                  setPage((p) => Math.min(totalPages - 1, p + 1))
-                }
-                disabled={page >= totalPages - 1}
+                onClick={goNext}
+                disabled={!hasMore}
                 className="border text-gray-600 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next

@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      listBatches().catch(() => []),
+      listBatches().then((r) => r.items).catch(() => []),
       listGrowerPayments().catch(() => []),
       getDashboard().catch(() => null),
       listLots().catch(() => []),
