@@ -49,6 +49,7 @@ from app.schemas.wizard import (
     Step8Data,
     WizardProgress,
 )
+from app.utils.cache import invalidate_cache
 
 router = APIRouter()
 
@@ -566,6 +567,9 @@ async def save_step_6(
                 value=rules_data,
             ))
         await db.flush()
+
+    # Invalidate cached config endpoints (box sizes, bin types, fruit types, pallet types)
+    await invalidate_cache("config:*")
 
     return await _finish_step(db, state, 6, body.model_dump(exclude_unset=True), complete, next_step=7)
 

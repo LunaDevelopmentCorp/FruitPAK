@@ -36,7 +36,7 @@ class Batch(TenantBase):
         String(36), ForeignKey("growers.id"), nullable=False, index=True
     )
     harvest_team_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("harvest_teams.id")
+        String(36), ForeignKey("harvest_teams.id"), index=True
     )
     packhouse_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("packhouses.id"), nullable=False
@@ -77,17 +77,20 @@ class Batch(TenantBase):
     notes: Mapped[str | None] = mapped_column(Text)
     received_by: Mapped[str | None] = mapped_column(String(36))  # user_id
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # ── Relationships ────────────────────────────────────────
-    grower = relationship("Grower", backref="batches", lazy="selectin")
-    harvest_team = relationship("HarvestTeam", backref="batches", lazy="selectin")
-    packhouse = relationship("Packhouse", backref="batches", lazy="selectin")
-    lots = relationship("Lot", back_populates="batch", lazy="selectin")
+    # All lazy="select" (default) — use explicit selectinload()/joinedload()
+    # in queries.  At 500 GRNs/day, auto-eager-loading cascades across
+    # every endpoint that touches batches.
+    grower = relationship("Grower", backref="batches")
+    harvest_team = relationship("HarvestTeam", backref="batches")
+    packhouse = relationship("Packhouse", backref="batches")
+    lots = relationship("Lot", back_populates="batch")
     history = relationship(
         "BatchHistory", back_populates="batch",
-        order_by="BatchHistory.recorded_at", lazy="selectin",
+        order_by="BatchHistory.recorded_at",
     )

@@ -88,16 +88,19 @@ class Lot(TenantBase):
     notes: Mapped[str | None] = mapped_column(Text)
     packed_by: Mapped[str | None] = mapped_column(String(36))  # user_id
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # ── Relationships ────────────────────────────────────────
-    batch = relationship("Batch", back_populates="lots", lazy="selectin")
-    grower = relationship("Grower", backref="lots", lazy="selectin")
-    packhouse = relationship("Packhouse", backref="lots", lazy="selectin")
-    product_config = relationship("ProductConfig", lazy="selectin")
-    pack_spec = relationship("PackSpec", lazy="selectin")
-    box_size = relationship("BoxSize", lazy="selectin")
-    pallet_lots = relationship("PalletLot", back_populates="lot", lazy="selectin")
+    # All lazy="select" (default) — use explicit selectinload() in queries
+    # that need them.  This avoids 7 hidden sub-queries every time a Lot
+    # is touched (critical at 15 000 lots/day).
+    batch = relationship("Batch", back_populates="lots")
+    grower = relationship("Grower", backref="lots")
+    packhouse = relationship("Packhouse", backref="lots")
+    product_config = relationship("ProductConfig")
+    pack_spec = relationship("PackSpec")
+    box_size = relationship("BoxSize")
+    pallet_lots = relationship("PalletLot", back_populates="lot")

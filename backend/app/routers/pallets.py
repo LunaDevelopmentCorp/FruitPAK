@@ -46,6 +46,7 @@ from app.schemas.pallet import (
     PalletUpdate,
 )
 from app.utils.activity import log_activity
+from app.utils.cache import cached
 from app.utils.numbering import generate_code
 
 router = APIRouter()
@@ -81,6 +82,7 @@ def _resolve_mixed_flag(request_value: bool | None, tenant_value: bool) -> bool:
 # ── Config endpoints (enterprise box sizes & pallet types) ───
 
 @router.get("/config/box-sizes", response_model=list[BoxSizeOut])
+@cached(ttl=600, prefix="config")
 async def get_box_sizes(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
@@ -90,6 +92,7 @@ async def get_box_sizes(
 
 
 @router.get("/config/pallet-types", response_model=list[PalletTypeOut])
+@cached(ttl=600, prefix="config")
 async def get_pallet_types(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),

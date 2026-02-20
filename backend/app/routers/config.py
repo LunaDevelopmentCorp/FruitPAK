@@ -21,6 +21,7 @@ from sqlalchemy.orm import selectinload
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
+from app.utils.cache import cached, invalidate_cache
 from app.models.tenant.product_config import BinType, BoxSize, PalletType, PalletTypeBoxCapacity, ProductConfig
 from app.models.tenant.tenant_config import TenantConfig
 from app.schemas.config import (
@@ -37,6 +38,7 @@ router = APIRouter()
 
 
 @router.get("/bin-types", response_model=list[BinTypeOut])
+@cached(ttl=600, prefix="config")
 async def list_bin_types(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
@@ -49,6 +51,7 @@ async def list_bin_types(
 
 
 @router.get("/product-configs", response_model=list[ProductConfigOut])
+@cached(ttl=600, prefix="config")
 async def list_product_configs(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
@@ -96,6 +99,7 @@ async def get_pallet_type_capacities(
 # ── Fruit Types (aggregated from product_configs) ────────────
 
 @router.get("/fruit-types", response_model=list[FruitTypeConfig])
+@cached(ttl=600, prefix="config")
 async def list_fruit_types(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
@@ -131,6 +135,7 @@ async def list_fruit_types(
 # ── Box Sizes with specs ─────────────────────────────────────
 
 @router.get("/box-sizes", response_model=list[BoxSizeSpecOut])
+@cached(ttl=600, prefix="config")
 async def list_box_sizes(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),

@@ -15,7 +15,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean, DateTime, Float, ForeignKey,
-    Integer, JSON, String, Text,
+    Index, Integer, JSON, String, Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -83,21 +83,24 @@ class Pallet(TenantBase):
     notes: Mapped[str | None] = mapped_column(Text)
     palletized_by: Mapped[str | None] = mapped_column(String(36))
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # ── Relationships ────────────────────────────────────────
-    packhouse = relationship("Packhouse", lazy="selectin")
-    box_size = relationship("BoxSize", lazy="selectin")
-    container = relationship("Container", back_populates="pallets", lazy="selectin")
-    pallet_lots = relationship("PalletLot", back_populates="pallet", lazy="selectin")
+    packhouse = relationship("Packhouse")
+    box_size = relationship("BoxSize")
+    container = relationship("Container", back_populates="pallets")
+    pallet_lots = relationship("PalletLot", back_populates="pallet")
 
 
 class PalletLot(TenantBase):
     """Join table linking pallets to lots with box counts."""
     __tablename__ = "pallet_lots"
+    __table_args__ = (
+        Index("ix_pallet_lots_lot_id_active", "lot_id", "is_deleted"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())

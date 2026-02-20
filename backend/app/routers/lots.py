@@ -92,11 +92,11 @@ async def create_lots_from_batch(
     Each lot inherits the batch's grower, packhouse, fruit type, and variety.
     The batch status is updated to 'packing'.
     """
-    # Load batch with relationships
+    # Load batch with lots (needed to check existing lots + inherit metadata)
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower))
     )
     batch = result.scalar_one_or_none()
     if not batch:

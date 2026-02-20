@@ -22,8 +22,8 @@ from app.config import settings
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
-    pool_size=20,
-    max_overflow=10,
+    pool_size=50,
+    max_overflow=30,
 )
 
 async_session = async_sessionmaker(

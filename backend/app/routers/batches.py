@@ -24,10 +24,12 @@ from app.auth.deps import require_onboarded, require_permission
 from app.database import get_db, get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
+from app.models.tenant.batch_history import BatchHistory
 from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import PalletLot
 from app.schemas.batch import (
     BatchDetailOut,
+    BatchHistoryOut,
     BatchOut,
     BatchSummary,
     BatchUpdate,
@@ -156,13 +158,13 @@ async def get_batch(
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
 ):
+    # Load batch with grower, packhouse, lots (but NOT history — loaded separately with limit)
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
         .options(
             selectinload(Batch.grower),
             selectinload(Batch.packhouse),
-            selectinload(Batch.history),
             selectinload(Batch.lots),
         )
     )
@@ -170,7 +172,17 @@ async def get_batch(
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
+    # Load history separately — last 50 events only (uses (batch_id, recorded_at) index)
+    history_result = await db.execute(
+        select(BatchHistory)
+        .where(BatchHistory.batch_id == batch_id)
+        .order_by(BatchHistory.recorded_at.desc())
+        .limit(50)
+    )
+    history_events = list(reversed(history_result.scalars().all()))
+
     detail = BatchDetailOut.model_validate(batch)
+    detail.history = [BatchHistoryOut.model_validate(h) for h in history_events]
 
     # Resolve received_by UUID → user full_name (User lives in public schema)
     if batch.received_by:
@@ -183,7 +195,7 @@ async def get_batch(
 
     # Resolve recorded_by UUIDs in history events → user full names
     recorder_ids = {
-        h.recorded_by for h in batch.history if h.recorded_by
+        h.recorded_by for h in history_events if h.recorded_by
     }
     if recorder_ids:
         name_result = await public_db.execute(
@@ -194,7 +206,7 @@ async def get_batch(
             if h_out.recorded_by and h_out.recorded_by in name_map:
                 h_out.recorded_by_name = name_map[h_out.recorded_by]
 
-    # Compute palletized box counts per lot
+    # Compute palletized box counts per lot (single batched query)
     if batch.lots:
         lot_ids = [lot.id for lot in batch.lots]
         pal_result = await db.execute(
@@ -221,6 +233,7 @@ async def get_batch_qr(
     """Return an SVG QR code encoding key batch information."""
     result = await db.execute(
         select(Batch).where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(selectinload(Batch.grower))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -254,6 +267,7 @@ async def update_batch(
 ):
     result = await db.execute(
         select(Batch).where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(selectinload(Batch.grower))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -289,7 +303,7 @@ async def close_production_run(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -356,7 +370,7 @@ async def finalize_grn(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -423,7 +437,7 @@ async def delete_batch(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower))
     )
     batch = result.scalar_one_or_none()
     if not batch:
