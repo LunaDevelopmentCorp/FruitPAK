@@ -63,6 +63,20 @@ async def _already_palletized(db: AsyncSession, lot_id: str) -> int:
     return int(result)
 
 
+async def _already_palletized_batch(db: AsyncSession, lot_ids: list[str]) -> dict[str, int]:
+    """Return {lot_id: total_boxes_palletized} for multiple lots in a single query."""
+    if not lot_ids:
+        return {}
+    result = await db.execute(
+        select(PalletLot.lot_id, func.coalesce(func.sum(PalletLot.box_count), 0))
+        .where(PalletLot.lot_id.in_(lot_ids), PalletLot.is_deleted == False)  # noqa: E712
+        .group_by(PalletLot.lot_id)
+    )
+    palletized = {row[0]: int(row[1]) for row in result.all()}
+    # Ensure all requested lot_ids have an entry (0 if not palletized)
+    return {lid: palletized.get(lid, 0) for lid in lot_ids}
+
+
 async def _get_mixed_pallet_rules(db: AsyncSession) -> dict:
     """Load mixed pallet rules from tenant_config."""
     result = await db.execute(
@@ -113,28 +127,29 @@ async def create_pallets_from_lots(
 
     If total boxes exceed pallet capacity, overflow creates additional pallets.
     """
-    # Validate all lots exist and collect info
-    lot_map: dict[str, Lot] = {}
+    # Load all referenced lots in a single query
+    lot_ids = list({a.lot_id for a in body.lot_assignments})
+    lot_result = await db.execute(
+        select(Lot).where(
+            Lot.id.in_(lot_ids),
+            Lot.is_deleted == False,  # noqa: E712
+        ).options(selectinload(Lot.box_size))
+    )
+    lot_map: dict[str, Lot] = {lot.id: lot for lot in lot_result.scalars().all()}
+
+    # Check all lots were found
     for assignment in body.lot_assignments:
         if assignment.lot_id not in lot_map:
-            result = await db.execute(
-                select(Lot).where(
-                    Lot.id == assignment.lot_id,
-                    Lot.is_deleted == False,  # noqa: E712
-                ).options(selectinload(Lot.box_size))
+            raise HTTPException(
+                status_code=404,
+                detail=f"Lot {assignment.lot_id} not found",
             )
-            lot = result.scalar_one_or_none()
-            if not lot:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Lot {assignment.lot_id} not found",
-                )
-            lot_map[assignment.lot_id] = lot
 
-    # Validate each lot has enough unallocated boxes
+    # Validate each lot has enough unallocated boxes (single batched query)
+    palletized_map = await _already_palletized_batch(db, lot_ids)
     for assignment in body.lot_assignments:
         lot = lot_map[assignment.lot_id]
-        already = await _already_palletized(db, assignment.lot_id)
+        already = palletized_map.get(assignment.lot_id, 0)
         available = lot.carton_count - already
         if assignment.box_count > available:
             raise HTTPException(
@@ -571,18 +586,29 @@ async def allocate_boxes_to_pallet(
         body.allow_mixed_box_types, tenant_rules.get("allow_mixed_box_types", False)
     )
 
+    # Load all referenced lots in a single query
+    alloc_lot_ids = list({a.lot_id for a in body.lot_assignments})
+    lot_result_all = await db.execute(
+        select(Lot).where(
+            Lot.id.in_(alloc_lot_ids),
+            Lot.is_deleted == False,  # noqa: E712
+        ).options(selectinload(Lot.box_size))
+    )
+    alloc_lot_map: dict[str, Lot] = {lot.id: lot for lot in lot_result_all.scalars().all()}
+
+    # Check all lots were found
+    for a in body.lot_assignments:
+        if a.lot_id not in alloc_lot_map:
+            raise HTTPException(status_code=404, detail=f"Lot {a.lot_id} not found")
+
     # Validate size consistency with pallet
     if pallet.size and not allow_mixed_sizes:
         mismatched: list[str] = []
         for a in body.lot_assignments:
-            lot_result_check = await db.execute(
-                select(Lot).where(Lot.id == a.lot_id, Lot.is_deleted == False)  # noqa: E712
-            )
-            lot_check = lot_result_check.scalar_one_or_none()
-            lot_size = a.size or (lot_check.size if lot_check else None)
+            lot_check = alloc_lot_map[a.lot_id]
+            lot_size = a.size or lot_check.size
             if lot_size and lot_size != pallet.size:
-                code = lot_check.lot_code if lot_check else a.lot_id
-                mismatched.append(f"{code} (size: {lot_size})")
+                mismatched.append(f"{lot_check.lot_code} (size: {lot_size})")
         if mismatched:
             raise HTTPException(
                 status_code=400,
@@ -594,12 +620,8 @@ async def allocate_boxes_to_pallet(
     if pallet.box_size_id and not allow_mixed_box_types:
         mismatched_box: list[str] = []
         for a in body.lot_assignments:
-            lot_bt_result = await db.execute(
-                select(Lot).where(Lot.id == a.lot_id, Lot.is_deleted == False)  # noqa: E712
-                .options(selectinload(Lot.box_size))
-            )
-            lot_bt = lot_bt_result.scalar_one_or_none()
-            if lot_bt and lot_bt.box_size_id and lot_bt.box_size_id != pallet.box_size_id:
+            lot_bt = alloc_lot_map[a.lot_id]
+            if lot_bt.box_size_id and lot_bt.box_size_id != pallet.box_size_id:
                 lot_box_name = lot_bt.box_size.name if lot_bt.box_size else lot_bt.box_size_id
                 mismatched_box.append(f"{lot_bt.lot_code} (box type: {lot_box_name})")
         if mismatched_box:
@@ -609,22 +631,11 @@ async def allocate_boxes_to_pallet(
                        f"{', '.join(mismatched_box)}. Use allow_mixed_box_types to override.",
             )
 
+    # Validate each lot has enough unallocated boxes (single batched query)
+    palletized_map = await _already_palletized_batch(db, alloc_lot_ids)
     for assignment in body.lot_assignments:
-        lot_result = await db.execute(
-            select(Lot).where(
-                Lot.id == assignment.lot_id,
-                Lot.is_deleted == False,  # noqa: E712
-            ).options(selectinload(Lot.box_size))
-        )
-        lot = lot_result.scalar_one_or_none()
-        if not lot:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Lot {assignment.lot_id} not found",
-            )
-
-        # Check lot has enough unallocated boxes
-        already = await _already_palletized(db, assignment.lot_id)
+        lot = alloc_lot_map[assignment.lot_id]
+        already = palletized_map.get(assignment.lot_id, 0)
         available = lot.carton_count - already
         if assignment.box_count > available:
             raise HTTPException(
@@ -633,6 +644,8 @@ async def allocate_boxes_to_pallet(
                        f"cannot assign {assignment.box_count}",
             )
 
+    for assignment in body.lot_assignments:
+        lot = alloc_lot_map[assignment.lot_id]
         lot_size = assignment.size or lot.size
         pallet_lot = PalletLot(
             id=str(uuid.uuid4()),
