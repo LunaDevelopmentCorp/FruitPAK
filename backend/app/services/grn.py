@@ -12,6 +12,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.tenant.batch import Batch
 from app.models.tenant.batch_history import BatchHistory
 from app.models.tenant.grower import Grower
 from app.models.tenant.grower_payment import GrowerPayment

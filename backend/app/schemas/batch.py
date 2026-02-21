@@ -197,6 +197,10 @@ class BatchDetailOut(BatchOut):
             data.__dict__["grower_name"] = data.grower.name
         if hasattr(data, "packhouse") and data.packhouse:
             data.__dict__["packhouse_name"] = data.packhouse.name
+        # Prevent lazy-load of history in async context — the router
+        # loads history separately and assigns it after model_validate.
+        if hasattr(data, "__dict__") and "history" not in data.__dict__:
+            data.__dict__["history"] = []
         # received_by_name is injected by the router after user lookup
         return data
 
