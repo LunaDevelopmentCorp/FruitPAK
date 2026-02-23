@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { listGrowers, listBatches, Grower, BatchSummary } from "../api/batches";
 import { getErrorMessage } from "../api/client";
+import { CURRENCIES } from "../constants/currencies";
+import { useFinancialConfig } from "../hooks/useFinancialConfig";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 import {
@@ -23,6 +25,7 @@ interface FieldError {
 }
 
 export default function Payments() {
+  const { baseCurrency } = useFinancialConfig();
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [recentPayments, setRecentPayments] = useState<GrowerPaymentOut[]>([]);
@@ -38,15 +41,21 @@ export default function Payments() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<GrowerPaymentPayload>({
     defaultValues: {
-      currency: "ZAR",
+      currency: baseCurrency,
       payment_type: "final",
       payment_date: new Date().toISOString().split("T")[0],
       batch_ids: [],
     },
   });
+
+  // Sync default currency when config loads async
+  useEffect(() => {
+    setValue("currency", baseCurrency);
+  }, [baseCurrency, setValue]);
 
   const selectedGrowerId = watch("grower_id");
 
@@ -155,7 +164,7 @@ export default function Payments() {
     setFieldErrors([]);
     setSelectedBatchIds([]);
     reset({
-      currency: "ZAR",
+      currency: baseCurrency,
       payment_type: "final",
       payment_date: new Date().toISOString().split("T")[0],
       batch_ids: [],
@@ -277,10 +286,11 @@ export default function Payments() {
               {...register("currency")}
               className={inputBase}
             >
-              <option value="ZAR">ZAR</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code}
+                </option>
+              ))}
             </select>
           </div>
           <div>

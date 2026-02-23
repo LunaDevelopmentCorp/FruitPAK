@@ -53,14 +53,38 @@ def run_migrations_online() -> None:
     )
     with connectable.connect() as connection:
         # If migrating a specific tenant schema, set the search_path
+        # and use a per-tenant alembic_version table so each tenant
+        # tracks its own migration state independently.
         schema_name = context.get_x_argument(as_dictionary=True).get("tenant_schema")
         if schema_name:
-            connection.execute(text(f'SET search_path TO "{schema_name}", public'))
+            connection.execute(text(f'SET search_path TO "{schema_name}", pg_catalog'))
+            connection.execute(text(
+                f'CREATE TABLE IF NOT EXISTS "{schema_name}".alembic_version '
+                f'(version_num VARCHAR(32) NOT NULL, '
+                f'CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))'
+            ))
+            # Seed from public.alembic_version if tenant table is empty
+            count = connection.execute(text(
+                f'SELECT count(*) FROM "{schema_name}".alembic_version'
+            )).scalar()
+            if count == 0:
+                try:
+                    pub_ver = connection.execute(text(
+                        'SELECT version_num FROM public.alembic_version'
+                    )).scalar()
+                    if pub_ver:
+                        connection.execute(text(
+                            f'INSERT INTO "{schema_name}".alembic_version (version_num) '
+                            f'VALUES (:v)'
+                        ), {"v": pub_ver})
+                except Exception:
+                    pass
 
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
+            version_table_schema=schema_name if schema_name else None,
         )
         with context.begin_transaction():
             context.run_migrations()

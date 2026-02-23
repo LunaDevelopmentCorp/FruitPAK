@@ -33,6 +33,18 @@ export async function getBoxSizeSpecs(): Promise<BoxSizeSpec[]> {
   return data;
 }
 
+// ── Financial summary ────────────────────────────────────────
+
+export interface FinancialSummary {
+  base_currency: string;
+  export_currencies: string[];
+}
+
+export async function getFinancialSummary(): Promise<FinancialSummary> {
+  const { data } = await api.get<FinancialSummary>("/config/financial-summary");
+  return data;
+}
+
 // ── Tenant settings (key-value config) ────────────────────────
 
 export type TenantSettings = Record<string, unknown>;

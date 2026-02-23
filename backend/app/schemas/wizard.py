@@ -247,7 +247,8 @@ class Step7Data(BaseModel):
 # ── Step 8: Financial basics (optional) ──────────────────────
 
 class Step8Data(BaseModel):
-    currency: str | None = None
+    base_currency: str | None = None
+    export_currencies: list[str] | None = None
     packing_rate_per_kg: float | None = None
     cold_storage_rate_per_pallet_day: float | None = None
     transport_rate_per_pallet: float | None = None

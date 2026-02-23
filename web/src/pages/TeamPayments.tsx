@@ -10,11 +10,15 @@ import {
 } from "../api/payments";
 import { listBatches, BatchSummary } from "../api/batches";
 import { getErrorMessage } from "../api/client";
+import { CURRENCIES, getCurrencySymbol } from "../constants/currencies";
+import { useFinancialConfig } from "../hooks/useFinancialConfig";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
 export default function TeamPayments() {
+  const { baseCurrency } = useFinancialConfig();
+
   // ── Data ──────────────────────────────────────────────────
   const [teams, setTeams] = useState<HarvestTeamItem[]>([]);
   const [payments, setPayments] = useState<TeamPaymentOut[]>([]);
@@ -24,7 +28,7 @@ export default function TeamPayments() {
   // ── Form ──────────────────────────────────────────────────
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("ZAR");
+  const [currency, setCurrency] = useState(baseCurrency);
   const [paymentType, setPaymentType] = useState("advance");
   const [paymentDate, setPaymentDate] = useState(
     new Date().toISOString().slice(0, 10)
@@ -35,6 +39,11 @@ export default function TeamPayments() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<TeamPaymentOut | null>(null);
+
+  // Sync default currency when config loads async
+  useEffect(() => {
+    setCurrency(baseCurrency);
+  }, [baseCurrency]);
 
   // ── Tab ───────────────────────────────────────────────────
   const [tab, setTab] = useState<"record" | "summary">("record");
@@ -210,12 +219,13 @@ export default function TeamPayments() {
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
-                      className="border rounded px-2 py-2 text-sm w-20"
+                      className="border rounded px-2 py-2 text-sm w-24"
                     >
-                      <option>ZAR</option>
-                      <option>USD</option>
-                      <option>EUR</option>
-                      <option>GBP</option>
+                      {CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code}
+                        </option>
+                      ))}
                     </select>
                     <input
                       type="number"
@@ -472,16 +482,16 @@ export default function TeamPayments() {
                     <td className="px-2 py-1.5 text-right">{s.total_bins}</td>
                     <td className="px-2 py-1.5 text-right text-yellow-700">
                       {s.total_advances > 0
-                        ? `R ${s.total_advances.toLocaleString()}`
+                        ? `${getCurrencySymbol(baseCurrency)} ${s.total_advances.toLocaleString()}`
                         : "\u2014"}
                     </td>
                     <td className="px-2 py-1.5 text-right text-green-700">
                       {s.total_finals > 0
-                        ? `R ${s.total_finals.toLocaleString()}`
+                        ? `${getCurrencySymbol(baseCurrency)} ${s.total_finals.toLocaleString()}`
                         : "\u2014"}
                     </td>
                     <td className="px-2 py-1.5 text-right font-semibold">
-                      R {s.total_paid.toLocaleString()}
+                      {getCurrencySymbol(baseCurrency)} {s.total_paid.toLocaleString()}
                     </td>
                   </tr>
                 ))}
@@ -503,19 +513,19 @@ export default function TeamPayments() {
                     {summaries.reduce((s, t) => s + t.total_bins, 0)}
                   </td>
                   <td className="px-2 py-2 text-right text-yellow-700">
-                    R{" "}
+                    {getCurrencySymbol(baseCurrency)}{" "}
                     {summaries
                       .reduce((s, t) => s + t.total_advances, 0)
                       .toLocaleString()}
                   </td>
                   <td className="px-2 py-2 text-right text-green-700">
-                    R{" "}
+                    {getCurrencySymbol(baseCurrency)}{" "}
                     {summaries
                       .reduce((s, t) => s + t.total_finals, 0)
                       .toLocaleString()}
                   </td>
                   <td className="px-2 py-2 text-right">
-                    R{" "}
+                    {getCurrencySymbol(baseCurrency)}{" "}
                     {summaries
                       .reduce((s, t) => s + t.total_paid, 0)
                       .toLocaleString()}

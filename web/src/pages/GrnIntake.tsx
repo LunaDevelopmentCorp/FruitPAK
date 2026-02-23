@@ -48,6 +48,7 @@ export default function GrnIntake() {
   const [recentBatches, setRecentBatches] = useState<BatchSummary[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
+  const [grnDate, setGrnDate] = useState(new Date().toISOString().split("T")[0]);
 
   const {
     register,
@@ -110,12 +111,11 @@ export default function GrnIntake() {
   }, [fruitConfigs, selectedFruitType]);
 
 
-  // Fetch today's GRNs
-  const fetchRecentBatches = useCallback(async () => {
+  // Fetch GRNs for selected date
+  const fetchRecentBatches = useCallback(async (dateStr: string) => {
     setLoadingRecent(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const resp = await listBatches({ date_from: today, limit: "50" });
+      const resp = await listBatches({ date_from: dateStr, date_to: dateStr, limit: "50" });
       setRecentBatches(resp.items);
     } catch {
       // Silent fail — table is supplementary
@@ -125,8 +125,8 @@ export default function GrnIntake() {
   }, []);
 
   useEffect(() => {
-    if (!loadingRef) fetchRecentBatches();
-  }, [loadingRef, fetchRecentBatches]);
+    if (!loadingRef) fetchRecentBatches(grnDate);
+  }, [loadingRef, fetchRecentBatches, grnDate]);
 
   const getFieldError = (field: string): string | undefined =>
     fieldErrors.find((e) => e.field === field)?.message;
@@ -188,7 +188,7 @@ export default function GrnIntake() {
       const res = await submitGRN(payload);
       setResult(res);
       setToast(`Batch ${res.batch.batch_code} created successfully`);
-      fetchRecentBatches();
+      fetchRecentBatches(grnDate);
     } catch (err: unknown) {
       // 422 with field-level errors needs special handling
       const axiosErr = err as {
@@ -562,19 +562,34 @@ export default function GrnIntake() {
         </>
       )}
 
-      {/* ── Today's GRNs table ──────────────────────────── */}
+      {/* ── GRNs for date ───────────────────────────────── */}
       <div className="mt-10 border-t pt-8">
-        <h2 className="text-lg font-semibold text-gray-800 mb-1">Today's GRNs</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Click a row to edit intake details.
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              GRNs for {grnDate === new Date().toISOString().split("T")[0] ? "Today" : grnDate}
+            </h2>
+            <p className="text-sm text-gray-500">
+              Click a row to edit intake details.
+            </p>
+          </div>
+          <input
+            type="date"
+            value={grnDate}
+            onChange={(e) => {
+              setGrnDate(e.target.value);
+              setEditingBatchId(null);
+            }}
+            className="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+        </div>
 
         {loadingRecent ? (
           <div className="flex items-center gap-2 text-gray-400 text-sm">
             <Spinner /> Loading...
           </div>
         ) : recentBatches.length === 0 ? (
-          <p className="text-gray-400 text-sm">No GRNs recorded today.</p>
+          <p className="text-gray-400 text-sm">No GRNs recorded for this date.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -622,7 +637,7 @@ export default function GrnIntake() {
                             binTypes={binTypes}
                             onSave={() => {
                               setEditingBatchId(null);
-                              fetchRecentBatches();
+                              fetchRecentBatches(grnDate);
                             }}
                             onCancel={() => setEditingBatchId(null)}
                           />

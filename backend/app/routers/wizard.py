@@ -617,6 +617,7 @@ async def save_step_8(
             config = FinancialConfig(**data)
             db.add(config)
         await db.flush()
+        await invalidate_cache("config:*")
 
     return await _finish_step(db, state, 8, data, complete, next_step=8)
 

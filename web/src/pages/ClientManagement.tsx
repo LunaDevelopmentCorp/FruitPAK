@@ -9,26 +9,13 @@ import {
   ClientUpdate,
 } from "../api/clients";
 import { getErrorMessage } from "../api/client";
+import { CURRENCIES, formatCurrency } from "../constants/currencies";
 import { showToast } from "../store/toastStore";
 import CsvImport from "../components/CsvImport";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
 const INCOTERMS = ["FOB", "CIF", "CFR", "EXW", "DDP"] as const;
-const CURRENCIES = ["USD", "EUR", "GBP", "ZAR"] as const;
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "\u20AC",
-  GBP: "\u00A3",
-  ZAR: "R",
-};
-
-function formatCurrency(amount: number | null, currency: string | null): string {
-  if (amount == null) return "\u2014";
-  const symbol = CURRENCY_SYMBOLS[currency || "USD"] || "$";
-  return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export default function ClientManagement() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
@@ -247,7 +234,7 @@ export default function ClientManagement() {
                   {c.payment_terms_days != null ? `${c.payment_terms_days} days` : "\u2014"}
                 </td>
                 <td className="px-4 py-2 text-gray-500">
-                  {formatCurrency(c.credit_limit, c.currency)}
+                  {formatCurrency(c.credit_limit, c.currency || "USD")}
                 </td>
                 <td className="px-4 py-2">
                   <StatusBadge status={c.is_active ? "active" : "inactive"} />
@@ -382,9 +369,9 @@ export default function ClientManagement() {
                   className="border rounded px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">— Select —</option>
-                  {CURRENCIES.map((cur) => (
-                    <option key={cur} value={cur}>
-                      {cur}
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} ({c.name})
                     </option>
                   ))}
                 </select>

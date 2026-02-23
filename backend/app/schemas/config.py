@@ -58,5 +58,12 @@ class FruitTypeConfig(BaseModel):
     sizes: list[str] = []
 
 
+class FinancialSummaryOut(BaseModel):
+    base_currency: str
+    export_currencies: list[str] = []
+
+    model_config = {"from_attributes": True}
+
+
 class TenantSettingsUpdate(BaseModel):
     settings: dict[str, Any]

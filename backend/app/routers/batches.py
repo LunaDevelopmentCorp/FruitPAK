@@ -409,7 +409,7 @@ async def finalize_grn(
             detail="Production run must be closed before finalizing",
         )
 
-    # Mass balance check
+    # Mass balance — auto-assign unaccounted weight as batch waste
     incoming_net = batch.net_weight_kg or 0.0
     total_lot_weight = sum(
         (lot.weight_kg if lot.weight_kg is not None else lot.carton_count * 4.0)
@@ -420,13 +420,13 @@ async def finalize_grn(
     )
     batch_waste = batch.waste_kg or 0.0
     accounted = total_lot_weight + total_lot_waste + batch_waste
-    diff = abs(incoming_net - accounted)
+    diff = incoming_net - accounted  # positive = unaccounted weight
 
-    if diff > 0.5:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Mass balance not zero: incoming {incoming_net:.1f} kg vs accounted {accounted:.1f} kg (diff {diff:.1f} kg)",
-        )
+    adjustment_note = ""
+    if abs(diff) > 0.5:
+        # Auto-assign the unaccounted difference to batch waste
+        batch.waste_kg = batch_waste + diff
+        adjustment_note = f" (adjusted batch waste by {diff:+.1f} kg to balance)"
 
     batch.status = "completed"
     await db.flush()
@@ -438,7 +438,7 @@ async def finalize_grn(
         entity_type="batch",
         entity_id=batch.id,
         entity_code=batch.batch_code,
-        summary=f"Finalized GRN {batch.batch_code}",
+        summary=f"Finalized GRN {batch.batch_code}{adjustment_note}",
     )
 
     return BatchOut.model_validate(batch)

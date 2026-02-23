@@ -6,6 +6,7 @@ Endpoints:
     GET  /api/config/pallet-type-capacities/{pallet_type_id}  Box capacities for a pallet type
     GET  /api/config/fruit-types                            Aggregated fruit type → varieties/grades/sizes
     GET  /api/config/box-sizes                              Box sizes with specification fields
+    GET  /api/config/financial-summary                      Base currency + export currencies
     GET  /api/config/tenant-settings                        Get all tenant config settings
     PUT  /api/config/tenant-settings                        Update tenant config settings
 """
@@ -22,12 +23,14 @@ from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.utils.cache import cached, invalidate_cache
+from app.models.tenant.financial_config import FinancialConfig
 from app.models.tenant.product_config import BinType, BoxSize, PalletType, PalletTypeBoxCapacity, ProductConfig
 from app.models.tenant.tenant_config import TenantConfig
 from app.schemas.config import (
     BinTypeOut,
     BoxCapacityOut,
     BoxSizeSpecOut,
+    FinancialSummaryOut,
     FruitTypeConfig,
     PalletTypeCapacityOut,
     ProductConfigOut,
@@ -143,6 +146,25 @@ async def list_box_sizes(
     """List all box sizes with specification fields."""
     result = await db.execute(select(BoxSize).order_by(BoxSize.name))
     return [BoxSizeSpecOut.model_validate(bs) for bs in result.scalars().all()]
+
+
+# ── Financial Summary ────────────────────────────────────────
+
+@router.get("/financial-summary", response_model=FinancialSummaryOut)
+@cached(ttl=600, prefix="config")
+async def get_financial_summary(
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_onboarded),
+):
+    """Return base currency and export currencies from financial config."""
+    result = await db.execute(select(FinancialConfig).limit(1))
+    config = result.scalar_one_or_none()
+    if not config:
+        return FinancialSummaryOut(base_currency="ZAR", export_currencies=[])
+    return FinancialSummaryOut(
+        base_currency=config.base_currency,
+        export_currencies=config.export_currencies or [],
+    )
 
 
 # ── Tenant Settings ──────────────────────────────────────────

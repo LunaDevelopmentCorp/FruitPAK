@@ -29,6 +29,7 @@ export interface StepProps {
   onSave: (data: any, complete: boolean) => Promise<void>;
   saving: boolean;
   draftData: Record<string, unknown> | null;
+  completedData?: Record<string, Record<string, unknown>>;
 }
 
 function Spinner() {
@@ -290,6 +291,7 @@ export default function WizardShell() {
               onSave={handleSave}
               saving={saving}
               draftData={draftData}
+              completedData={progress?.completed_data}
             />
           )}
         </main>

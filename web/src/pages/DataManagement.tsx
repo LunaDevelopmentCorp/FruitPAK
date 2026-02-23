@@ -35,6 +35,8 @@ export default function DataManagement() {
       ]);
       setGrowers(gRes.data.items || []);
       setTeams(tRes.data || []);
+    } catch {
+      // Data tables may be empty but CSV import buttons remain available
     } finally {
       setLoading(false);
     }

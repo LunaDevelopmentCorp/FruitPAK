@@ -21,8 +21,8 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
     const lotWeight = lots.reduce((sum, l) => sum + (l.weight_kg ?? 0), 0);
     const lotWaste = lots.reduce((sum, l) => sum + (l.waste_kg ?? 0), 0);
     const batchWaste = batch.waste_kg ?? 0;
-    const diff = Math.abs(incomingNet - (lotWeight + lotWaste + batchWaste));
-    return { balanced: diff < 0.5, diff };
+    const diff = incomingNet - (lotWeight + lotWaste + batchWaste);
+    return { balanced: Math.abs(diff) < 0.5, diff };
   }, [batch.net_weight_kg, batch.waste_kg, lots]);
 
   if (lots.length === 0) return null;
@@ -70,8 +70,8 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
           <p className="text-sm text-gray-600 mb-3">
             Production run is closed. Finalize the GRN to mark it as completed.
             {!balanced && (
-              <span className="text-yellow-600 block mt-1">
-                Mass balance difference is {diff.toFixed(1)} kg (tolerance: 0.5 kg). Adjust weights or waste before finalizing.
+              <span className="text-amber-600 block mt-1">
+                Unaccounted weight: {diff > 0 ? "+" : ""}{diff.toFixed(1)} kg — this will be auto-adjusted as batch waste on finalization.
               </span>
             )}
           </p>

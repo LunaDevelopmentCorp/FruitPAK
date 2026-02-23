@@ -19,7 +19,8 @@ class FinancialConfig(TenantBase):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    currency: Mapped[str] = mapped_column(String(3), default="ZAR")
+    base_currency: Mapped[str] = mapped_column(String(3), default="ZAR")
+    export_currencies: Mapped[list | None] = mapped_column(JSON, default=None)
     # Rates
     packing_rate_per_kg: Mapped[float | None] = mapped_column(Float)
     cold_storage_rate_per_pallet_day: Mapped[float | None] = mapped_column(Float)
