@@ -9,6 +9,7 @@ from app.database import PublicBase
 
 
 class UserRole(str, enum.Enum):
+    PLATFORM_ADMIN = "platform_admin"
     ADMINISTRATOR = "administrator"
     SUPERVISOR = "supervisor"
     OPERATOR = "operator"
@@ -45,6 +46,9 @@ class User(PublicBase):
     # null = all packhouses (admins/supervisors).
     # ["uuid1","uuid2"] = only these packhouses (operators).
     assigned_packhouses: Mapped[list | None] = mapped_column(JSON, default=None)
+
+    # Language preference (ISO 639-1: en, fr, pt, es)
+    preferred_language: Mapped[str] = mapped_column(String(5), default="en", server_default="en")
 
     # Tracks who created this account
     created_by: Mapped[str | None] = mapped_column(String(36))

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { getErrorMessage } from "../../api/client";
 import {
@@ -21,6 +22,7 @@ interface Props extends BatchSectionProps {
 }
 
 export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }: Props) {
+  const { t } = useTranslation("batches");
   const lots = batch.lots || [];
   if (lots.length === 0) return null;
 
@@ -48,7 +50,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
   return (
     <div className="bg-white rounded-lg border p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">Palletize</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t("palletize.title")}</h3>
         {!creatingPallet && !allocatingToExisting && (
           <div className="flex gap-3">
             <button
@@ -61,7 +63,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
               }}
               className="text-sm text-green-600 hover:text-green-700 font-medium"
             >
-              + Create Pallet
+              {t("palletize.createPallet")}
             </button>
             <button
               onClick={() => {
@@ -73,7 +75,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
               }}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              + Add to Existing
+              {t("palletize.addToExisting")}
             </button>
           </div>
         )}
@@ -104,11 +106,11 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
           palletSaving={palletSaving}
           onSave={async () => {
             if (!selectedPalletType) {
-              globalToast("error", "Select a pallet type.");
+              globalToast("error", t("palletize.selectPalletType"));
               return;
             }
             if (!palletSize && !allowMixedSizes) {
-              globalToast("error", "Select a pallet size.");
+              globalToast("error", t("palletize.selectSize"));
               return;
             }
             const visibleLotIds = new Set(
@@ -123,7 +125,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
                 return { lot_id, box_count, size: lot?.size || undefined };
               });
             if (assignments.length === 0) {
-              globalToast("error", "Assign boxes from at least one lot.");
+              globalToast("error", t("palletize.assignBoxesError"));
               return;
             }
             setPalletSaving(true);
@@ -137,7 +139,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
                 allow_mixed_sizes: allowMixedSizes,
                 allow_mixed_box_types: allowMixedBoxTypes,
               });
-              globalToast("success", `${pallets.length} pallet(s) created.`);
+              globalToast("success", t("palletize.palletsCreated", { count: pallets.length }));
               setCreatingPallet(false);
               setSelectedPalletType("");
               setPalletSize("");
@@ -146,7 +148,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
               setLotAssignments({});
               await onRefresh();
             } catch (err: unknown) {
-              globalToast("error", getErrorMessage(err, "Failed to create pallet."));
+              globalToast("error", getErrorMessage(err, t("palletize.palletCreateFailed")));
             } finally {
               setPalletSaving(false);
             }
@@ -174,7 +176,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
           allocateSaving={allocateSaving}
           onSave={async () => {
             if (!selectedPalletId) {
-              globalToast("error", "Select a pallet.");
+              globalToast("error", t("palletize.selectPalletError"));
               return;
             }
             const selPal = openPallets.find((p) => p.id === selectedPalletId);
@@ -191,20 +193,20 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
                 return { lot_id, box_count, size: lot?.size || undefined };
               });
             if (assignments.length === 0) {
-              globalToast("error", "Assign boxes from at least one lot.");
+              globalToast("error", t("palletize.assignBoxesError"));
               return;
             }
             setAllocateSaving(true);
             try {
               const selectedPallet = openPallets.find((p) => p.id === selectedPalletId);
               await allocateBoxesToPallet(selectedPalletId, { lot_assignments: assignments });
-              globalToast("success", `Boxes allocated to ${selectedPallet?.pallet_number || "pallet"}.`);
+              globalToast("success", t("palletize.boxesAllocated"));
               setAllocatingToExisting(false);
               setSelectedPalletId("");
               setLotAssignments({});
               await onRefresh();
             } catch (err: unknown) {
-              globalToast("error", getErrorMessage(err, "Failed to allocate boxes."));
+              globalToast("error", getErrorMessage(err, t("palletize.allocationFailed")));
             } finally {
               setAllocateSaving(false);
             }
@@ -261,6 +263,7 @@ function CreatePalletForm({
   allowMixedBoxTypes, setAllowMixedBoxTypes,
   palletSaving, onSave, onCancel,
 }: CreatePalletFormProps) {
+  const { t } = useTranslation("batches");
   const lots = batch.lots || [];
   const availLots = lots.filter((l) => l.carton_count - (l.palletized_boxes ?? 0) > 0);
   const lotSizes = [...new Set(availLots.map((l) => l.size).filter(Boolean))] as string[];
@@ -291,7 +294,7 @@ function CreatePalletForm({
       {/* Pallet type selection */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Pallet Type *</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("palletize.palletType")}</label>
           {palletTypes.length > 0 ? (
             <select
               value={selectedPalletType}
@@ -321,7 +324,7 @@ function CreatePalletForm({
               }}
               className="w-full border rounded px-2 py-1.5 text-sm"
             >
-              <option value="">Select pallet type</option>
+              <option value="">{t("palletize.selectPalletType")}</option>
               {palletTypes.map((pt) => (
                 <option key={pt.id} value={pt.name}>
                   {pt.name} ({pt.capacity_boxes} boxes)
@@ -338,7 +341,7 @@ function CreatePalletForm({
           )}
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Capacity (boxes)</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("palletize.capacityBoxes")}</label>
           <input
             type="number"
             value={palletCapacity || ""}
@@ -348,7 +351,7 @@ function CreatePalletForm({
           />
           {palletBoxCapacities && palletBoxCapacities.box_capacities.length > 0 && (
             <p className="text-xs text-blue-600 mt-1">
-              Per-box capacities: {palletBoxCapacities.box_capacities.map(
+              {t("palletize.perBoxCapacities")} {palletBoxCapacities.box_capacities.map(
                 (bc) => `${bc.box_size_name}: ${bc.capacity}`
               ).join(", ")}
             </p>
@@ -359,24 +362,24 @@ function CreatePalletForm({
       {/* Size & box type selection */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Pallet Size *</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("palletize.palletSize")}</label>
           {lotSizes.length > 0 ? (
             <select
               value={palletSize}
               onChange={(e) => setPalletSize(e.target.value)}
               className="w-full border rounded px-2 py-1.5 text-sm"
             >
-              <option value="">Select size</option>
+              <option value="">{t("palletize.selectSize")}</option>
               {lotSizes.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
           ) : (
-            <p className="text-xs text-yellow-600">No lot sizes found — set sizes on lots first.</p>
+            <p className="text-xs text-yellow-600">{t("palletize.noSizesWarning")}</p>
           )}
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Box Type</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("palletize.boxType")}</label>
           {boxTypeOptions.length > 0 ? (
             <select
               value={palletBoxSizeId}
@@ -396,32 +399,32 @@ function CreatePalletForm({
               }}
               className="w-full border rounded px-2 py-1.5 text-sm"
             >
-              <option value="">Select box type</option>
+              <option value="">{t("palletize.selectBoxType")}</option>
               {boxTypeOptions.map((bs) => (
                 <option key={bs.id} value={bs.id}>{bs.name} ({bs.weight_kg} kg)</option>
               ))}
             </select>
           ) : (
-            <p className="text-xs text-yellow-600">No lot box types found — set box types on lots first.</p>
+            <p className="text-xs text-yellow-600">{t("palletize.noBoxTypesWarning")}</p>
           )}
         </div>
         <p className="col-span-2 text-xs text-gray-400">
-          Only lots matching the selected size and box type will be shown below.
+          {t("palletize.sizeBoxTypeHelp")}
         </p>
       </div>
 
       {/* Lot assignment table */}
       <div>
-        <label className="block text-xs text-gray-500 mb-1">Assign boxes from lots</label>
+        <label className="block text-xs text-gray-500 mb-1">{t("palletize.assignBoxes")}</label>
         <div className="border rounded overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-100 text-gray-600 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">Lot</th>
-                <th className="text-left px-2 py-1.5 font-medium">Grade</th>
-                <th className="text-left px-2 py-1.5 font-medium">Size</th>
-                <th className="text-right px-2 py-1.5 font-medium">Available</th>
-                <th className="text-right px-2 py-1.5 font-medium">Assign</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("palletize.lot")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("palletize.available")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("palletize.assign")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -469,11 +472,11 @@ function CreatePalletForm({
         )}
         <div className="mt-2 space-y-1">
           <p className="text-xs text-gray-500">
-            Total: <span className="font-medium">{totalAssigned}</span> boxes
-            {palletCapacity > 0 && ` / ${palletCapacity} capacity`}
+            {t("palletize.total")} <span className="font-medium">{totalAssigned}</span> {t("common:units.boxes")}
+            {palletCapacity > 0 && ` / ${palletCapacity} ${t("palletize.capacity")}`}
             {totalAssigned > palletCapacity && (
               <span className="text-yellow-600 ml-2">
-                (overflow: {Math.ceil(totalAssigned / palletCapacity)} pallets will be created)
+                {t("palletize.overflow", { count: Math.ceil(totalAssigned / palletCapacity) })}
               </span>
             )}
           </p>
@@ -485,7 +488,7 @@ function CreatePalletForm({
                 onChange={(e) => setAllowMixedSizes(e.target.checked)}
                 className="rounded"
               />
-              Allow mixed sizes on pallet ({[...sizes].join(", ")})
+              {t("palletize.allowMixedSizes")} ({[...sizes].join(", ")})
             </label>
           )}
           {mixedBoxTypes && (
@@ -496,7 +499,7 @@ function CreatePalletForm({
                 onChange={(e) => setAllowMixedBoxTypes(e.target.checked)}
                 className="rounded"
               />
-              Allow mixed box types on pallet ({boxTypeNames.join(", ")})
+              {t("palletize.allowMixedBoxTypes")} ({boxTypeNames.join(", ")})
             </label>
           )}
         </div>
@@ -509,16 +512,16 @@ function CreatePalletForm({
           disabled={palletSaving}
           className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
         >
-          {palletSaving ? "Creating..." : "Create Pallet"}
+          {palletSaving ? t("common:actions.creating") : t("palletize.createPallet")}
         </button>
         <button
           onClick={onCancel}
           className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
         >
-          Cancel
+          {t("common:actions.cancel")}
         </button>
         <Link to="/pallets" className="ml-auto text-xs text-gray-500 hover:text-gray-700 self-center">
-          View all pallets &rarr;
+          {t("palletize.viewAllPallets")}
         </Link>
       </div>
     </div>
@@ -547,6 +550,7 @@ function AllocateToExistingForm({
   lotAssignments, setLotAssignments,
   allocateSaving, onSave, onCancel,
 }: AllocateFormProps) {
+  const { t } = useTranslation("batches");
   const lots = batch.lots || [];
   const selectedPallet = openPallets.find((p) => p.id === selectedPalletId);
   const palletFilterSize = selectedPallet?.size;
@@ -572,7 +576,7 @@ function AllocateToExistingForm({
   return (
     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
       <div>
-        <label className="block text-xs text-gray-500 mb-1">Select Open Pallet *</label>
+        <label className="block text-xs text-gray-500 mb-1">{t("palletize.selectOpenPallet")}</label>
         {openPallets.length > 0 ? (
           <>
             <select
@@ -594,7 +598,7 @@ function AllocateToExistingForm({
               }}
               className="w-full border rounded px-2 py-1.5 text-sm"
             >
-              <option value="">Select a pallet</option>
+              <option value="">{t("palletize.selectAPallet")}</option>
               {compatiblePallets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.pallet_number} — {p.pallet_type_name || "Unknown type"} ({p.current_boxes}/{p.capacity_boxes} boxes)
@@ -606,30 +610,30 @@ function AllocateToExistingForm({
             </select>
             {(palletFilterSize || palletFilterBoxSizeId) && (
               <p className="text-xs text-blue-600 mt-1">
-                {palletFilterSize && <>Pallet size: <span className="font-medium">{palletFilterSize}</span></>}
+                {palletFilterSize && <>{t("palletize.palletSizeLabel")} <span className="font-medium">{palletFilterSize}</span></>}
                 {palletFilterSize && palletFilterBoxSizeId && " \u00B7 "}
-                {palletFilterBoxSizeId && <>Box type: <span className="font-medium">{selectedPallet?.box_size_name || palletFilterBoxSizeId}</span></>}
-                {" — only matching lots should be assigned."}
+                {palletFilterBoxSizeId && <>{t("palletize.boxTypeLabel")} <span className="font-medium">{selectedPallet?.box_size_name || palletFilterBoxSizeId}</span></>}
+                {" — "}{t("palletize.matchingLotsHelp")}
               </p>
             )}
           </>
         ) : (
-          <p className="text-sm text-gray-500">No open pallets found. Create a new pallet instead.</p>
+          <p className="text-sm text-gray-500">{t("palletize.noOpenPallets")}</p>
         )}
       </div>
 
       {openPallets.length > 0 && (
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Assign boxes from lots</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("palletize.assignBoxes")}</label>
           <div className="border rounded overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-100 text-gray-600 text-xs">
                 <tr>
-                  <th className="text-left px-2 py-1.5 font-medium">Lot</th>
-                  <th className="text-left px-2 py-1.5 font-medium">Grade</th>
-                  <th className="text-left px-2 py-1.5 font-medium">Size</th>
-                  <th className="text-right px-2 py-1.5 font-medium">Available</th>
-                  <th className="text-right px-2 py-1.5 font-medium">Assign</th>
+                  <th className="text-left px-2 py-1.5 font-medium">{t("palletize.lot")}</th>
+                  <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
+                  <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
+                  <th className="text-right px-2 py-1.5 font-medium">{t("palletize.available")}</th>
+                  <th className="text-right px-2 py-1.5 font-medium">{t("palletize.assign")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -663,7 +667,7 @@ function AllocateToExistingForm({
           </div>
           <div className="mt-2">
             <p className="text-xs text-gray-500">
-              Total: <span className="font-medium">{totalAssigned}</span> boxes
+              {t("palletize.total")} <span className="font-medium">{totalAssigned}</span> {t("common:units.boxes")}
               {selectedPallet && ` \u00B7 Pallet has ${remaining} spaces remaining`}
               {selectedPallet && totalAssigned > remaining && (
                 <span className="text-yellow-600 ml-2">(exceeds remaining capacity)</span>
@@ -679,16 +683,16 @@ function AllocateToExistingForm({
           disabled={allocateSaving}
           className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
         >
-          {allocateSaving ? "Allocating..." : "Allocate to Pallet"}
+          {allocateSaving ? t("palletize.allocating") : t("palletize.allocateToPallet")}
         </button>
         <button
           onClick={onCancel}
           className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
         >
-          Cancel
+          {t("common:actions.cancel")}
         </button>
         <Link to="/pallets" className="ml-auto text-xs text-gray-500 hover:text-gray-700 self-center">
-          View all pallets &rarr;
+          {t("palletize.viewAllPallets")}
         </Link>
       </div>
     </div>

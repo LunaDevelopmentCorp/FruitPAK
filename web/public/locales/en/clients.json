@@ -1,0 +1,50 @@
+{
+  "title": "Clients",
+  "count_one": "{{count}} client",
+  "count_other": "{{count}} clients",
+  "newClient": "+ New Client",
+  "loading": "Loading clients...",
+  "loadFailed": "Failed to load clients",
+  "saveFailed": "Failed to save client",
+  "statusFailed": "Failed to update client status",
+  "headers": {
+    "name": "Name",
+    "contact": "Contact",
+    "email": "Email",
+    "phone": "Phone",
+    "country": "Country",
+    "incoterm": "Incoterm",
+    "paymentTerms": "Payment Terms",
+    "creditLimit": "Credit Limit",
+    "status": "Status"
+  },
+  "modal": {
+    "editTitle": "Edit Client",
+    "newTitle": "New Client",
+    "name": "Name *",
+    "contactPerson": "Contact Person",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "country": "Country",
+    "incoterm": "Incoterm",
+    "selectIncoterm": "— Select —",
+    "paymentTerms": "Payment Terms (days)",
+    "currency": "Currency",
+    "creditLimit": "Credit Limit",
+    "notes": "Notes",
+    "saveChanges": "Save Changes",
+    "createClient": "Create Client"
+  },
+  "confirm": {
+    "deactivateTitle": "Deactivate Client?",
+    "reactivateTitle": "Reactivate Client?",
+    "deactivateText": "This will deactivate {{name}}. They will no longer appear in active client lists.",
+    "reactivateText": "This will reactivate {{name}}, making them available for orders again."
+  },
+  "toast": {
+    "updated": "Updated {{name}}",
+    "created": "Created client {{name}}"
+  },
+  "days": "days"
+}

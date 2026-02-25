@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useWizard } from "../../hooks/useWizard";
 import { useAuthStore } from "../../store/authStore";
@@ -50,6 +51,7 @@ export { Spinner };
 
 export default function WizardShell() {
   // ── All hooks MUST be called before any early return ──
+  const { t } = useTranslation("wizard");
   const user = useAuthStore((s) => s.user);
   const markOnboarded = useAuthStore((s) => s.markOnboarded);
   const navigate = useNavigate();
@@ -63,7 +65,6 @@ export default function WizardShell() {
     finish,
     canAccessStep,
     isStepComplete,
-    stepLabels,
     totalSteps,
   } = useWizard();
 
@@ -84,7 +85,7 @@ export default function WizardShell() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spinner />
-        <p className="text-gray-500 ml-2">Loading wizard...</p>
+        <p className="text-gray-500 ml-2">{t("shell.loadingWizard")}</p>
       </div>
     );
   }
@@ -102,22 +103,22 @@ export default function WizardShell() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-green-700">Setup Complete</h1>
+          <h1 className="text-3xl font-bold text-green-700">{t("shell.setupComplete")}</h1>
           <p className="mt-2 text-gray-600">
-            Your enterprise is configured and operational.
+            {t("shell.setupCompleteDesc")}
           </p>
           <div className="mt-6 flex flex-col gap-3 items-center">
             <button
               onClick={() => setEditMode(true)}
               className="bg-white border border-green-600 text-green-700 px-6 py-2 rounded text-sm font-medium hover:bg-green-50"
             >
-              Review & Edit Settings
+              {t("shell.reviewEdit")}
             </button>
             <Link
               to="/"
               className="text-sm text-gray-500 hover:text-gray-700"
             >
-              Back to Dashboard
+              {t("shell.backToDashboard")}
             </Link>
           </div>
         </div>
@@ -138,9 +139,9 @@ export default function WizardShell() {
   ) => {
     try {
       await save(activeStep, data, complete);
-      globalToast("success", complete ? "Step completed!" : "Draft saved.");
+      globalToast("success", complete ? t("shell.stepSaved") : t("shell.draftSaved"));
     } catch {
-      globalToast("error", "Failed to save — please try again.");
+      globalToast("error", t("shell.saveFailed"));
     }
   };
 
@@ -148,10 +149,10 @@ export default function WizardShell() {
     try {
       await finish();
       markOnboarded();
-      globalToast("success", "Setup complete! Welcome to FruitPAK.");
+      globalToast("success", t("shell.finishSuccess"));
       navigate("/dashboard");
     } catch {
-      globalToast("error", "Failed to complete setup — please try again.");
+      globalToast("error", t("shell.finishFailed"));
     }
   };
 
@@ -161,11 +162,11 @@ export default function WizardShell() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-green-700">FruitPAK Setup</h1>
+            <h1 className="text-xl font-bold text-green-700">{t("shell.title")}</h1>
             <p className="text-sm text-gray-500 mt-1">
               {editMode
-                ? "Editing configuration"
-                : `Step ${activeStep} of ${totalSteps}`}
+                ? t("shell.editing")
+                : t("shell.stepOf", { active: activeStep, total: totalSteps })}
             </p>
           </div>
           {editMode && (
@@ -173,14 +174,14 @@ export default function WizardShell() {
               to="/"
               className="text-sm text-gray-500 hover:text-gray-700"
             >
-              Back to Dashboard
+              {t("shell.backToDashboard")}
             </Link>
           )}
         </div>
         {/* Progress bar */}
         <div className="mt-3">
           <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-            <span>{completedCount} of {totalSteps} steps complete</span>
+            <span>{t("shell.stepsComplete", { completed: completedCount, total: totalSteps })}</span>
             <span>{Math.round(progressPct)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -247,10 +248,10 @@ export default function WizardShell() {
                     <span className="mr-2">
                       {completed ? "\u2713" : `${step}.`}
                     </span>
-                    {stepLabels[step]}
+                    {t(`stepLabels.${step}`)}
                     {step === 8 && (
                       <span className="ml-1 text-xs text-gray-400">
-                        (optional)
+                        {t("shell.optional")}
                       </span>
                     )}
                   </button>
@@ -268,7 +269,7 @@ export default function WizardShell() {
                 className="w-full bg-green-600 text-white py-2 px-4 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
                 {saving ? <Spinner /> : null}
-                Complete Setup
+                {t("shell.completeSetup")}
               </button>
             </div>
           )}
@@ -283,7 +284,7 @@ export default function WizardShell() {
           )}
 
           <h2 className="text-lg font-semibold mb-4">
-            {stepLabels[activeStep]}
+            {t(`stepLabels.${activeStep}`)}
           </h2>
 
           {StepComponent && (

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 import { listPackhouses } from "../../../api/batches";
@@ -35,6 +36,7 @@ export default function Step2Packhouse({
   saving,
   draftData,
 }: StepProps) {
+  const { t } = useTranslation("wizard");
   const [loading, setLoading] = useState(true);
 
   const { register, control, getValues, reset } = useForm<FormData>({
@@ -61,13 +63,13 @@ export default function Step2Packhouse({
             })),
           });
         } else if (draftData && (draftData as Partial<FormData>).packhouses?.length) {
-          reset(draftData as FormData);
+          reset(draftData as unknown as FormData);
         }
       })
       .catch(() => {
         // Fallback to draft data if API fails
         if (draftData && (draftData as Partial<FormData>).packhouses?.length) {
-          reset(draftData as FormData);
+          reset(draftData as unknown as FormData);
         }
       })
       .finally(() => setLoading(false));
@@ -82,7 +84,7 @@ export default function Step2Packhouse({
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-8 text-sm text-gray-500">
-        <Spinner /> Loading packhouses…
+        <Spinner /> {t("step2.loading")}
       </div>
     );
   }
@@ -93,25 +95,25 @@ export default function Step2Packhouse({
         <fieldset key={field.id} className="p-4 border rounded space-y-3">
           <div className="flex justify-between items-center">
             <legend className="text-sm font-medium text-gray-700">
-              Packhouse {idx + 1}
+              {t("step2.packhouse", { index: idx + 1 })}
             </legend>
             <button
               type="button"
               onClick={() => remove(idx)}
               className="text-xs text-red-500 hover:text-red-700"
             >
-              Remove
+              {t("common:actions.remove")}
             </button>
           </div>
 
           <input
             {...register(`packhouses.${idx}.name`)}
-            placeholder="Packhouse name"
+            placeholder={t("step2.name")}
             className="w-full border rounded px-3 py-2 text-sm"
           />
           <input
             {...register(`packhouses.${idx}.location`)}
-            placeholder="Location / address"
+            placeholder={t("step2.location")}
             className="w-full border rounded px-3 py-2 text-sm"
           />
           <div className="grid grid-cols-2 gap-3">
@@ -119,7 +121,7 @@ export default function Step2Packhouse({
               {...register(`packhouses.${idx}.capacity_tons_per_day`, {
                 valueAsNumber: true,
               })}
-              placeholder="Capacity (tons/day)"
+              placeholder={t("step2.capacity")}
               type="number"
               className="border rounded px-3 py-2 text-sm"
             />
@@ -127,7 +129,7 @@ export default function Step2Packhouse({
               {...register(`packhouses.${idx}.cold_rooms`, {
                 valueAsNumber: true,
               })}
-              placeholder="Cold rooms"
+              placeholder={t("step2.coldRooms")}
               type="number"
               className="border rounded px-3 py-2 text-sm"
             />
@@ -140,7 +142,7 @@ export default function Step2Packhouse({
         onClick={() => append({ ...EMPTY_PACKHOUSE })}
         className="text-sm text-green-600 hover:text-green-700"
       >
-        + Add another packhouse
+        {t("step2.addPackhouse")}
       </button>
 
       {/* Actions */}
@@ -151,7 +153,7 @@ export default function Step2Packhouse({
           disabled={saving}
           className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          {saving && <Spinner />} Save Draft
+          {saving && <Spinner />} {t("saveDraft")}
         </button>
         <button
           type="button"
@@ -159,7 +161,7 @@ export default function Step2Packhouse({
           disabled={saving}
           className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
         >
-          {saving && <Spinner />} Save & Continue
+          {saving && <Spinner />} {t("saveContinue")}
         </button>
       </div>
     </form>

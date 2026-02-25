@@ -1,0 +1,80 @@
+{
+  "list": {
+    "title": "Contenedores",
+    "count_one": "{{count}} contenedor",
+    "count_other": "{{count}} contenedores",
+    "createContainer": "+ Crear Contenedor",
+    "allStatuses": "Todos los estados",
+    "searchPlaceholder": "Buscar número, cliente, destino...",
+    "loading": "Cargando contenedores...",
+    "empty": "No se encontraron contenedores. Asigne pallets para crear uno.",
+    "headers": {
+      "containerNumber": "Contenedor #",
+      "shippingNumber": "Envío #",
+      "type": "Tipo",
+      "customer": "Cliente",
+      "destination": "Destino",
+      "pallets": "Pallets",
+      "fillPercent": "% Llenado",
+      "cartons": "Cajas",
+      "status": "Estado",
+      "date": "Fecha"
+    }
+  },
+  "create": {
+    "title": "Nuevo Contenedor",
+    "containerType": "Tipo de Contenedor",
+    "capacity": "Capacidad",
+    "client": "Cliente",
+    "noClient": "— Ninguno —",
+    "shippingNumber": "Número de Contenedor de Envío #",
+    "shippingPlaceholder": "ej. MSKU1234567",
+    "destination": "Destino",
+    "destinationPlaceholder": "ej. Rotterdam, NL",
+    "sealNumber": "Número de Sello"
+  },
+  "detail": {
+    "loading": "Cargando contenedor...",
+    "notFound": "Contenedor no encontrado.",
+    "backLabel": "Todos los Contenedores",
+    "pallets": "Pallets",
+    "fill": "Llenado",
+    "totalCartons": "Total de Cajas",
+    "weight": "Peso",
+    "capacity": "Capacidad",
+    "shipmentDetails": "Detalles del Envío",
+    "containerType": "Tipo de Contenedor",
+    "capacityPallets": "Capacidad (pallets)",
+    "shippingNumber": "Número de Contenedor de Envío #",
+    "customer": "Cliente",
+    "destination": "Destino",
+    "exportDate": "Fecha de Exportación",
+    "sealNumber": "Número de Sello",
+    "notes": "Notas",
+    "loadPallets": "Cargar Pallets",
+    "headers": {
+      "palletNumber": "Pallet #",
+      "fruit": "Fruta",
+      "grade": "Grado",
+      "size": "Tamaño",
+      "boxType": "Tipo de Caja",
+      "boxes": "Cajas",
+      "status": "Estado"
+    },
+    "noPallets": "No hay pallets cargados.",
+    "traceability": "Trazabilidad Completa",
+    "lots": "Sublotes:",
+    "grns": "GRNs / Productores:",
+    "qrCode": "QR Code"
+  },
+  "loadPallets": {
+    "title": "Cargar Pallets",
+    "loading": "Cargando pallets disponibles...",
+    "empty": "No hay pallets cerrados disponibles para cargar.",
+    "help": "Seleccione pallets cerrados para cargar en este contenedor. {{count}} seleccionados.",
+    "loadSelected": "Cargar Seleccionados ({{count}})",
+    "loadingButton": "Cargando...",
+    "loaded": "{{count}} pallet(s) cargados en el contenedor",
+    "loadFailed": "Error al cargar pallets"
+  }
+}

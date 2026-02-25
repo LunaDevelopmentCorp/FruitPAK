@@ -139,6 +139,18 @@ async def require_onboarded(
     return user
 
 
+async def require_platform_admin(
+    user: User = Depends(get_current_user),
+) -> User:
+    """Restrict endpoint to platform admins only."""
+    if user.role != UserRole.PLATFORM_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform admin access required",
+        )
+    return user
+
+
 def require_permission(*perms: str):
     """Dependency factory — restrict to users who hold ALL listed permissions.
 

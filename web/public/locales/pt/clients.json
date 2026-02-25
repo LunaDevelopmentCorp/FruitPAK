@@ -1,0 +1,50 @@
+{
+  "title": "Clientes",
+  "count_one": "{{count}} cliente",
+  "count_other": "{{count}} clientes",
+  "newClient": "+ Novo Cliente",
+  "loading": "Carregando clientes...",
+  "loadFailed": "Falha ao carregar clientes",
+  "saveFailed": "Falha ao salvar cliente",
+  "statusFailed": "Falha ao atualizar estado do cliente",
+  "headers": {
+    "name": "Nome",
+    "contact": "Contato",
+    "email": "Email",
+    "phone": "Telefone",
+    "country": "País",
+    "incoterm": "Incoterm",
+    "paymentTerms": "Condições de Pagamento",
+    "creditLimit": "Limite de Crédito",
+    "status": "Estado"
+  },
+  "modal": {
+    "editTitle": "Editar Cliente",
+    "newTitle": "Novo Cliente",
+    "name": "Nome *",
+    "contactPerson": "Pessoa de Contato",
+    "email": "Email",
+    "phone": "Telefone",
+    "address": "Endereço",
+    "country": "País",
+    "incoterm": "Incoterm",
+    "selectIncoterm": "— Selecionar —",
+    "paymentTerms": "Condições de Pagamento (dias)",
+    "currency": "Moeda",
+    "creditLimit": "Limite de Crédito",
+    "notes": "Notas",
+    "saveChanges": "Salvar Alterações",
+    "createClient": "Criar Cliente"
+  },
+  "confirm": {
+    "deactivateTitle": "Desativar Cliente?",
+    "reactivateTitle": "Reativar Cliente?",
+    "deactivateText": "Isto irá desativar {{name}}. O cliente não aparecerá mais nas listas de clientes ativos.",
+    "reactivateText": "Isto irá reativar {{name}}, tornando-o disponível para pedidos novamente."
+  },
+  "toast": {
+    "updated": "{{name}} atualizado",
+    "created": "Cliente {{name}} criado"
+  },
+  "days": "dias"
+}

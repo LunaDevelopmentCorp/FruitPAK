@@ -1,70 +1,82 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../store/authStore";
+import LanguageSelector from "./LanguageSelector";
 
 interface NavLink {
   to: string;
-  label: string;
+  labelKey: string;
 }
 
 interface NavSection {
-  heading: string;
+  headingKey: string;
   items: NavLink[];
 }
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: "Operations",
+    headingKey: "nav.operations",
     items: [
-      { to: "/dashboard", label: "Dashboard" },
-      { to: "/grn-intake", label: "GRN Intake" },
+      { to: "/dashboard", labelKey: "nav.dashboard" },
+      { to: "/grn-intake", labelKey: "nav.grnIntake" },
     ],
   },
   {
-    heading: "Inventory",
+    headingKey: "nav.inventory",
     items: [
-      { to: "/batches", label: "Batches" },
-      { to: "/pallets", label: "Pallets" },
-      { to: "/containers", label: "Containers" },
-      { to: "/packaging", label: "Packaging Stock" },
+      { to: "/batches", labelKey: "nav.batches" },
+      { to: "/pallets", labelKey: "nav.pallets" },
+      { to: "/containers", labelKey: "nav.containers" },
+      { to: "/packaging", labelKey: "nav.packagingStock" },
     ],
   },
   {
-    heading: "People & Data",
+    headingKey: "nav.peopleData",
     items: [
-      { to: "/data", label: "Growers & Teams" },
-      { to: "/clients", label: "Clients" },
+      { to: "/data", labelKey: "nav.growersTeams" },
+      { to: "/clients", labelKey: "nav.clients" },
     ],
   },
   {
-    heading: "Finance",
+    headingKey: "nav.finance",
     items: [
-      { to: "/payments", label: "Grower Payments" },
-      { to: "/team-payments", label: "Team Payments" },
-      { to: "/reconciliation", label: "Reconciliation" },
+      { to: "/payments", labelKey: "nav.growerPayments" },
+      { to: "/team-payments", labelKey: "nav.teamPayments" },
+      { to: "/reconciliation", labelKey: "nav.reconciliation" },
     ],
   },
   {
-    heading: "System",
-    items: [{ to: "/setup", label: "Setup Wizard" }],
+    headingKey: "nav.system",
+    items: [{ to: "/setup", labelKey: "nav.setupWizard" }],
   },
 ];
 
 export default function AppLayout() {
+  const { t } = useTranslation("common");
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const sections = user?.is_onboarded
-    ? user?.role === "administrator"
+  const sections =
+    user?.role === "platform_admin"
       ? [
           ...NAV_SECTIONS,
-          { heading: "", items: [{ to: "/admin", label: "Admin Panel" }] },
+          { headingKey: "", items: [
+            { to: "/admin", labelKey: "nav.adminPanel" },
+            { to: "/platform", labelKey: "nav.platformAdmin" },
+          ]},
         ]
-      : NAV_SECTIONS
-    : [{ heading: "", items: [{ to: "/setup", label: "Setup Wizard" }] }];
+      : user?.is_onboarded
+      ? user?.role === "administrator"
+        ? [
+            ...NAV_SECTIONS,
+            { headingKey: "", items: [{ to: "/admin", labelKey: "nav.adminPanel" }] },
+          ]
+        : NAV_SECTIONS
+      : [{ headingKey: "", items: [{ to: "/setup", labelKey: "nav.setupWizard" }] }];
 
   const handleLogout = () => {
     logout();
@@ -97,17 +109,17 @@ export default function AppLayout() {
             className="text-lg font-bold text-green-700"
             onClick={() => setSidebarOpen(false)}
           >
-            FruitPAK
+            {t("appName")}
           </Link>
         </div>
 
         {/* Nav sections */}
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-4">
           {sections.map((section, i) => (
-            <div key={section.heading || i}>
-              {section.heading && (
+            <div key={section.headingKey || i}>
+              {section.headingKey && (
                 <p className="px-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                  {section.heading}
+                  {t(section.headingKey)}
                 </p>
               )}
               <div className="space-y-0.5">
@@ -122,7 +134,7 @@ export default function AppLayout() {
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                     }`}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                   </Link>
                 ))}
               </div>
@@ -135,12 +147,15 @@ export default function AppLayout() {
           <p className="text-sm font-medium text-gray-700 truncate">
             {user?.full_name}
           </p>
-          <button
-            onClick={handleLogout}
-            className="mt-1 text-xs text-gray-400 hover:text-red-600"
-          >
-            Sign out
-          </button>
+          <div className="mt-1 flex items-center gap-2">
+            <button
+              onClick={handleLogout}
+              className="text-xs text-gray-400 hover:text-red-600"
+            >
+              {t("actions.signOut")}
+            </button>
+            <LanguageSelector />
+          </div>
         </div>
       </aside>
 
@@ -169,7 +184,9 @@ export default function AppLayout() {
           <div className="text-sm text-gray-500">
             {sections
               .flatMap((s) => s.items)
-              .find((item) => isActive(item.to))?.label || ""}
+              .find((item) => isActive(item.to))
+              ? t(sections.flatMap((s) => s.items).find((item) => isActive(item.to))!.labelKey)
+              : ""}
           </div>
         </header>
 

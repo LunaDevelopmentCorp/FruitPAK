@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../store/authStore";
 import { listBatches, BatchSummary, listLots, LotSummary } from "../api/batches";
 import { listGrowerPayments, GrowerPaymentOut } from "../api/payments";
@@ -9,6 +10,7 @@ import StatusBadge from "../components/StatusBadge";
 
 
 export default function Dashboard() {
+  const { t } = useTranslation("dashboard");
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [batches, setBatches] = useState<BatchSummary[]>([]);
@@ -49,8 +51,8 @@ export default function Dashboard() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader
-        title={`Welcome, ${user?.full_name}`}
-        subtitle={`${user?.role} · Enterprise: ${user?.enterprise_id ? "Active" : "Not set up"}`}
+        title={t("welcome", { name: user?.full_name })}
+        subtitle={t("subtitle", { role: user?.role, status: user?.enterprise_id ? t("enterpriseActive") : t("enterpriseNotSetUp") })}
       />
 
       {/* Alert banner */}
@@ -66,28 +68,28 @@ export default function Dashboard() {
           <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          {openAlerts} open reconciliation alert{openAlerts !== 1 ? "s" : ""}
-          {criticalAlerts > 0 && ` (${criticalAlerts} critical)`}
-          <span className="ml-auto text-xs opacity-70">View &rarr;</span>
+          {t("alerts.openAlerts", { count: openAlerts })}
+          {criticalAlerts > 0 && ` ${t("alerts.critical", { count: criticalAlerts })}`}
+          <span className="ml-auto text-xs opacity-70">{t("alerts.view")} &rarr;</span>
         </Link>
       )}
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-6">
-        <StatCard label="Total Batches" value={batches.length} />
-        <StatCard label="Received Today" value={receivedToday} accent="blue" />
+        <StatCard label={t("stats.totalBatches")} value={batches.length} />
+        <StatCard label={t("stats.receivedToday")} value={receivedToday} accent="blue" />
         <StatCard
-          label="Unpalletized"
+          label={t("stats.unpalletized")}
           value={unallocatedBoxes}
           accent={unallocatedBoxes > 0 ? "yellow" : "green"}
         />
         <StatCard
-          label="Payments Pending"
+          label={t("stats.paymentsPending")}
           value={pendingPayments}
           accent={pendingPayments > 0 ? "yellow" : "green"}
         />
         <StatCard
-          label="Open Alerts"
+          label={t("stats.openAlerts")}
           value={openAlerts}
           accent={criticalAlerts > 0 ? "red" : openAlerts > 0 ? "yellow" : "green"}
         />
@@ -99,45 +101,45 @@ export default function Dashboard() {
           to="/grn-intake"
           className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
         >
-          New GRN Intake
+          {t("quickLinks.newGrn")}
         </Link>
         <Link
           to="/batches"
           className="bg-white border text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
         >
-          All Batches
+          {t("quickLinks.allBatches")}
         </Link>
         <Link
           to="/payments"
           className="bg-white border text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
         >
-          Record Payment
+          {t("quickLinks.recordPayment")}
         </Link>
         <Link
           to="/reconciliation"
           className="bg-white border text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
         >
-          Reconciliation
+          {t("quickLinks.reconciliation")}
         </Link>
         <Link
           to="/setup"
           className="bg-white border text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
         >
-          Edit Setup
+          {t("quickLinks.editSetup")}
         </Link>
       </div>
 
       {loading ? (
-        <p className="mt-8 text-gray-400 text-sm">Loading...</p>
+        <p className="mt-8 text-gray-400 text-sm">{t("common:actions.loading")}</p>
       ) : (
         <>
           {/* Recent batches */}
           <div className="mt-8">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Batches</h2>
+              <h2 className="text-lg font-semibold text-gray-800">{t("recentBatches")}</h2>
               {batches.length > 0 && (
                 <Link to="/batches" className="text-sm text-green-600 hover:underline">
-                  View all
+                  {t("common:actions.viewAll")}
                 </Link>
               )}
             </div>
@@ -146,12 +148,12 @@ export default function Dashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium">Code</th>
-                      <th className="text-left px-4 py-2 font-medium">Grower</th>
-                      <th className="text-left px-4 py-2 font-medium">Fruit</th>
-                      <th className="text-right px-4 py-2 font-medium">Net (kg)</th>
-                      <th className="text-left px-4 py-2 font-medium">Status</th>
-                      <th className="text-left px-4 py-2 font-medium">Date</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.code")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.grower")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.fruit")}</th>
+                      <th className="text-right px-4 py-2 font-medium">{t("tableHeaders.netKg")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.status")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.date")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -186,7 +188,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <p className="text-gray-400 text-sm">
-                No batches yet. Start by creating a GRN intake.
+                {t("noBatches")}
               </p>
             )}
           </div>
@@ -195,21 +197,21 @@ export default function Dashboard() {
           {payments.length > 0 && (
             <div className="mt-8">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-800">Recent Payments</h2>
+                <h2 className="text-lg font-semibold text-gray-800">{t("recentPayments")}</h2>
                 <Link to="/payments" className="text-sm text-green-600 hover:underline">
-                  View all
+                  {t("common:actions.viewAll")}
                 </Link>
               </div>
               <div className="bg-white rounded-lg border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium">Ref</th>
-                      <th className="text-left px-4 py-2 font-medium">Grower</th>
-                      <th className="text-right px-4 py-2 font-medium">Amount</th>
-                      <th className="text-left px-4 py-2 font-medium">Type</th>
-                      <th className="text-left px-4 py-2 font-medium">Status</th>
-                      <th className="text-left px-4 py-2 font-medium">Date</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.ref")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.grower")}</th>
+                      <th className="text-right px-4 py-2 font-medium">{t("paymentHeaders.amount")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.type")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.status")}</th>
+                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.date")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">

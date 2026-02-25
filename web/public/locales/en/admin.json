@@ -1,0 +1,150 @@
+{
+  "title": "Administration",
+  "tabs": {
+    "overview": "Overview",
+    "users": "Users",
+    "activity": "Activity",
+    "deletedItems": "Deleted Items"
+  },
+  "overview": {
+    "loading": "Loading overview...",
+    "loadFailed": "Failed to load overview data",
+    "stats": {
+      "batchesToday": "Batches today",
+      "palletsToday": "Pallets today",
+      "containersToday": "Containers today",
+      "unpalletizedBoxes": "Unpalletized boxes",
+      "wasteToday": "Waste today",
+      "wasteWeek": "{{count}} kg this week"
+    },
+    "alerts": {
+      "openAlerts_one": "{{count}} open alert",
+      "openAlerts_other": "{{count}} open alerts",
+      "critical_one": "{{count}} critical",
+      "critical_other": "{{count}} critical",
+      "viewReconciliation": "— view reconciliation"
+    },
+    "pipeline": {
+      "title": "Processing Pipeline",
+      "batches": "Batches",
+      "lots": "Lots",
+      "pallets": "Pallets",
+      "containers": "Containers"
+    },
+    "staleItems": {
+      "title": "Stale Items",
+      "empty": "No stale items detected",
+      "stuck": "stuck {{age}}"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "empty": "No activity recorded yet"
+    },
+    "activeUsers_one": "{{count}} active user",
+    "activeUsers_other": "{{count}} active users"
+  },
+  "users": {
+    "count_one": "{{count}} user",
+    "count_other": "{{count}} users",
+    "newUser": "+ New User",
+    "loading": "Loading users...",
+    "loadFailed": "Failed to load users",
+    "saveFailed": "Failed to save user",
+    "statusFailed": "Failed to update user status",
+    "headers": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "role": "Role",
+      "status": "Status"
+    },
+    "modal": {
+      "editTitle": "Edit User",
+      "newTitle": "New User",
+      "email": "Email *",
+      "fullName": "Full Name *",
+      "phone": "Phone",
+      "password": "Password",
+      "passwordHelp": "(optional for OTP users)",
+      "role": "Role",
+      "roles": {
+        "administrator": "Administrator",
+        "supervisor": "Supervisor",
+        "operator": "Operator"
+      },
+      "assignedPackhouses": "Assigned Packhouses",
+      "packhouseHelp": "Leave empty for access to all packhouses",
+      "saveChanges": "Save Changes",
+      "createUser": "Create User"
+    },
+    "confirm": {
+      "deactivateTitle": "Deactivate User?",
+      "reactivateTitle": "Reactivate User?",
+      "deactivateText": "This will deactivate {{name}} and immediately revoke their access. They will be logged out.",
+      "reactivateText": "This will reactivate {{name}}, allowing them to log in again."
+    },
+    "toast": {
+      "updated": "Updated {{name}}",
+      "created": "Created user {{name}}",
+      "deactivated": "Deactivated {{name}}",
+      "reactivated": "Reactivated {{name}}"
+    }
+  },
+  "activity": {
+    "allTypes": "All types",
+    "allActions": "All actions",
+    "totalEntries_one": "{{count}} total entry",
+    "totalEntries_other": "{{count}} total entries",
+    "entries_one": "{{count}} entry",
+    "entries_other": "{{count}} entries",
+    "loading": "Loading activity log...",
+    "loadFailed": "Failed to load activity log",
+    "empty": "No activity entries found.",
+    "headers": {
+      "time": "Time",
+      "user": "User",
+      "action": "Action",
+      "type": "Type",
+      "code": "Code",
+      "summary": "Summary"
+    }
+  },
+  "deleted": {
+    "count_one": "{{count}} deleted item across all types",
+    "count_other": "{{count}} deleted items across all types",
+    "tabs": {
+      "all": "All",
+      "batches": "Batches",
+      "lots": "Lots",
+      "pallets": "Pallets",
+      "containers": "Containers"
+    },
+    "searchPlaceholder": "Search by code or description...",
+    "loading": "Loading deleted items...",
+    "emptySearch": "No items match your search.",
+    "empty": "No deleted items found.",
+    "headers": {
+      "type": "Type",
+      "code": "Code",
+      "description": "Description",
+      "status": "Status",
+      "deleted": "Deleted"
+    },
+    "restore": "Restore",
+    "purge": "Purge",
+    "purgeConfirm": {
+      "title": "Permanently Delete?",
+      "text": "This will permanently remove {{code}} and cannot be undone.",
+      "batchWarning": "All lots belonging to this batch will also be permanently deleted.",
+      "deleteForever": "Delete Forever"
+    },
+    "toast": {
+      "restored": "Restored {{code}}",
+      "restoredWithRelated": "Restored {{code}} (+ {{count}} related items)",
+      "restoreFailed": "Failed to restore",
+      "purged": "Permanently deleted {{code}}",
+      "purgedWithRelated": "Permanently deleted {{code}} (+ {{count}} related items)",
+      "purgeFailed": "Failed to delete permanently"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "title": "Rapprochement",
+  "runNow": "Executer maintenant",
+  "kpi": {
+    "openAlerts": "Alertes ouvertes",
+    "acknowledged": "Accusees",
+    "resolved30d": "Resolues (30j)"
+  },
+  "lastRun": {
+    "title": "Derniere execution",
+    "noRuns": "Aucune execution"
+  },
+  "alertTypes": {
+    "grn_vs_payment": "GRN vs Paiement",
+    "export_vs_invoice": "Export vs Facture",
+    "labour_vs_cost": "Main-d'oeuvre vs Cout",
+    "pallet_vs_container": "Palette vs Conteneur",
+    "lot_vs_batch": "Sous-lot vs Lot",
+    "cold_storage_gap": "Ecart entreposage frigorifique"
+  },
+  "severity": {
+    "critical": "critique",
+    "high": "eleve",
+    "medium": "moyen",
+    "low": "faible"
+  },
+  "filters": {
+    "allTypes": "Tous les types",
+    "allSeverities": "Toutes les severites",
+    "allStatuses": "Tous les statuts"
+  },
+  "alertCount_one": "{{count}} alerte",
+  "alertCount_other": "{{count}} alertes",
+  "headers": {
+    "type": "Type",
+    "title": "Titre",
+    "variance": "Ecart",
+    "status": "Statut",
+    "actions": "Actions"
+  },
+  "empty": "Aucune alerte trouvee. Lancez un controle de rapprochement pour rechercher les ecarts.",
+  "actions": {
+    "ack": "Accuser",
+    "resolve": "Resoudre",
+    "dismiss": "Ignorer",
+    "recordPayment": "Enregistrer un paiement"
+  },
+  "toast": {
+    "runComplete": "Rapprochement termine : {{count}} alerte(s) trouvee(s)",
+    "runFailed": "Echec de l'execution",
+    "alertUpdated": "Alerte {{status}}",
+    "actionFailed": "Echec de l'action"
+  },
+  "loadFailed": "Echec du chargement du tableau de bord"
+}

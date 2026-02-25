@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   getAdminOverview,
@@ -121,6 +122,7 @@ function formatTime(iso: string): string {
 }
 
 export default function AdminOverview() {
+  const { t } = useTranslation("admin");
   const [data, setData] = useState<AdminOverviewType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,14 +133,14 @@ export default function AdminOverview() {
         const result = await getAdminOverview();
         setData(result);
       } catch {
-        setError("Failed to load overview data");
+        setError(t("overview.loadFailed"));
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading overview...</p>;
+  if (loading) return <p className="text-gray-400 text-sm">{t("overview.loading")}</p>;
   if (error) return <p className="text-red-600 text-sm">{error}</p>;
   if (!data) return null;
 
@@ -146,11 +148,11 @@ export default function AdminOverview() {
     <div className="space-y-6">
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard label="Batches today" value={data.today_batches} />
-        <StatCard label="Pallets today" value={data.today_pallets} />
-        <StatCard label="Containers today" value={data.today_containers} />
-        <StatCard label="Unpalletized boxes" value={data.unpalletized_boxes} warn={data.unpalletized_boxes > 0} />
-        <StatCard label="Waste today" value={`${data.waste_kg_today.toFixed(1)} kg`} sub={`${data.waste_kg_week.toFixed(1)} kg this week`} />
+        <StatCard label={t("overview.stats.batchesToday")} value={data.today_batches} />
+        <StatCard label={t("overview.stats.palletsToday")} value={data.today_pallets} />
+        <StatCard label={t("overview.stats.containersToday")} value={data.today_containers} />
+        <StatCard label={t("overview.stats.unpalletizedBoxes")} value={data.unpalletized_boxes} warn={data.unpalletized_boxes > 0} />
+        <StatCard label={t("overview.stats.wasteToday")} value={`${data.waste_kg_today.toFixed(1)} kg`} sub={t("overview.stats.wasteWeek", { count: parseFloat(data.waste_kg_week.toFixed(1)) })} />
       </div>
 
       {/* Alerts */}
@@ -163,27 +165,27 @@ export default function AdminOverview() {
               : "bg-amber-50 border-amber-200 text-amber-700"
           }`}
         >
-          {data.open_alerts} open alert{data.open_alerts !== 1 ? "s" : ""}
-          {data.critical_alerts > 0 && ` (${data.critical_alerts} critical)`}
-          {" — view reconciliation"}
+          {t("overview.alerts.openAlerts", { count: data.open_alerts })}
+          {data.critical_alerts > 0 && ` (${t("overview.alerts.critical", { count: data.critical_alerts })})`}
+          {" "}{t("overview.alerts.viewReconciliation")}
         </Link>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pipeline */}
         <div className="bg-white border rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Processing Pipeline</h2>
-          <PipelineBar label="Batches" counts={data.batch_pipeline} linkPrefix="/batches" />
-          <PipelineBar label="Lots" counts={data.lot_pipeline} linkPrefix="/batches" />
-          <PipelineBar label="Pallets" counts={data.pallet_pipeline} linkPrefix="/pallets" />
-          <PipelineBar label="Containers" counts={data.container_pipeline} linkPrefix="/containers" />
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">{t("overview.pipeline.title")}</h2>
+          <PipelineBar label={t("overview.pipeline.batches")} counts={data.batch_pipeline} linkPrefix="/batches" />
+          <PipelineBar label={t("overview.pipeline.lots")} counts={data.lot_pipeline} linkPrefix="/batches" />
+          <PipelineBar label={t("overview.pipeline.pallets")} counts={data.pallet_pipeline} linkPrefix="/pallets" />
+          <PipelineBar label={t("overview.pipeline.containers")} counts={data.container_pipeline} linkPrefix="/containers" />
         </div>
 
         {/* Stale items */}
         <div className="bg-white border rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Stale Items</h2>
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">{t("overview.staleItems.title")}</h2>
           {data.stale_items.length === 0 ? (
-            <p className="text-gray-400 text-sm">No stale items detected</p>
+            <p className="text-gray-400 text-sm">{t("overview.staleItems.empty")}</p>
           ) : (
             <div className="space-y-1.5 max-h-52 overflow-y-auto">
               {data.stale_items.map((item: StaleItem) => (
@@ -199,7 +201,7 @@ export default function AdminOverview() {
                     <span className="font-mono text-xs text-gray-700">{item.code}</span>
                   </span>
                   <span className="text-xs text-red-500 font-medium">
-                    stuck {formatAge(item.age_hours)}
+                    {t("overview.staleItems.stuck", { age: formatAge(item.age_hours) })}
                   </span>
                 </Link>
               ))}
@@ -211,13 +213,13 @@ export default function AdminOverview() {
       {/* Recent activity */}
       <div className="bg-white border rounded-lg p-4">
         <div className="flex justify-between items-center mb-3">
-          <h2 className="text-sm font-semibold text-gray-700">Recent Activity</h2>
+          <h2 className="text-sm font-semibold text-gray-700">{t("overview.recentActivity.title")}</h2>
           <Link to="/admin/activity" className="text-xs text-green-600 hover:underline">
-            View all
+            {t("common:actions.viewAll")}
           </Link>
         </div>
         {data.recent_activity.length === 0 ? (
-          <p className="text-gray-400 text-sm">No activity recorded yet</p>
+          <p className="text-gray-400 text-sm">{t("overview.recentActivity.empty")}</p>
         ) : (
           <div className="space-y-1">
             {data.recent_activity.map((a: ActivityEntry) => (
@@ -244,7 +246,7 @@ export default function AdminOverview() {
 
       {/* Footer stats */}
       <div className="text-xs text-gray-400">
-        {data.active_users} active user{data.active_users !== 1 ? "s" : ""}
+        {t("overview.activeUsers", { count: data.active_users })}
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ class UserOut(BaseModel):
     is_onboarded: bool = False
     permissions: list[str]
     assigned_packhouses: list[str] | None
+    preferred_language: str = "en"
 
     model_config = {"from_attributes": True}
 

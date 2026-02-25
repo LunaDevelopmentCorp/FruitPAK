@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   getBatch,
@@ -22,6 +23,7 @@ import ProductionActions from "./batch-detail/ProductionActions";
 import BatchHistory from "./batch-detail/BatchHistory";
 
 export default function BatchDetail() {
+  const { t } = useTranslation("batches");
   const { batchId } = useParams<{ batchId: string }>();
   const [batch, setBatch] = useState<BatchDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ export default function BatchDetail() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8">
-        <p className="text-gray-400 text-sm">Loading batch...</p>
+        <p className="text-gray-400 text-sm">{t("detail.loading")}</p>
       </div>
     );
   }
@@ -65,9 +67,9 @@ export default function BatchDetail() {
   if (!batch) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8">
-        <p className="text-red-600 text-sm">Batch not found</p>
+        <p className="text-red-600 text-sm">{t("detail.notFound")}</p>
         <Link to="/batches" className="text-green-600 text-sm hover:underline mt-2 inline-block">
-          Back to Batches
+          {t("detail.backToBatches")}
         </Link>
       </div>
     );
@@ -79,9 +81,9 @@ export default function BatchDetail() {
     <div className="max-w-4xl mx-auto px-6 py-8">
       <PageHeader
         title={batch.batch_code}
-        subtitle={`Intake: ${batch.intake_date ? new Date(batch.intake_date).toLocaleString() : "—"}`}
+        subtitle={t("detail.intake", { date: batch.intake_date ? new Date(batch.intake_date).toLocaleString() : "—" })}
         backTo="/batches"
-        backLabel="Back to Batches"
+        backLabel={t("detail.backToBatches")}
         action={
           <div className="flex items-center gap-3">
             <StatusBadge status={batch.status} className="text-sm px-3 py-1" />
@@ -89,7 +91,7 @@ export default function BatchDetail() {
               onClick={() => setConfirmDelete(true)}
               className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
             >
-              Delete
+              {t("common:actions.delete")}
             </button>
           </div>
         }
@@ -99,10 +101,10 @@ export default function BatchDetail() {
       {confirmDelete && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-800 font-medium mb-2">
-            Are you sure you want to delete GRN {batch.batch_code}?
+            {t("detail.deleteConfirm", { code: batch.batch_code })}
           </p>
           <p className="text-xs text-red-600 mb-3">
-            This will soft-delete the batch and all its lots. This action can be reversed by an admin.
+            {t("detail.deleteWarning")}
           </p>
           <div className="flex gap-2">
             <button
@@ -121,13 +123,13 @@ export default function BatchDetail() {
               disabled={deleting}
               className="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"
             >
-              {deleting ? "Deleting..." : "Yes, Delete"}
+              {deleting ? t("common:actions.deleting") : t("detail.yesDelete")}
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
               className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -170,7 +172,7 @@ export default function BatchDetail() {
 
         {/* QR Code */}
         <div className="bg-white rounded-lg border p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("detail.qrCode")}</h3>
           <BatchQR batch={batch} />
         </div>
 

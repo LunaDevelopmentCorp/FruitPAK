@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getPackagingStock,
   receivePackaging,
@@ -14,13 +15,13 @@ import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 
-const MOVEMENT_TYPES = [
-  { value: "", label: "All types" },
-  { value: "receipt", label: "Receipt" },
-  { value: "consumption", label: "Consumption" },
-  { value: "adjustment", label: "Adjustment" },
-  { value: "write_off", label: "Write-off" },
-  { value: "reversal", label: "Reversal" },
+const MOVEMENT_TYPE_KEYS = [
+  { value: "", key: "movements.allTypes" },
+  { value: "receipt", key: "movements.typeReceipt" },
+  { value: "consumption", key: "movements.typeConsumption" },
+  { value: "adjustment", key: "movements.typeAdjustment" },
+  { value: "write_off", key: "movements.typeWriteOff" },
+  { value: "reversal", key: "movements.typeReversal" },
 ];
 
 const WRITE_OFF_REASONS = ["lost", "damaged", "expired", "other"] as const;
@@ -40,6 +41,7 @@ function movementLabel(type: string): string {
 }
 
 export default function PackagingStock() {
+  const { t } = useTranslation("packaging");
   const [stock, setStock] = useState<PackagingStockItem[]>([]);
   const [movements, setMovements] = useState<PackagingMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,7 +96,7 @@ export default function PackagingStock() {
       setStock(s);
       setMovements(m);
     } catch {
-      globalToast("error", "Failed to load packaging data.");
+      globalToast("error", t("loadFailed"));
     }
   };
 
@@ -126,7 +128,7 @@ export default function PackagingStock() {
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-6 py-8">
-        <p className="text-gray-400 text-sm">Loading packaging stock...</p>
+        <p className="text-gray-400 text-sm">{t("loading")}</p>
       </div>
     );
   }
@@ -172,14 +174,14 @@ export default function PackagingStock() {
               setWriteOffSaving(true);
               try {
                 await writeOffStock(s.id, writeOffQty, writeOffReason, writeOffNotes || undefined);
-                globalToast("success", `Wrote off ${writeOffQty} × ${s.name || "item"} (${writeOffReason}).`);
+                globalToast("success", t("stock.writtenOff", { count: writeOffQty, name: s.name || "item" }));
                 setWriteOffId(null);
                 setWriteOffQty(0);
                 setWriteOffReason("damaged");
                 setWriteOffNotes("");
                 await refresh();
               } catch (err) {
-                globalToast("error", getErrorMessage(err, "Write-off failed (may cause negative stock)."));
+                globalToast("error", getErrorMessage(err, t("stock.writeOffFailed")));
               } finally {
                 setWriteOffSaving(false);
               }
@@ -220,13 +222,13 @@ export default function PackagingStock() {
               setAdjustSaving(true);
               try {
                 await adjustStock(s.id, adjustQty, adjustNotes || undefined);
-                globalToast("success", `Stock adjusted by ${adjustQty > 0 ? "+" : ""}${adjustQty}.`);
+                globalToast("success", t("stock.adjusted", { amount: `${adjustQty > 0 ? "+" : ""}${adjustQty}` }));
                 setAdjustingId(null);
                 setAdjustQty(0);
                 setAdjustNotes("");
                 await refresh();
               } catch (err) {
-                globalToast("error", getErrorMessage(err, "Adjustment failed (may cause negative stock)."));
+                globalToast("error", getErrorMessage(err, t("stock.adjustFailed")));
               } finally {
                 setAdjustSaving(false);
               }
@@ -249,13 +251,13 @@ export default function PackagingStock() {
           onClick={() => { setAdjustingId(s.id); setWriteOffId(null); }}
           className="text-xs text-blue-600 hover:text-blue-700"
         >
-          Adjust
+          {t("stock.adjust")}
         </button>
         <button
           onClick={() => { setWriteOffId(s.id); setAdjustingId(null); }}
           className="text-xs text-red-500 hover:text-red-600"
         >
-          Write Off
+          {t("stock.writeOff")}
         </button>
       </div>
     );
@@ -264,13 +266,13 @@ export default function PackagingStock() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader
-        title="Packaging Stock"
+        title={t("title")}
         action={
           <button
             onClick={() => setShowReceive(true)}
             className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
           >
-            + Receive Stock
+            {t("receiveStock")}
           </button>
         }
       />
@@ -278,18 +280,18 @@ export default function PackagingStock() {
       {/* Receive stock form */}
       {showReceive && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border space-y-3">
-          <h3 className="text-sm font-semibold text-gray-700">Receive Packaging Stock</h3>
+          <h3 className="text-sm font-semibold text-gray-700">{t("receive.title")}</h3>
           <div className="grid grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Packaging Item *</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("receive.item")}</label>
               <select
                 value={receiveStockId}
                 onChange={(e) => setReceiveStockId(e.target.value)}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               >
-                <option value="">Select item</option>
+                <option value="">{t("receive.selectItem")}</option>
                 {boxes.length > 0 && (
-                  <optgroup label="Boxes">
+                  <optgroup label={t("receive.boxesGroup")}>
                     {boxes.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name || "Unnamed"} {s.weight_kg ? `(${s.weight_kg} kg)` : ""}
@@ -298,7 +300,7 @@ export default function PackagingStock() {
                   </optgroup>
                 )}
                 {pallets.length > 0 && (
-                  <optgroup label="Pallets">
+                  <optgroup label={t("receive.palletsGroup")}>
                     {pallets.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name || "Unnamed"}
@@ -309,7 +311,7 @@ export default function PackagingStock() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Quantity *</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("receive.quantity")}</label>
               <input
                 type="number"
                 min={1}
@@ -319,23 +321,23 @@ export default function PackagingStock() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Cost per Unit</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("receive.costPerUnit")}</label>
               <input
                 type="number"
                 step="0.01"
                 min={0}
                 value={receiveCost ?? ""}
                 onChange={(e) => setReceiveCost(e.target.value ? Number(e.target.value) : undefined)}
-                placeholder="Optional"
+                placeholder={t("receive.costPlaceholder")}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("receive.notes")}</label>
               <input
                 value={receiveNotes}
                 onChange={(e) => setReceiveNotes(e.target.value)}
-                placeholder="e.g. Delivery ref"
+                placeholder={t("receive.notesPlaceholder")}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
             </div>
@@ -358,7 +360,7 @@ export default function PackagingStock() {
                     cost_per_unit: receiveCost,
                     notes: receiveNotes || undefined,
                   });
-                  globalToast("success", `Received ${receiveQty} × ${selected.name || "item"}.`);
+                  globalToast("success", t("receive.received", { count: receiveQty, name: selected.name || "item" }));
                   setShowReceive(false);
                   setReceiveStockId("");
                   setReceiveQty(0);
@@ -366,20 +368,20 @@ export default function PackagingStock() {
                   setReceiveNotes("");
                   await refresh();
                 } catch (err) {
-                  globalToast("error", getErrorMessage(err, "Failed to receive stock."));
+                  globalToast("error", getErrorMessage(err, t("receive.receiveFailed")));
                 } finally {
                   setReceiveSaving(false);
                 }
               }}
               className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {receiveSaving ? "Saving..." : "Receive"}
+              {receiveSaving ? t("common:actions.saving") : t("receive.submit")}
             </button>
             <button
               onClick={() => { setShowReceive(false); setReceiveStockId(""); setReceiveQty(0); setReceiveCost(undefined); setReceiveNotes(""); }}
               className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -393,7 +395,7 @@ export default function PackagingStock() {
             tab === "stock" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Stock Levels
+          {t("tabs.stockLevels")}
         </button>
         <button
           onClick={() => { setTab("movements"); fetchMovements(filterStockId || undefined, filterType || undefined).catch(() => {}); }}
@@ -401,7 +403,7 @@ export default function PackagingStock() {
             tab === "movements" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Movement History
+          {t("tabs.movementHistory")}
         </button>
       </div>
 
@@ -411,19 +413,19 @@ export default function PackagingStock() {
           {/* Boxes */}
           <div className="bg-white rounded-lg border">
             <div className="px-4 py-3 border-b">
-              <h3 className="text-sm font-semibold text-gray-700">Boxes</h3>
+              <h3 className="text-sm font-semibold text-gray-700">{t("stock.boxesTitle")}</h3>
             </div>
             {boxes.length > 0 ? (
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">Name</th>
-                    <th className="text-right px-4 py-2 font-medium">Weight</th>
-                    <th className="text-right px-4 py-2 font-medium">Cost/Unit</th>
-                    <th className="text-right px-4 py-2 font-medium">In Stock</th>
-                    <th className="text-right px-4 py-2 font-medium">Min Level</th>
-                    <th className="text-right px-4 py-2 font-medium">Status</th>
-                    <th className="text-right px-4 py-2 font-medium">Actions</th>
+                    <th className="text-left px-4 py-2 font-medium">{t("common:table.name")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.weight")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.costPerUnit")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.inStock")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.minLevel")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.status")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -458,14 +460,14 @@ export default function PackagingStock() {
                                     setEditingMinId(null);
                                     await refresh();
                                   } catch {
-                                    globalToast("error", "Failed to update min stock.");
+                                    globalToast("error", t("stock.minStockFailed"));
                                   } finally {
                                     setMinSaving(false);
                                   }
                                 }}
                                 className="text-green-600 text-xs font-medium"
                               >
-                                {minSaving ? "..." : "Save"}
+                                {minSaving ? "..." : t("common:actions.save")}
                               </button>
                             </div>
                           ) : (
@@ -480,9 +482,9 @@ export default function PackagingStock() {
                         </td>
                         <td className="px-4 py-2 text-right">
                           {low ? (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">Low</span>
+                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">{t("common:status.low")}</span>
                           ) : (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
+                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">{t("common:status.ok")}</span>
                           )}
                         </td>
                         <td className="px-4 py-2 text-right">{renderActions(s)}</td>
@@ -492,24 +494,24 @@ export default function PackagingStock() {
                 </tbody>
               </table>
             ) : (
-              <p className="px-4 py-3 text-sm text-gray-400">No box types configured. Add them in Setup Wizard.</p>
+              <p className="px-4 py-3 text-sm text-gray-400">{t("stock.noBoxTypes")}</p>
             )}
           </div>
 
           {/* Pallets */}
           <div className="bg-white rounded-lg border">
             <div className="px-4 py-3 border-b">
-              <h3 className="text-sm font-semibold text-gray-700">Pallets</h3>
+              <h3 className="text-sm font-semibold text-gray-700">{t("stock.palletsTitle")}</h3>
             </div>
             {pallets.length > 0 ? (
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">Name</th>
-                    <th className="text-right px-4 py-2 font-medium">In Stock</th>
-                    <th className="text-right px-4 py-2 font-medium">Min Level</th>
-                    <th className="text-right px-4 py-2 font-medium">Status</th>
-                    <th className="text-right px-4 py-2 font-medium">Actions</th>
+                    <th className="text-left px-4 py-2 font-medium">{t("common:table.name")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.inStock")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.minLevel")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.status")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -540,14 +542,14 @@ export default function PackagingStock() {
                                     setEditingMinId(null);
                                     await refresh();
                                   } catch {
-                                    globalToast("error", "Failed to update min stock.");
+                                    globalToast("error", t("stock.minStockFailed"));
                                   } finally {
                                     setMinSaving(false);
                                   }
                                 }}
                                 className="text-green-600 text-xs font-medium"
                               >
-                                {minSaving ? "..." : "Save"}
+                                {minSaving ? "..." : t("common:actions.save")}
                               </button>
                             </div>
                           ) : (
@@ -562,9 +564,9 @@ export default function PackagingStock() {
                         </td>
                         <td className="px-4 py-2 text-right">
                           {low ? (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">Low</span>
+                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">{t("common:status.low")}</span>
                           ) : (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
+                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">{t("common:status.ok")}</span>
                           )}
                         </td>
                         <td className="px-4 py-2 text-right">{renderActions(s)}</td>
@@ -574,7 +576,7 @@ export default function PackagingStock() {
                 </tbody>
               </table>
             ) : (
-              <p className="px-4 py-3 text-sm text-gray-400">No pallet types configured. Add them in Setup Wizard.</p>
+              <p className="px-4 py-3 text-sm text-gray-400">{t("stock.noPalletTypes")}</p>
             )}
           </div>
         </div>
@@ -586,22 +588,22 @@ export default function PackagingStock() {
           {/* Filters */}
           <div className="flex flex-wrap items-end gap-3 bg-gray-50 rounded-lg border p-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Item</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("movements.headers.item")}</label>
               <select
                 value={filterStockId}
                 onChange={(e) => handleFilterChange(e.target.value, filterType)}
                 className="border rounded px-2 py-1.5 text-sm min-w-[160px]"
               >
-                <option value="">All items</option>
+                <option value="">{t("movements.allItems")}</option>
                 {boxes.length > 0 && (
-                  <optgroup label="Boxes">
+                  <optgroup label={t("stock.boxesTitle")}>
                     {boxes.map((s) => (
                       <option key={s.id} value={s.id}>{s.name || "Unnamed"}</option>
                     ))}
                   </optgroup>
                 )}
                 {pallets.length > 0 && (
-                  <optgroup label="Pallets">
+                  <optgroup label={t("stock.palletsTitle")}>
                     {pallets.map((s) => (
                       <option key={s.id} value={s.id}>{s.name || "Unnamed"}</option>
                     ))}
@@ -610,19 +612,19 @@ export default function PackagingStock() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Type</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("movements.headers.type")}</label>
               <select
                 value={filterType}
                 onChange={(e) => handleFilterChange(filterStockId, e.target.value)}
                 className="border rounded px-2 py-1.5 text-sm min-w-[130px]"
               >
-                {MOVEMENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                {MOVEMENT_TYPE_KEYS.map((mt) => (
+                  <option key={mt.value} value={mt.value}>{t(mt.key)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">From</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("movements.from")}</label>
               <input
                 type="date"
                 value={filterDateFrom}
@@ -631,7 +633,7 @@ export default function PackagingStock() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">To</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("movements.to")}</label>
               <input
                 type="date"
                 value={filterDateTo}
@@ -644,7 +646,7 @@ export default function PackagingStock() {
                 onClick={() => { setFilterStockId(""); setFilterType(""); setFilterDateFrom(""); setFilterDateTo(""); fetchMovements().catch(() => {}); }}
                 className="text-xs text-gray-500 hover:text-gray-700 pb-1.5"
               >
-                Clear filters
+                {t("common:actions.clearFilters")}
               </button>
             )}
           </div>
@@ -655,12 +657,12 @@ export default function PackagingStock() {
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">Date</th>
-                    <th className="text-left px-4 py-2 font-medium">Item</th>
-                    <th className="text-left px-4 py-2 font-medium">Type</th>
-                    <th className="text-right px-4 py-2 font-medium">Qty</th>
-                    <th className="text-right px-4 py-2 font-medium">Cost/Unit</th>
-                    <th className="text-left px-4 py-2 font-medium">Notes</th>
+                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.date")}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.item")}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.type")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("movements.headers.qty")}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t("movements.headers.costPerUnit")}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.notes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -691,7 +693,7 @@ export default function PackagingStock() {
               </table>
             ) : (
               <p className="px-4 py-6 text-sm text-gray-400 text-center">
-                {movements.length === 0 ? "No movements recorded yet." : "No movements match the current filters."}
+                {movements.length === 0 ? t("movements.empty") : t("movements.emptyFiltered")}
               </p>
             )}
           </div>

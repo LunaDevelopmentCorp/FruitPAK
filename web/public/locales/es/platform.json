@@ -1,0 +1,58 @@
+{
+  "title": "Administración de Plataforma",
+  "tabs": {
+    "stats": "Estadísticas",
+    "enterprises": "Empresas",
+    "users": "Usuarios"
+  },
+  "stats": {
+    "totalEnterprises": "Total de Empresas",
+    "totalUsers": "Total de Usuarios",
+    "activeEnterprises": "Empresas Activas",
+    "onboardedEnterprises": "Incorporadas",
+    "recentUsers": "Usuarios Recientes"
+  },
+  "enterprises": {
+    "loading": "Cargando empresas...",
+    "empty": "No hay empresas registradas aún.",
+    "headers": {
+      "name": "Nombre",
+      "country": "País",
+      "schema": "Esquema",
+      "users": "Usuarios",
+      "onboarded": "Incorporada",
+      "status": "Estado",
+      "created": "Creada"
+    },
+    "yes": "Sí",
+    "no": "No",
+    "activated": "{{name}} activada",
+    "deactivated": "{{name}} desactivada",
+    "updateFailed": "Error al actualizar la empresa"
+  },
+  "users": {
+    "loading": "Cargando usuarios...",
+    "empty": "No hay usuarios registrados aún.",
+    "headers": {
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "enterprise": "Empresa",
+      "role": "Rol",
+      "status": "Estado",
+      "created": "Creado",
+      "actions": "Acciones"
+    },
+    "resetPw": "Restablecer Contraseña",
+    "impersonate": "Suplantar",
+    "tempPassword": "Contraseña temporal para {{email}}:",
+    "tempPasswordHelp": "Comparta esto con el usuario. Debe cambiarla después de iniciar sesión.",
+    "dismiss": "Descartar",
+    "impersonateConfirm": "¿Iniciar sesión como {{email}}? Será redirigido a su panel principal.",
+    "resetConfirm": "¿Restablecer contraseña para {{email}}?",
+    "passwordReset": "Contraseña restablecida para {{email}}",
+    "resetFailed": "Error al restablecer la contraseña",
+    "activateSuccess": "{{name}} {{status}}",
+    "activateFailed": "Error al actualizar el usuario",
+    "impersonateFailed": "Error al suplantar al usuario"
+  }
+}

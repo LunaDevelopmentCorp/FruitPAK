@@ -1,0 +1,58 @@
+{
+  "title": "Platform Administration",
+  "tabs": {
+    "stats": "Stats",
+    "enterprises": "Enterprises",
+    "users": "Users"
+  },
+  "stats": {
+    "totalEnterprises": "Total Enterprises",
+    "totalUsers": "Total Users",
+    "activeEnterprises": "Active Enterprises",
+    "onboardedEnterprises": "Onboarded",
+    "recentUsers": "Recent Users"
+  },
+  "enterprises": {
+    "loading": "Loading enterprises...",
+    "empty": "No enterprises registered yet.",
+    "headers": {
+      "name": "Name",
+      "country": "Country",
+      "schema": "Schema",
+      "users": "Users",
+      "onboarded": "Onboarded",
+      "status": "Status",
+      "created": "Created"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "activated": "{{name}} activated",
+    "deactivated": "{{name}} deactivated",
+    "updateFailed": "Failed to update enterprise"
+  },
+  "users": {
+    "loading": "Loading users...",
+    "empty": "No users registered yet.",
+    "headers": {
+      "name": "Name",
+      "email": "Email",
+      "enterprise": "Enterprise",
+      "role": "Role",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "resetPw": "Reset PW",
+    "impersonate": "Impersonate",
+    "tempPassword": "Temporary password for {{email}}:",
+    "tempPasswordHelp": "Share this with the user. They should change it after logging in.",
+    "dismiss": "Dismiss",
+    "impersonateConfirm": "Log in as {{email}}? You will be redirected to their dashboard.",
+    "resetConfirm": "Reset password for {{email}}?",
+    "passwordReset": "Password reset for {{email}}",
+    "resetFailed": "Failed to reset password",
+    "activateSuccess": "{{name}} {{status}}",
+    "activateFailed": "Failed to update user",
+    "impersonateFailed": "Failed to impersonate user"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "title": "Clients",
+  "count_one": "{{count}} client",
+  "count_other": "{{count}} clients",
+  "newClient": "+ Nouveau client",
+  "loading": "Chargement des clients...",
+  "loadFailed": "Echec du chargement des clients",
+  "saveFailed": "Echec de l'enregistrement du client",
+  "statusFailed": "Echec de la mise a jour du statut du client",
+  "headers": {
+    "name": "Nom",
+    "contact": "Contact",
+    "email": "E-mail",
+    "phone": "Telephone",
+    "country": "Pays",
+    "incoterm": "Incoterm",
+    "paymentTerms": "Conditions de paiement",
+    "creditLimit": "Limite de credit",
+    "status": "Statut"
+  },
+  "modal": {
+    "editTitle": "Modifier le client",
+    "newTitle": "Nouveau client",
+    "name": "Nom *",
+    "contactPerson": "Personne de contact",
+    "email": "E-mail",
+    "phone": "Telephone",
+    "address": "Adresse",
+    "country": "Pays",
+    "incoterm": "Incoterm",
+    "selectIncoterm": "— Selectionner —",
+    "paymentTerms": "Conditions de paiement (jours)",
+    "currency": "Devise",
+    "creditLimit": "Limite de credit",
+    "notes": "Notes",
+    "saveChanges": "Enregistrer les modifications",
+    "createClient": "Creer le client"
+  },
+  "confirm": {
+    "deactivateTitle": "Desactiver le client ?",
+    "reactivateTitle": "Reactiver le client ?",
+    "deactivateText": "Cela desactivera {{name}}. Ce client n'apparaitra plus dans les listes de clients actifs.",
+    "reactivateText": "Cela reactivera {{name}}, le rendant a nouveau disponible pour les commandes."
+  },
+  "toast": {
+    "updated": "{{name}} mis a jour",
+    "created": "Client {{name}} cree"
+  },
+  "days": "jours"
+}

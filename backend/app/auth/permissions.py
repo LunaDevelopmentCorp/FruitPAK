@@ -21,6 +21,10 @@ from __future__ import annotations
 # ── All known permissions ───────────────────────────────────
 
 ALL_PERMISSIONS: set[str] = {
+    # Platform-level (super-admin only)
+    "platform.manage",        # manage all enterprises, cross-tenant access
+    "platform.impersonate",   # log in as any user for troubleshooting
+
     # Enterprise-level
     "enterprise.manage",      # edit enterprise settings, billing
     "enterprise.delete",      # delete enterprise (superadmin)
@@ -77,7 +81,9 @@ ALL_PERMISSIONS: set[str] = {
 # ── Role → default permissions ──────────────────────────────
 
 ROLE_DEFAULTS: dict[str, set[str]] = {
-    "administrator": ALL_PERMISSIONS.copy(),
+    "platform_admin": ALL_PERMISSIONS.copy(),
+
+    "administrator": ALL_PERMISSIONS - {"platform.manage", "platform.impersonate"},
 
     "supervisor": {
         "users.read",

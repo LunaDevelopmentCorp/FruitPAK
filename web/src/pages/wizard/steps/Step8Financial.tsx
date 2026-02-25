@@ -1,5 +1,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 import {
@@ -21,6 +22,7 @@ interface FormData {
 }
 
 export default function Step8Financial({ onSave, saving, draftData, completedData }: StepProps) {
+  const { t } = useTranslation("wizard");
   // Auto-derive base currency from enterprise country (Step 1)
   const step1Country = (completedData?.["1"]?.country as string) || "";
   const autoDefault = getDefaultCurrency(step1Country) ?? "ZAR";
@@ -38,18 +40,18 @@ export default function Step8Financial({ onSave, saving, draftData, completedDat
   return (
     <form className="space-y-6 max-w-2xl">
       <p className="text-sm text-gray-500">
-        This step is optional. You can skip it and configure financials later.
+        {t("step8.optional")}
       </p>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium text-gray-700">Currencies</legend>
+        <legend className="text-sm font-medium text-gray-700">{t("step8.currencies")}</legend>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Base / Operational Currency
+            {t("step8.baseCurrency")}
           </label>
           <p className="text-xs text-gray-400 mb-1">
-            Used for local costs: labour, grower payments, packing, transport.
+            {t("step8.baseCurrencyHelp")}
           </p>
           <select {...register("base_currency")} className="border rounded px-3 py-2 text-sm w-full">
             {CURRENCIES.map((c) => (
@@ -62,10 +64,10 @@ export default function Step8Financial({ onSave, saving, draftData, completedDat
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Export / Client Currencies
+            {t("step8.exportCurrencies")}
           </label>
           <p className="text-xs text-gray-400 mb-1">
-            Common currencies for invoicing export clients (select all that apply).
+            {t("step8.exportCurrenciesHelp")}
           </p>
           <div className="grid grid-cols-2 gap-1">
             {COMMON_EXPORT_CURRENCIES.map((code) => (
@@ -79,26 +81,26 @@ export default function Step8Financial({ onSave, saving, draftData, completedDat
       </fieldset>
 
       <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-gray-700">Rates</legend>
+        <legend className="text-sm font-medium text-gray-700">{t("step8.rates")}</legend>
         <div className="grid grid-cols-2 gap-3">
-          <input {...register("packing_rate_per_kg", { valueAsNumber: true })} placeholder="Packing rate / kg" type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
-          <input {...register("cold_storage_rate_per_pallet_day", { valueAsNumber: true })} placeholder="Cold storage / pallet / day" type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
-          <input {...register("transport_rate_per_pallet", { valueAsNumber: true })} placeholder="Transport / pallet" type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
-          <input {...register("labour_rate_per_hour", { valueAsNumber: true })} placeholder="Labour rate / hour" type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
+          <input {...register("packing_rate_per_kg", { valueAsNumber: true })} placeholder={t("step8.packingRate")} type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
+          <input {...register("cold_storage_rate_per_pallet_day", { valueAsNumber: true })} placeholder={t("step8.coldStorageRate")} type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
+          <input {...register("transport_rate_per_pallet", { valueAsNumber: true })} placeholder={t("step8.transportRate")} type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
+          <input {...register("labour_rate_per_hour", { valueAsNumber: true })} placeholder={t("step8.labourRate")} type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
         </div>
       </fieldset>
 
       <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-gray-700">Payment Terms</legend>
+        <legend className="text-sm font-medium text-gray-700">{t("step8.paymentTerms")}</legend>
         <div className="grid grid-cols-2 gap-3">
-          <input {...register("grower_payment_terms_days", { valueAsNumber: true })} placeholder="Grower terms (days)" type="number" className="border rounded px-3 py-2 text-sm" />
-          <input {...register("client_payment_terms_days", { valueAsNumber: true })} placeholder="Client terms (days)" type="number" className="border rounded px-3 py-2 text-sm" />
+          <input {...register("grower_payment_terms_days", { valueAsNumber: true })} placeholder={t("step8.growerTerms")} type="number" className="border rounded px-3 py-2 text-sm" />
+          <input {...register("client_payment_terms_days", { valueAsNumber: true })} placeholder={t("step8.clientTerms")} type="number" className="border rounded px-3 py-2 text-sm" />
         </div>
       </fieldset>
 
       <div className="flex gap-3 pt-4 border-t">
-        <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">{saving && <Spinner />} Save Draft</button>
-        <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">{saving && <Spinner />} Save & Complete</button>
+        <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">{saving && <Spinner />} {t("saveDraft")}</button>
+        <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">{saving && <Spinner />} {t("saveComplete")}</button>
       </div>
     </form>
   );

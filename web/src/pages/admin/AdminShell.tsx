@@ -1,18 +1,20 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 
-const ADMIN_TABS = [
-  { to: "/admin/overview", label: "Overview" },
-  { to: "/admin/users", label: "Users" },
-  { to: "/admin/activity", label: "Activity" },
-  { to: "/admin/deleted-items", label: "Deleted Items" },
-];
-
 export default function AdminShell() {
+  const { t } = useTranslation("admin");
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const ADMIN_TABS = [
+    { to: "/admin/overview", label: t("tabs.overview") },
+    { to: "/admin/users", label: t("tabs.users") },
+    { to: "/admin/activity", label: t("tabs.activity") },
+    { to: "/admin/deleted-items", label: t("tabs.deletedItems") },
+  ];
 
   useEffect(() => {
     if (user && user.role !== "administrator") {
@@ -24,7 +26,7 @@ export default function AdminShell() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Administration</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">{t("title")}</h1>
 
       {/* Sub-nav tabs */}
       <div className="flex gap-1 mb-6 border-b pb-2">

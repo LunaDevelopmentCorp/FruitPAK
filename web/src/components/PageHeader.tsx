@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
 interface Props {
   title: string;
   subtitle?: string;
@@ -6,8 +9,6 @@ interface Props {
   backLabel?: string;
 }
 
-import { Link } from "react-router-dom";
-
 export default function PageHeader({
   title,
   subtitle,
@@ -15,6 +16,7 @@ export default function PageHeader({
   backTo,
   backLabel,
 }: Props) {
+  const { t } = useTranslation("common");
   return (
     <div className="mb-6">
       {backTo && (
@@ -35,7 +37,7 @@ export default function PageHeader({
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          {backLabel || "Back"}
+          {backLabel || t("actions.back")}
         </Link>
       )}
       <div className="flex items-center justify-between gap-4">

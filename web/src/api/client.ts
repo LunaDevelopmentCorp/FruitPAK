@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { showToast } from "../store/toastStore";
+import i18n from "../i18n";
 
 /** Clear all auth state from localStorage (Zustand store re-reads on page reload). */
 function clearAuthStorage() {
@@ -109,13 +110,13 @@ api.interceptors.response.use(
 
     // 5xx server errors
     if (status && status >= 500) {
-      showToast("error", "Server error — please try again later.");
+      showToast("error", i18n.t("common:errors.serverError"));
       return Promise.reject(error);
     }
 
     // Network error (no response)
     if (!error.response) {
-      showToast("error", "No connection — check your internet.");
+      showToast("error", i18n.t("common:errors.noConnection"));
       return Promise.reject(error);
     }
 
@@ -128,7 +129,8 @@ api.interceptors.response.use(
  * Handles both `{ detail: "..." }` (raw FastAPI) and
  * `{ error: { message: "..." } }` (our error middleware) formats.
  */
-export function getErrorMessage(err: unknown, fallback = "Something went wrong"): string {
+export function getErrorMessage(err: unknown, fallback?: string): string {
+  const defaultFallback = fallback || i18n.t("common:errors.somethingWentWrong");
   if (err && typeof err === "object" && "response" in err) {
     const data = (err as { response?: { data?: Record<string, unknown> } }).response?.data;
     if (data) {
@@ -140,7 +142,7 @@ export function getErrorMessage(err: unknown, fallback = "Something went wrong")
       if (typeof data.detail === "string") return data.detail;
     }
   }
-  return fallback;
+  return defaultFallback;
 }
 
 export default api;

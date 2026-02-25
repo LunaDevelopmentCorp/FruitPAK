@@ -1,0 +1,22 @@
+{
+  "title": "Producteurs et equipes de recolte",
+  "subtitle": "Gerez les producteurs et les equipes de recolte. Telechargez un modele CSV, remplissez-le et importez-le pour creer ou mettre a jour des fiches en masse.",
+  "growers": {
+    "title": "Producteurs",
+    "empty": "Aucun producteur pour le moment. Importez un CSV pour commencer.",
+    "headers": {
+      "code": "Code",
+      "contact": "Contact",
+      "region": "Region",
+      "hectares": "Hectares"
+    }
+  },
+  "teams": {
+    "title": "Equipes de recolte",
+    "empty": "Aucune equipe de recolte pour le moment. Importez un CSV pour commencer.",
+    "headers": {
+      "teamLeader": "Chef d'equipe",
+      "teamSize": "Taille de l'equipe"
+    }
+  }
+}

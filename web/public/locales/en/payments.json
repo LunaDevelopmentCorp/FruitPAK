@@ -1,0 +1,97 @@
+{
+  "grower": {
+    "title": "Record Grower Payment",
+    "subtitle": "Record a payment to a grower for delivered fruit. Reconciliation alerts update automatically.",
+    "loadError": "Failed to load data. Is the wizard complete?",
+    "loadingRef": "Loading reference data...",
+    "form": {
+      "grower": "Grower *",
+      "selectGrower": "Select grower",
+      "amount": "Amount *",
+      "amountPlaceholder": "e.g. 25000",
+      "currency": "Currency",
+      "paymentType": "Payment Type",
+      "typeFinal": "Final",
+      "typeAdvance": "Advance",
+      "paymentDate": "Payment Date *",
+      "linkToBatches": "Link to Batches",
+      "linkHelp": "Select GRN batches this payment covers. Leave empty to auto-cover all.",
+      "noBatches": "No batches found for this grower.",
+      "batchesSelected_one": "{{count}} batch selected",
+      "batchesSelected_other": "{{count}} batches selected",
+      "kgTotal": "{{kg}} kg total",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional notes about this payment...",
+      "submit": "Record Payment",
+      "submitting": "Recording...",
+      "amountError": "Amount must be a positive number.",
+      "fixFields": "Please fix the highlighted fields below.",
+      "submissionFailed": "Payment submission failed"
+    },
+    "success": {
+      "title": "Payment Recorded",
+      "reference": "Reference",
+      "grower": "Grower",
+      "amount": "Amount",
+      "type": "Type",
+      "batchesCovered": "Batches Covered",
+      "totalKg": "Total kg",
+      "status": "Status",
+      "date": "Date",
+      "recordAnother": "Record Another",
+      "viewReconciliation": "View Reconciliation",
+      "toast": "Payment {{ref}} recorded — alerts updated"
+    },
+    "recent": {
+      "title": "Recent Payments"
+    }
+  },
+  "team": {
+    "title": "Harvest Team Payments",
+    "tabs": {
+      "recordPayment": "Record Payment",
+      "teamSummary": "Team Summary"
+    },
+    "form": {
+      "team": "Harvest Team *",
+      "selectTeam": "Select team...",
+      "amount": "Amount *",
+      "paymentType": "Payment Type",
+      "typeAdvance": "Advance",
+      "typeFinal": "Final Settlement",
+      "paymentDate": "Payment Date *",
+      "notes": "Notes",
+      "notesPlaceholder": "Payment reference, reason for advance, etc.",
+      "linkToBatches": "Link to Batches (optional)",
+      "noBatches": "No batches found for this team.",
+      "batchesSelected_one": "{{count}} batch",
+      "batchesSelected_other": "{{count}} batches",
+      "binsCount": "{{count}} bins",
+      "submit": "Record Payment",
+      "submitting": "Recording..."
+    },
+    "success": {
+      "title": "Payment Recorded",
+      "team": "Team",
+      "leader": "Leader",
+      "toast": "Payment {{ref}} recorded"
+    },
+    "recent": {
+      "title": "Recent Team Payments",
+      "empty": "No payments recorded yet."
+    },
+    "summary": {
+      "title": "Team Reconciliation Summary",
+      "empty": "No harvest teams or payments yet.",
+      "headers": {
+        "batches": "Batches",
+        "totalKg": "Total kg",
+        "bins": "Bins",
+        "advances": "Advances",
+        "finals": "Finals",
+        "totalPaid": "Total Paid"
+      },
+      "totals": "Totals"
+    }
+  }
+}

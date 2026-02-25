@@ -1,0 +1,80 @@
+{
+  "list": {
+    "title": "Conteneurs",
+    "count_one": "{{count}} conteneur",
+    "count_other": "{{count}} conteneurs",
+    "createContainer": "+ Creer un conteneur",
+    "allStatuses": "Tous les statuts",
+    "searchPlaceholder": "Rechercher numero, client, destination...",
+    "loading": "Chargement des conteneurs...",
+    "empty": "Aucun conteneur trouve. Affectez des palettes pour en creer un.",
+    "headers": {
+      "containerNumber": "Conteneur #",
+      "shippingNumber": "Expedition #",
+      "type": "Type",
+      "customer": "Client",
+      "destination": "Destination",
+      "pallets": "Palettes",
+      "fillPercent": "Remplissage %",
+      "cartons": "Cartons",
+      "status": "Statut",
+      "date": "Date"
+    }
+  },
+  "create": {
+    "title": "Nouveau conteneur",
+    "containerType": "Type de conteneur",
+    "capacity": "Capacite",
+    "client": "Client",
+    "noClient": "— Aucun —",
+    "shippingNumber": "Numero de conteneur maritime #",
+    "shippingPlaceholder": "ex. MSKU1234567",
+    "destination": "Destination",
+    "destinationPlaceholder": "ex. Rotterdam, NL",
+    "sealNumber": "Numero de scelle"
+  },
+  "detail": {
+    "loading": "Chargement du conteneur...",
+    "notFound": "Conteneur introuvable.",
+    "backLabel": "Tous les conteneurs",
+    "pallets": "Palettes",
+    "fill": "Remplissage",
+    "totalCartons": "Total cartons",
+    "weight": "Poids",
+    "capacity": "Capacite",
+    "shipmentDetails": "Details de l'expedition",
+    "containerType": "Type de conteneur",
+    "capacityPallets": "Capacite (palettes)",
+    "shippingNumber": "Numero de conteneur maritime #",
+    "customer": "Client",
+    "destination": "Destination",
+    "exportDate": "Date d'exportation",
+    "sealNumber": "Numero de scelle",
+    "notes": "Notes",
+    "loadPallets": "Charger des palettes",
+    "headers": {
+      "palletNumber": "Palette #",
+      "fruit": "Fruit",
+      "grade": "Calibre",
+      "size": "Taille",
+      "boxType": "Type de carton",
+      "boxes": "Cartons",
+      "status": "Statut"
+    },
+    "noPallets": "Aucune palette chargee.",
+    "traceability": "Tracabilite complete",
+    "lots": "Sous-lots :",
+    "grns": "GRN / Producteurs :",
+    "qrCode": "QR Code"
+  },
+  "loadPallets": {
+    "title": "Charger des palettes",
+    "loading": "Chargement des palettes disponibles...",
+    "empty": "Aucune palette fermee disponible pour le chargement.",
+    "help": "Selectionnez les palettes fermees a charger dans ce conteneur. {{count}} selectionnee(s).",
+    "loadSelected": "Charger la selection ({{count}})",
+    "loadingButton": "Chargement...",
+    "loaded": "{{count}} palette(s) chargee(s) dans le conteneur",
+    "loadFailed": "Echec du chargement des palettes"
+  }
+}

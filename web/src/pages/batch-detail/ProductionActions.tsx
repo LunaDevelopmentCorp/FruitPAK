@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../../api/client";
 import { closeProductionRun, finalizeGRN, getBatch } from "../../api/batches";
 import { showToast as globalToast } from "../../store/toastStore";
 import { BatchSectionProps } from "./types";
 
 export default function ProductionActions({ batch, batchId, onRefresh }: BatchSectionProps) {
+  const { t } = useTranslation("batches");
   const [closingSaving, setClosingSaving] = useState(false);
   const [finalizeSaving, setFinalizeSaving] = useState(false);
   const lots = batch.lots || [];
@@ -32,10 +34,10 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
       {/* Close Production Run */}
       {batch.status !== "complete" && (
         <div className="bg-white rounded-lg border p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Close Production Run</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("production.closeTitle")}</h3>
           {!allAllocated && (
             <p className="text-sm text-yellow-600 mb-3">
-              {totalUnallocated} box(es) still unallocated to pallets. All boxes must be palletized before closing.
+              {t("production.unallocatedWarning", { count: totalUnallocated })}
             </p>
           )}
           <button
@@ -44,9 +46,9 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
               try {
                 await closeProductionRun(batchId);
                 await onRefresh();
-                globalToast("success", "Production run closed.");
+                globalToast("success", t("production.closedSuccess"));
               } catch (err: unknown) {
-                globalToast("error", getErrorMessage(err, "Failed to close run."));
+                globalToast("error", getErrorMessage(err, t("production.closeFailed")));
               } finally {
                 setClosingSaving(false);
               }
@@ -58,7 +60,7 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             } disabled:opacity-50`}
           >
-            {closingSaving ? "Closing..." : "Close Production Run"}
+            {closingSaving ? t("production.closing") : t("production.closeButton")}
           </button>
         </div>
       )}
@@ -66,12 +68,12 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
       {/* Finalize GRN */}
       {batch.status === "complete" && (
         <div className="bg-white rounded-lg border p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Finalize GRN</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("production.finalizeTitle")}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Production run is closed. Finalize the GRN to mark it as completed.
+            {t("production.finalizeHelp")}
             {!balanced && (
               <span className="text-amber-600 block mt-1">
-                Unaccounted weight: {diff > 0 ? "+" : ""}{diff.toFixed(1)} kg — this will be auto-adjusted as batch waste on finalization.
+                {t("production.unaccountedWeight", { weight: `${diff > 0 ? "+" : ""}${diff.toFixed(1)}` })}
               </span>
             )}
           </p>
@@ -81,9 +83,9 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
               try {
                 await finalizeGRN(batchId);
                 await onRefresh();
-                globalToast("success", "GRN finalized — status set to completed.");
+                globalToast("success", t("production.finalizedSuccess"));
               } catch (err: unknown) {
-                globalToast("error", getErrorMessage(err, "Failed to finalize GRN."));
+                globalToast("error", getErrorMessage(err, t("production.finalizeFailed")));
               } finally {
                 setFinalizeSaving(false);
               }
@@ -91,7 +93,7 @@ export default function ProductionActions({ batch, batchId, onRefresh }: BatchSe
             disabled={finalizeSaving}
             className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
           >
-            {finalizeSaving ? "Finalizing..." : "Finalize GRN"}
+            {finalizeSaving ? t("production.finalizing") : t("production.finalizeButton")}
           </button>
         </div>
       )}

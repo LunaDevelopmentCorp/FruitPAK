@@ -1,0 +1,97 @@
+{
+  "grower": {
+    "title": "Enregistrer un paiement producteur",
+    "subtitle": "Enregistrez un paiement a un producteur pour les fruits livres. Les alertes de rapprochement se mettent a jour automatiquement.",
+    "loadError": "Echec du chargement des donnees. L'assistant de configuration est-il termine ?",
+    "loadingRef": "Chargement des donnees de reference...",
+    "form": {
+      "grower": "Producteur *",
+      "selectGrower": "Selectionner un producteur",
+      "amount": "Montant *",
+      "amountPlaceholder": "ex. 25000",
+      "currency": "Devise",
+      "paymentType": "Type de paiement",
+      "typeFinal": "Solde",
+      "typeAdvance": "Acompte",
+      "paymentDate": "Date de paiement *",
+      "linkToBatches": "Lier aux lots",
+      "linkHelp": "Selectionnez les lots GRN couverts par ce paiement. Laissez vide pour couvrir automatiquement tous les lots.",
+      "noBatches": "Aucun lot trouve pour ce producteur.",
+      "batchesSelected_one": "{{count}} lot selectionne",
+      "batchesSelected_other": "{{count}} lots selectionnes",
+      "kgTotal": "{{kg}} kg au total",
+      "notes": "Notes",
+      "notesPlaceholder": "Notes facultatives sur ce paiement...",
+      "submit": "Enregistrer le paiement",
+      "submitting": "Enregistrement...",
+      "amountError": "Le montant doit etre un nombre positif.",
+      "fixFields": "Veuillez corriger les champs surlignes ci-dessous.",
+      "submissionFailed": "Echec de l'enregistrement du paiement"
+    },
+    "success": {
+      "title": "Paiement enregistre",
+      "reference": "Reference",
+      "grower": "Producteur",
+      "amount": "Montant",
+      "type": "Type",
+      "batchesCovered": "Lots couverts",
+      "totalKg": "Total kg",
+      "status": "Statut",
+      "date": "Date",
+      "recordAnother": "Enregistrer un autre",
+      "viewReconciliation": "Voir le rapprochement",
+      "toast": "Paiement {{ref}} enregistre — alertes mises a jour"
+    },
+    "recent": {
+      "title": "Paiements recents"
+    }
+  },
+  "team": {
+    "title": "Paiements des equipes de recolte",
+    "tabs": {
+      "recordPayment": "Enregistrer un paiement",
+      "teamSummary": "Resume par equipe"
+    },
+    "form": {
+      "team": "Equipe de recolte *",
+      "selectTeam": "Selectionner une equipe...",
+      "amount": "Montant *",
+      "paymentType": "Type de paiement",
+      "typeAdvance": "Acompte",
+      "typeFinal": "Solde final",
+      "paymentDate": "Date de paiement *",
+      "notes": "Notes",
+      "notesPlaceholder": "Reference de paiement, motif de l'acompte, etc.",
+      "linkToBatches": "Lier aux lots (facultatif)",
+      "noBatches": "Aucun lot trouve pour cette equipe.",
+      "batchesSelected_one": "{{count}} lot",
+      "batchesSelected_other": "{{count}} lots",
+      "binsCount": "{{count}} bacs",
+      "submit": "Enregistrer le paiement",
+      "submitting": "Enregistrement..."
+    },
+    "success": {
+      "title": "Paiement enregistre",
+      "team": "Equipe",
+      "leader": "Chef d'equipe",
+      "toast": "Paiement {{ref}} enregistre"
+    },
+    "recent": {
+      "title": "Paiements recents des equipes",
+      "empty": "Aucun paiement enregistre pour le moment."
+    },
+    "summary": {
+      "title": "Resume de rapprochement des equipes",
+      "empty": "Aucune equipe de recolte ou paiement pour le moment.",
+      "headers": {
+        "batches": "Lots",
+        "totalKg": "Total kg",
+        "bins": "Bacs",
+        "advances": "Acomptes",
+        "finals": "Soldes",
+        "totalPaid": "Total paye"
+      },
+      "totals": "Totaux"
+    }
+  }
+}

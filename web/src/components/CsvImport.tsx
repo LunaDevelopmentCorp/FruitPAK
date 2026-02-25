@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   downloadTemplate,
   uploadCsv,
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function CsvImport({ entity, label, onSuccess }: Props) {
+  const { t } = useTranslation("common");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<BulkImportResult | null>(null);
@@ -31,17 +33,17 @@ export default function CsvImport({ entity, label, onSuccess }: Props) {
       if (res.failed === 0) {
         showToast(
           "success",
-          `Imported ${res.created} new + ${res.updated} updated ${label.toLowerCase()}`,
+          t("csv.importSuccess", { created: res.created, updated: res.updated, label: label.toLowerCase() }),
         );
       } else {
         showToast(
           "warning",
-          `${res.created + res.updated} succeeded, ${res.failed} failed`,
+          t("csv.importPartial", { succeeded: res.created + res.updated, failed: res.failed }),
         );
       }
       onSuccess?.();
     } catch (err: unknown) {
-      showToast("error", getErrorMessage(err, "Upload failed"));
+      showToast("error", getErrorMessage(err, t("csv.uploadFailed")));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -55,7 +57,7 @@ export default function CsvImport({ entity, label, onSuccess }: Props) {
           onClick={() => downloadTemplate(entity)}
           className="text-sm px-3 py-1.5 border rounded text-blue-600 hover:bg-blue-50 font-medium"
         >
-          Download CSV Template
+          {t("csv.downloadTemplate")}
         </button>
         <div className="flex items-center gap-2">
           <input
@@ -69,7 +71,7 @@ export default function CsvImport({ entity, label, onSuccess }: Props) {
             disabled={uploading}
             className="text-sm px-4 py-1.5 bg-green-600 text-white rounded font-medium hover:bg-green-700 disabled:opacity-50"
           >
-            {uploading ? "Uploading..." : "Upload CSV"}
+            {uploading ? t("csv.uploading") : t("csv.uploadCsv")}
           </button>
         </div>
       </div>
@@ -78,27 +80,27 @@ export default function CsvImport({ entity, label, onSuccess }: Props) {
         <div className="text-sm space-y-2">
           <div className="flex gap-4">
             <span className="text-gray-500">
-              Total rows: <strong>{result.total_rows}</strong>
+              {t("csv.totalRows")} <strong>{result.total_rows}</strong>
             </span>
             <span className="text-green-700">
-              Created: <strong>{result.created}</strong>
+              {t("csv.created")} <strong>{result.created}</strong>
             </span>
             <span className="text-blue-700">
-              Updated: <strong>{result.updated}</strong>
+              {t("csv.updated")} <strong>{result.updated}</strong>
             </span>
             {result.failed > 0 && (
               <span className="text-red-600">
-                Failed: <strong>{result.failed}</strong>
+                {t("csv.failed")} <strong>{result.failed}</strong>
               </span>
             )}
           </div>
 
           {result.errors.length > 0 && (
             <div className="bg-red-50 border border-red-200 rounded p-3 max-h-48 overflow-y-auto">
-              <p className="text-red-700 font-medium mb-1">Errors:</p>
+              <p className="text-red-700 font-medium mb-1">{t("csv.errors")}</p>
               {result.errors.map((e) => (
                 <div key={e.row} className="text-red-600 text-xs mb-1">
-                  <span className="font-medium">Row {e.row}:</span>{" "}
+                  <span className="font-medium">{t("csv.rowError", { row: e.row })}</span>{" "}
                   {e.errors.join("; ")}
                 </div>
               ))}

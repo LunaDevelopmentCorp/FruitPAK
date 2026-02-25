@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listHarvestTeams,
   listTeamPayments,
@@ -17,6 +18,7 @@ import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
 export default function TeamPayments() {
+  const { t } = useTranslation("payments");
   const { baseCurrency } = useFinancialConfig();
 
   // ── Data ──────────────────────────────────────────────────
@@ -95,12 +97,12 @@ export default function TeamPayments() {
         batch_ids: Array.from(selectedBatchIds),
       });
       setSuccess(result);
-      showToast("success", `Payment ${result.payment_ref} recorded`);
+      showToast("success", t("team.success.toast", { ref: result.payment_ref }));
       // Refresh
       listTeamPayments().then(setPayments).catch(() => {});
       getTeamSummary().then(setSummaries).catch(() => {});
     } catch (err) {
-      showToast("error", getErrorMessage(err, "Failed to record payment"));
+      showToast("error", getErrorMessage(err, t("grower.form.submissionFailed")));
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +119,7 @@ export default function TeamPayments() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-      <PageHeader title="Harvest Team Payments" />
+      <PageHeader title={t("team.title")} />
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b">
@@ -129,7 +131,7 @@ export default function TeamPayments() {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Record Payment
+          {t("team.tabs.recordPayment")}
         </button>
         <button
           onClick={() => setTab("summary")}
@@ -139,7 +141,7 @@ export default function TeamPayments() {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Team Summary
+          {t("team.tabs.teamSummary")}
         </button>
       </div>
 
@@ -150,28 +152,28 @@ export default function TeamPayments() {
             <div className="bg-white rounded-lg border p-6 space-y-4">
               <div className="text-center space-y-2">
                 <p className="text-green-600 font-semibold text-lg">
-                  Payment Recorded
+                  {t("team.success.title")}
                 </p>
                 <p className="font-mono text-sm text-gray-600">
                   {success.payment_ref}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-y-2 text-sm max-w-md mx-auto">
-                <span className="text-gray-500">Team</span>
+                <span className="text-gray-500">{t("team.success.team")}</span>
                 <span className="font-medium">{success.team_name}</span>
-                <span className="text-gray-500">Leader</span>
+                <span className="text-gray-500">{t("team.success.leader")}</span>
                 <span>{success.team_leader || "\u2014"}</span>
-                <span className="text-gray-500">Amount</span>
+                <span className="text-gray-500">{t("grower.success.amount")}</span>
                 <span className="font-bold text-green-700">
                   {success.currency} {success.amount.toLocaleString()}
                 </span>
-                <span className="text-gray-500">Type</span>
+                <span className="text-gray-500">{t("grower.success.type")}</span>
                 <span>
                   <Badge type={success.payment_type} />
                 </span>
-                <span className="text-gray-500">Batches</span>
+                <span className="text-gray-500">{t("team.summary.headers.batches")}</span>
                 <span>{success.batch_ids.length}</span>
-                <span className="text-gray-500">Total kg</span>
+                <span className="text-gray-500">{t("team.summary.headers.totalKg")}</span>
                 <span>
                   {success.total_kg
                     ? `${success.total_kg.toLocaleString()} kg`
@@ -183,7 +185,7 @@ export default function TeamPayments() {
                   onClick={resetForm}
                   className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
                 >
-                  Record Another
+                  {t("grower.success.recordAnother")}
                 </button>
               </div>
             </div>
@@ -193,14 +195,14 @@ export default function TeamPayments() {
                 {/* Team */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Harvest Team *
+                    {t("team.form.team")}
                   </label>
                   <select
                     value={selectedTeamId}
                     onChange={(e) => setSelectedTeamId(e.target.value)}
                     className="w-full border rounded px-3 py-2 text-sm"
                   >
-                    <option value="">Select team...</option>
+                    <option value="">{t("team.form.selectTeam")}</option>
                     {teams.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
@@ -213,7 +215,7 @@ export default function TeamPayments() {
                 {/* Amount */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Amount *
+                    {t("team.form.amount")}
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -242,22 +244,22 @@ export default function TeamPayments() {
                 {/* Type */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Payment Type
+                    {t("team.form.paymentType")}
                   </label>
                   <select
                     value={paymentType}
                     onChange={(e) => setPaymentType(e.target.value)}
                     className="w-full border rounded px-3 py-2 text-sm"
                   >
-                    <option value="advance">Advance</option>
-                    <option value="final">Final Settlement</option>
+                    <option value="advance">{t("team.form.typeAdvance")}</option>
+                    <option value="final">{t("team.form.typeFinal")}</option>
                   </select>
                 </div>
 
                 {/* Date */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Payment Date *
+                    {t("team.form.paymentDate")}
                   </label>
                   <input
                     type="date"
@@ -271,14 +273,14 @@ export default function TeamPayments() {
               {/* Notes */}
               <div>
                 <label className="block text-xs text-gray-500 mb-1">
-                  Notes
+                  {t("team.form.notes")}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
                   className="w-full border rounded px-3 py-2 text-sm"
-                  placeholder="Payment reference, reason for advance, etc."
+                  placeholder={t("team.form.notesPlaceholder")}
                 />
               </div>
 
@@ -287,7 +289,7 @@ export default function TeamPayments() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs text-gray-500">
-                      Link to Batches (optional)
+                      {t("team.form.linkToBatches")}
                     </label>
                     <button
                       type="button"
@@ -302,8 +304,8 @@ export default function TeamPayments() {
                       className="text-xs text-green-600 hover:text-green-700"
                     >
                       {selectedBatchIds.size === batches.length
-                        ? "Deselect All"
-                        : "Select All"}
+                        ? t("common:actions.deselectAll")
+                        : t("common:actions.selectAll")}
                     </button>
                   </div>
                   <div className="border rounded max-h-48 overflow-y-auto divide-y">
@@ -344,9 +346,9 @@ export default function TeamPayments() {
                   </div>
                   {selectedBatchIds.size > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {teamBatchSummary.count} batch(es) &middot;{" "}
+                      {t("team.form.batchesSelected", { count: teamBatchSummary.count })} &middot;{" "}
                       {teamBatchSummary.totalKg.toLocaleString()} kg &middot;{" "}
-                      {teamBatchSummary.totalBins} bins
+                      {t("team.form.binsCount", { count: teamBatchSummary.totalBins })}
                     </p>
                   )}
                 </div>
@@ -354,7 +356,7 @@ export default function TeamPayments() {
 
               {selectedTeamId && batches.length === 0 && (
                 <p className="text-xs text-gray-400">
-                  No batches found for this team.
+                  {t("team.form.noBatches")}
                 </p>
               )}
 
@@ -370,7 +372,7 @@ export default function TeamPayments() {
                   }
                   className="px-5 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {submitting ? "Recording..." : "Record Payment"}
+                  {submitting ? t("team.form.submitting") : t("team.form.submit")}
                 </button>
               </div>
             </div>
@@ -379,27 +381,27 @@ export default function TeamPayments() {
           {/* ── Recent Payments ───────────────────────────────── */}
           <div className="bg-white rounded-lg border p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">
-              Recent Team Payments
+              {t("team.recent.title")}
             </h3>
             {payments.length === 0 ? (
-              <p className="text-sm text-gray-400">No payments recorded yet.</p>
+              <p className="text-sm text-gray-400">{t("team.recent.empty")}</p>
             ) : (
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs">
                   <tr>
-                    <th className="text-left px-2 py-1.5 font-medium">Ref</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Team</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("common:table.ref")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("team.success.team")}</th>
                     <th className="text-left px-2 py-1.5 font-medium">
-                      Leader
+                      {t("team.success.leader")}
                     </th>
                     <th className="text-right px-2 py-1.5 font-medium">
-                      Amount
+                      {t("common:table.amount")}
                     </th>
-                    <th className="text-left px-2 py-1.5 font-medium">Type</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("common:table.type")}</th>
                     <th className="text-left px-2 py-1.5 font-medium">
-                      Status
+                      {t("common:table.status")}
                     </th>
-                    <th className="text-left px-2 py-1.5 font-medium">Date</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("common:table.date")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -438,33 +440,33 @@ export default function TeamPayments() {
       {tab === "summary" && (
         <div className="bg-white rounded-lg border p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Team Reconciliation Summary
+            {t("team.summary.title")}
           </h3>
           {summaries.length === 0 ? (
             <p className="text-sm text-gray-400">
-              No harvest teams or payments yet.
+              {t("team.summary.empty")}
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead className="text-gray-500 text-xs">
                 <tr>
-                  <th className="text-left px-2 py-1.5 font-medium">Team</th>
-                  <th className="text-left px-2 py-1.5 font-medium">Leader</th>
+                  <th className="text-left px-2 py-1.5 font-medium">{t("team.success.team")}</th>
+                  <th className="text-left px-2 py-1.5 font-medium">{t("team.success.leader")}</th>
                   <th className="text-right px-2 py-1.5 font-medium">
-                    Batches
+                    {t("team.summary.headers.batches")}
                   </th>
                   <th className="text-right px-2 py-1.5 font-medium">
-                    Total kg
+                    {t("team.summary.headers.totalKg")}
                   </th>
-                  <th className="text-right px-2 py-1.5 font-medium">Bins</th>
+                  <th className="text-right px-2 py-1.5 font-medium">{t("team.summary.headers.bins")}</th>
                   <th className="text-right px-2 py-1.5 font-medium">
-                    Advances
-                  </th>
-                  <th className="text-right px-2 py-1.5 font-medium">
-                    Finals
+                    {t("team.summary.headers.advances")}
                   </th>
                   <th className="text-right px-2 py-1.5 font-medium">
-                    Total Paid
+                    {t("team.summary.headers.finals")}
+                  </th>
+                  <th className="text-right px-2 py-1.5 font-medium">
+                    {t("team.summary.headers.totalPaid")}
                   </th>
                 </tr>
               </thead>
@@ -499,7 +501,7 @@ export default function TeamPayments() {
               <tfoot className="border-t-2 font-semibold">
                 <tr>
                   <td className="px-2 py-2" colSpan={2}>
-                    Totals
+                    {t("team.summary.totals")}
                   </td>
                   <td className="px-2 py-2 text-right">
                     {summaries.reduce((s, t) => s + t.total_batches, 0)}

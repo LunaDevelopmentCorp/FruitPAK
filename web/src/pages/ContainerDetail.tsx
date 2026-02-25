@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import {
   getContainer,
@@ -22,6 +23,7 @@ const CONTAINER_TYPES = [
 ];
 
 export default function ContainerDetail() {
+  const { t } = useTranslation("containers");
   const { containerId } = useParams<{ containerId: string }>();
   const [container, setContainer] = useState<ContainerDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,20 +140,20 @@ export default function ContainerDetail() {
       await loadPalletsIntoContainer(containerId, {
         pallet_ids: Array.from(selectedPalletIds),
       });
-      showToast("success", `Loaded ${selectedPalletIds.size} pallet(s) into container`);
+      showToast("success", t("loadPallets.loaded", { count: selectedPalletIds.size }));
       setShowLoadModal(false);
       setSelectedPalletIds(new Set());
       fetchContainer();
     } catch (err) {
-      showToast("error", getErrorMessage(err, "Failed to load pallets"));
+      showToast("error", getErrorMessage(err, t("loadPallets.loadFailed")));
     } finally {
       setSubmittingLoad(false);
     }
   };
 
-  if (loading) return <p className="p-6 text-gray-400 text-sm">Loading container...</p>;
+  if (loading) return <p className="p-6 text-gray-400 text-sm">{t("detail.loading")}</p>;
   if (error) return <div className="p-6 text-red-600 text-sm">{error}</div>;
-  if (!container) return <div className="p-6 text-gray-400 text-sm">Container not found.</div>;
+  if (!container) return <div className="p-6 text-gray-400 text-sm">{t("detail.notFound")}</div>;
 
   const fillPct = container.capacity_pallets > 0
     ? Math.round((container.pallet_count / container.capacity_pallets) * 100)
@@ -165,23 +167,23 @@ export default function ContainerDetail() {
       <PageHeader
         title={container.container_number}
         backTo="/containers"
-        backLabel="All Containers"
+        backLabel={t("detail.backLabel")}
         action={<StatusBadge status={container.status} className="text-sm px-3 py-1" />}
       />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card label="Pallets" value={`${container.pallet_count} / ${container.capacity_pallets}`} />
-        <Card label="Fill" value={`${fillPct}%`} />
-        <Card label="Total Cartons" value={container.total_cartons.toLocaleString()} />
-        <Card label="Weight" value={container.gross_weight_kg ? `${container.gross_weight_kg.toLocaleString()} kg` : "\u2014"} />
+        <Card label={t("detail.pallets")} value={`${container.pallet_count} / ${container.capacity_pallets}`} />
+        <Card label={t("detail.fill")} value={`${fillPct}%`} />
+        <Card label={t("detail.totalCartons")} value={container.total_cartons.toLocaleString()} />
+        <Card label={t("detail.weight")} value={container.gross_weight_kg ? `${container.gross_weight_kg.toLocaleString()} ${t("common:units.kg")}` : "\u2014"} />
       </div>
 
       {/* Fill bar */}
       <div className="bg-white rounded-lg border p-4">
         <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span>Capacity</span>
-          <span>{container.pallet_count} / {container.capacity_pallets} pallets</span>
+          <span>{t("detail.capacity")}</span>
+          <span>{container.pallet_count} / {container.capacity_pallets} {t("common:units.pallets")}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
@@ -193,16 +195,16 @@ export default function ContainerDetail() {
         </div>
       </div>
 
-      {/* Shipment info — view or edit mode */}
+      {/* Shipment info -- view or edit mode */}
       <div className="bg-white rounded-lg border p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700">Shipment Details</h3>
+          <h3 className="text-sm font-semibold text-gray-700">{t("detail.shipmentDetails")}</h3>
           {!editing && (
             <button
               onClick={startEditing}
               className="px-3 py-1 text-xs font-medium rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
             >
-              Edit
+              {t("common:actions.edit")}
             </button>
           )}
         </div>
@@ -211,7 +213,7 @@ export default function ContainerDetail() {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Container Type</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("detail.containerType")}</label>
                 <select
                   value={editForm.container_type}
                   onChange={(e) => setEditForm((f) => ({ ...f, container_type: e.target.value }))}
@@ -223,7 +225,7 @@ export default function ContainerDetail() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Capacity (pallets)</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("detail.capacityPallets")}</label>
                 <input
                   type="number"
                   min={1}
@@ -235,7 +237,7 @@ export default function ContainerDetail() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Shipping Container #</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("detail.shippingNumber")}</label>
                 <input
                   value={editForm.shipping_container_number}
                   onChange={(e) => setEditForm((f) => ({ ...f, shipping_container_number: e.target.value }))}
@@ -243,7 +245,7 @@ export default function ContainerDetail() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Customer</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("detail.customer")}</label>
                 <input
                   value={editForm.customer_name}
                   onChange={(e) => setEditForm((f) => ({ ...f, customer_name: e.target.value }))}
@@ -253,7 +255,7 @@ export default function ContainerDetail() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Destination</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("detail.destination")}</label>
                 <input
                   value={editForm.destination}
                   onChange={(e) => setEditForm((f) => ({ ...f, destination: e.target.value }))}
@@ -261,7 +263,7 @@ export default function ContainerDetail() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Export Date</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("detail.exportDate")}</label>
                 <input
                   type="date"
                   value={editForm.export_date}
@@ -271,7 +273,7 @@ export default function ContainerDetail() {
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Seal Number</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("detail.sealNumber")}</label>
               <input
                 value={editForm.seal_number}
                 onChange={(e) => setEditForm((f) => ({ ...f, seal_number: e.target.value }))}
@@ -279,7 +281,7 @@ export default function ContainerDetail() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("detail.notes")}</label>
               <textarea
                 value={editForm.notes}
                 onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
@@ -293,25 +295,25 @@ export default function ContainerDetail() {
                 disabled={saving}
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
-                {saving ? "Saving..." : "Save"}
+                {saving ? t("common:actions.saving") : t("common:actions.save")}
               </button>
               <button
                 onClick={cancelEditing}
                 disabled={saving}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-y-2 text-sm">
-            <Row label="Type" value={container.container_type} />
-            <Row label="Shipping Container #" value={container.shipping_container_number || "\u2014"} />
-            <Row label="Customer" value={container.customer_name || "\u2014"} />
-            <Row label="Destination" value={container.destination || "\u2014"} />
-            <Row label="Export Date" value={container.export_date ? new Date(container.export_date).toLocaleDateString() : "\u2014"} />
-            <Row label="Seal Number" value={container.seal_number || "\u2014"} />
+            <Row label={t("common:table.type")} value={container.container_type} />
+            <Row label={t("detail.shippingNumber")} value={container.shipping_container_number || "\u2014"} />
+            <Row label={t("detail.customer")} value={container.customer_name || "\u2014"} />
+            <Row label={t("detail.destination")} value={container.destination || "\u2014"} />
+            <Row label={t("detail.exportDate")} value={container.export_date ? new Date(container.export_date).toLocaleDateString() : "\u2014"} />
+            <Row label={t("detail.sealNumber")} value={container.seal_number || "\u2014"} />
           </div>
         )}
       </div>
@@ -320,14 +322,14 @@ export default function ContainerDetail() {
       <div className="bg-white rounded-lg border p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-700">
-            Pallets ({container.pallets.length})
+            {t("detail.pallets")} ({container.pallets.length})
           </h3>
           {canLoadPallets && (
             <button
               onClick={handleOpenLoadModal}
               className="px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
             >
-              Load Pallets
+              {t("detail.loadPallets")}
             </button>
           )}
         </div>
@@ -335,13 +337,13 @@ export default function ContainerDetail() {
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">Pallet #</th>
-                <th className="text-left px-2 py-1.5 font-medium">Fruit</th>
-                <th className="text-left px-2 py-1.5 font-medium">Grade</th>
-                <th className="text-left px-2 py-1.5 font-medium">Size</th>
-                <th className="text-left px-2 py-1.5 font-medium">Box Type</th>
-                <th className="text-right px-2 py-1.5 font-medium">Boxes</th>
-                <th className="text-left px-2 py-1.5 font-medium">Status</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.palletNumber")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.fruit")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.grade")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.size")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.boxType")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("detail.headers.boxes")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.status")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -365,7 +367,7 @@ export default function ContainerDetail() {
             </tbody>
           </table>
         ) : (
-          <p className="text-gray-400 text-sm">No pallets loaded.</p>
+          <p className="text-gray-400 text-sm">{t("detail.noPallets")}</p>
         )}
       </div>
 
@@ -373,25 +375,25 @@ export default function ContainerDetail() {
       {container.traceability.length > 0 && (
         <div className="bg-white rounded-lg border p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Full Traceability
+            {t("detail.traceability")}
           </h3>
           <div className="space-y-4">
             {container.traceability.map((tp) => (
               <div key={tp.pallet_number} className="border rounded p-3">
                 <p className="text-xs font-semibold text-gray-600 mb-2">
-                  Pallet {tp.pallet_number} ({tp.current_boxes} boxes)
+                  Pallet {tp.pallet_number} ({tp.current_boxes} {t("common:units.boxes")})
                 </p>
 
                 {/* Lots */}
                 {tp.lots.length > 0 && (
                   <div className="ml-4 mb-2">
-                    <p className="text-xs text-gray-500 mb-1">Lots:</p>
+                    <p className="text-xs text-gray-500 mb-1">{t("detail.lots")}</p>
                     <div className="space-y-1">
                       {tp.lots.map((lot, i) => (
                         <p key={i} className="text-xs text-gray-700">
                           <span className="font-mono text-green-700">{lot.lot_code}</span>
                           {" \u2014 "}
-                          {lot.grade || "?"} / {lot.size || "?"}{lot.box_size_name ? ` \u00b7 ${lot.box_size_name}` : ""} ({lot.box_count} boxes)
+                          {lot.grade || "?"} / {lot.size || "?"}{lot.box_size_name ? ` \u00b7 ${lot.box_size_name}` : ""} ({lot.box_count} {t("common:units.boxes")})
                         </p>
                       ))}
                     </div>
@@ -401,7 +403,7 @@ export default function ContainerDetail() {
                 {/* Batches / Growers */}
                 {tp.batches.length > 0 && (
                   <div className="ml-4">
-                    <p className="text-xs text-gray-500 mb-1">GRNs / Growers:</p>
+                    <p className="text-xs text-gray-500 mb-1">{t("detail.grns")}</p>
                     <div className="space-y-1">
                       {tp.batches.map((b, i) => (
                         <p key={i} className="text-xs text-gray-700">
@@ -424,7 +426,7 @@ export default function ContainerDetail() {
 
       {/* QR Code */}
       <div className="bg-white rounded-lg border p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("detail.qrCode")}</h3>
         <div className="flex flex-col items-center gap-2">
           <QRCodeSVG
             value={JSON.stringify({
@@ -445,10 +447,10 @@ export default function ContainerDetail() {
         </div>
       </div>
 
-      {/* Notes (view mode only — editable from edit form above) */}
+      {/* Notes (view mode only -- editable from edit form above) */}
       {!editing && container.notes && (
         <div className="bg-white rounded-lg border p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">{t("detail.notes")}</h3>
           <p className="text-sm text-gray-600">{container.notes}</p>
         </div>
       )}
@@ -464,7 +466,7 @@ export default function ContainerDetail() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">Load Pallets</h2>
+              <h2 className="text-lg font-semibold text-gray-800">{t("loadPallets.title")}</h2>
               <button
                 onClick={() => setShowLoadModal(false)}
                 className="text-gray-400 hover:text-gray-600 text-xl leading-none"
@@ -476,13 +478,13 @@ export default function ContainerDetail() {
             {/* Modal body */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {loadingPallets ? (
-                <p className="text-sm text-gray-400">Loading available pallets...</p>
+                <p className="text-sm text-gray-400">{t("loadPallets.loading")}</p>
               ) : availablePallets.length === 0 ? (
-                <p className="text-sm text-gray-500">No closed pallets available to load.</p>
+                <p className="text-sm text-gray-500">{t("loadPallets.empty")}</p>
               ) : (
                 <>
                   <p className="text-xs text-gray-500 mb-3">
-                    Select closed pallets to load into this container. {selectedPalletIds.size} selected.
+                    {t("loadPallets.help", { count: selectedPalletIds.size })}
                   </p>
                   <table className="w-full text-sm">
                     <thead className="text-gray-500 text-xs">
@@ -504,10 +506,10 @@ export default function ContainerDetail() {
                             className="rounded border-gray-300"
                           />
                         </th>
-                        <th className="text-left px-2 py-1.5 font-medium">Pallet #</th>
-                        <th className="text-right px-2 py-1.5 font-medium">Boxes</th>
-                        <th className="text-left px-2 py-1.5 font-medium">Fruit</th>
-                        <th className="text-left px-2 py-1.5 font-medium">Grade</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.palletNumber")}</th>
+                        <th className="text-right px-2 py-1.5 font-medium">{t("detail.headers.boxes")}</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.fruit")}</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("detail.headers.grade")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -550,7 +552,7 @@ export default function ContainerDetail() {
                 onClick={() => setShowLoadModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleLoadSelected}
@@ -558,8 +560,8 @@ export default function ContainerDetail() {
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submittingLoad
-                  ? "Loading..."
-                  : `Load Selected (${selectedPalletIds.size})`}
+                  ? t("loadPallets.loadingButton")
+                  : t("loadPallets.loadSelected", { count: selectedPalletIds.size })}
               </button>
             </div>
           </div>

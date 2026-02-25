@@ -1,0 +1,22 @@
+{
+  "title": "Growers & Harvest Teams",
+  "subtitle": "Manage growers and harvest teams. Download a CSV template, fill it in, and upload to bulk-create or update records.",
+  "growers": {
+    "title": "Growers",
+    "empty": "No growers yet. Upload a CSV to get started.",
+    "headers": {
+      "code": "Code",
+      "contact": "Contact",
+      "region": "Region",
+      "hectares": "Hectares"
+    }
+  },
+  "teams": {
+    "title": "Harvest Teams",
+    "empty": "No harvest teams yet. Upload a CSV to get started.",
+    "headers": {
+      "teamLeader": "Team Leader",
+      "teamSize": "Team Size"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 
@@ -18,6 +19,7 @@ interface FormData {
 const TAG_OPTIONS = ["packaging", "services", "labour", "transport", "chemicals"];
 
 export default function Step3Suppliers({ onSave, saving, draftData }: StepProps) {
+  const { t } = useTranslation("wizard");
   const { register, control, watch, getValues } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
       suppliers: [{ name: "", tags: [], contact_person: "", phone: "", email: "" }],
@@ -35,6 +37,7 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
   const saveAndComplete = () => onSave(filterEmpty(getValues()), true);
 
   const hasEntries = suppliers?.some((s) => s.name?.trim());
+  const supplierCount = suppliers?.filter((s) => s.name?.trim()).length ?? 0;
 
   return (
     <form className="space-y-6 max-w-2xl">
@@ -43,23 +46,23 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
         <div className="bg-white rounded-lg border overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b">
             <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-              {suppliers.filter((s) => s.name?.trim()).length} Supplier(s)
+              {t("step3.supplierCount", { count: supplierCount })}
             </span>
             <button
               type="button"
               onClick={() => setShowForms(!showForms)}
               className="text-xs text-green-600 hover:text-green-700"
             >
-              {showForms ? "Collapse" : "Expand"} forms
+              {t("step3.collapseExpand")}
             </button>
           </div>
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-4 py-1.5 font-medium">Name</th>
+                <th className="text-left px-4 py-1.5 font-medium">{t("common:table.name")}</th>
                 <th className="text-left px-4 py-1.5 font-medium">Tags</th>
-                <th className="text-left px-4 py-1.5 font-medium">Contact</th>
-                <th className="text-left px-4 py-1.5 font-medium">Phone</th>
+                <th className="text-left px-4 py-1.5 font-medium">{t("common:table.contact")}</th>
+                <th className="text-left px-4 py-1.5 font-medium">{t("common:table.phone")}</th>
                 <th className="px-4 py-1.5"></th>
               </tr>
             </thead>
@@ -70,9 +73,9 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
                     <td className="px-4 py-1.5 font-medium">{s.name}</td>
                     <td className="px-4 py-1.5">
                       <div className="flex flex-wrap gap-1">
-                        {(s.tags || []).map((t) => (
-                          <span key={t} className="bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded">
-                            {t}
+                        {(s.tags || []).map((tg) => (
+                          <span key={tg} className="bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded">
+                            {tg}
                           </span>
                         ))}
                       </div>
@@ -85,10 +88,10 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
                         onClick={() => setShowForms(true)}
                         className="text-xs text-green-600 hover:text-green-700 mr-2"
                       >
-                        Edit
+                        {t("common:actions.edit")}
                       </button>
                       <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500">
-                          Remove
+                          {t("common:actions.remove")}
                         </button>
                     </td>
                   </tr>
@@ -105,10 +108,10 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
           {fields.map((field, idx) => (
             <fieldset key={field.id} className="p-4 border rounded space-y-3">
               <div className="flex justify-between items-center">
-                <legend className="text-sm font-medium text-gray-700">Supplier {idx + 1}</legend>
-                <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                <legend className="text-sm font-medium text-gray-700">{t("step3.supplier", { index: idx + 1 })}</legend>
+                <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">{t("common:actions.remove")}</button>
               </div>
-              <input {...register(`suppliers.${idx}.name`)} placeholder="Supplier name" className="w-full border rounded px-3 py-2 text-sm" />
+              <input {...register(`suppliers.${idx}.name`)} placeholder={t("step3.supplierName")} className="w-full border rounded px-3 py-2 text-sm" />
               <div className="flex flex-wrap gap-2">
                 {TAG_OPTIONS.map((tag) => (
                   <label key={tag} className="flex items-center gap-1 text-xs">
@@ -118,9 +121,9 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
                 ))}
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <input {...register(`suppliers.${idx}.contact_person`)} placeholder="Contact person" className="border rounded px-3 py-2 text-sm" />
-                <input {...register(`suppliers.${idx}.phone`)} placeholder="Phone" className="border rounded px-3 py-2 text-sm" />
-                <input {...register(`suppliers.${idx}.email`)} placeholder="Email" className="border rounded px-3 py-2 text-sm" />
+                <input {...register(`suppliers.${idx}.contact_person`)} placeholder={t("step3.contactPerson")} className="border rounded px-3 py-2 text-sm" />
+                <input {...register(`suppliers.${idx}.phone`)} placeholder={t("step3.phone")} className="border rounded px-3 py-2 text-sm" />
+                <input {...register(`suppliers.${idx}.email`)} placeholder={t("step3.email")} className="border rounded px-3 py-2 text-sm" />
               </div>
             </fieldset>
           ))}
@@ -132,15 +135,15 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
         onClick={() => { append({ name: "", tags: [], contact_person: "", phone: "", email: "" }); setShowForms(true); }}
         className="text-sm text-green-600"
       >
-        + Add supplier
+        {t("step3.addSupplier")}
       </button>
 
       <div className="flex gap-3 pt-4 border-t">
         <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">
-          {saving && <Spinner />} Save Draft
+          {saving && <Spinner />} {t("saveDraft")}
         </button>
         <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">
-          {saving && <Spinner />} Save & Continue
+          {saving && <Spinner />} {t("saveContinue")}
         </button>
       </div>
     </form>

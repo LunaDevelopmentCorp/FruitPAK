@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import {
@@ -33,6 +34,7 @@ interface FieldError {
 }
 
 export default function GrnIntake() {
+  const { t } = useTranslation("grn");
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [packhouses, setPackhouses] = useState<Packhouse[]>([]);
   const [fruitConfigs, setFruitConfigs] = useState<FruitTypeConfig[]>([]);
@@ -86,7 +88,7 @@ export default function GrnIntake() {
         setHarvestTeams(ht);
       })
       .catch(() => {
-        setError("Failed to load reference data. Is the wizard complete?");
+        setError(t("loadError"));
       })
       .finally(() => setLoadingRef(false));
   }, []);
@@ -172,7 +174,7 @@ export default function GrnIntake() {
 
     // At least one of weight or bin count is required
     if (!grossNum && !binNum) {
-      setError("Provide at least gross weight or bin count.");
+      setError(t("form.weightOrBinRequired"));
       return;
     }
 
@@ -187,7 +189,7 @@ export default function GrnIntake() {
     try {
       const res = await submitGRN(payload);
       setResult(res);
-      setToast(`Batch ${res.batch.batch_code} created successfully`);
+      setToast(t("success.batchCreated", { code: res.batch.batch_code }));
       fetchRecentBatches(grnDate);
     } catch (err: unknown) {
       // 422 with field-level errors needs special handling
@@ -204,9 +206,9 @@ export default function GrnIntake() {
             message: e.msg!,
           }));
         setFieldErrors(mapped);
-        setError("Please fix the highlighted fields below.");
+        setError(t("form.fixFields"));
       } else {
-        const msg = getErrorMessage(err, "GRN submission failed");
+        const msg = getErrorMessage(err, t("form.submissionFailed"));
         setError(msg);
         globalToast("error", msg);
       }
@@ -225,7 +227,7 @@ export default function GrnIntake() {
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <Spinner />
-          Loading reference data...
+          {t("loadingRef")}
         </div>
       </div>
     );
@@ -246,36 +248,36 @@ export default function GrnIntake() {
             <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h2 className="text-xl font-bold text-green-800">GRN Created</h2>
+            <h2 className="text-xl font-bold text-green-800">{t("success.title")}</h2>
           </div>
 
           <div className="space-y-2 text-sm">
-            <Row label="Batch Code" value={result.batch.batch_code} mono />
-            <Row label="Fruit" value={result.batch.fruit_type} />
-            <Row label="Variety" value={result.batch.variety || "\u2014"} />
+            <Row label={t("success.batchCode")} value={result.batch.batch_code} mono />
+            <Row label={t("success.fruit")} value={result.batch.fruit_type} />
+            <Row label={t("success.variety")} value={result.batch.variety || "\u2014"} />
             {result.batch.gross_weight_kg != null ? (
               <>
                 <Row
-                  label="Gross Weight"
+                  label={t("success.grossWeight")}
                   value={`${result.batch.gross_weight_kg.toLocaleString()} kg`}
                 />
                 <Row
-                  label="Tare Weight"
+                  label={t("success.tareWeight")}
                   value={`${result.batch.tare_weight_kg.toLocaleString()} kg`}
                 />
                 <Row
-                  label="Net Weight"
+                  label={t("success.netWeight")}
                   value={`${result.batch.net_weight_kg?.toLocaleString() ?? "\u2014"} kg`}
                   bold
                 />
               </>
             ) : (
-              <Row label="Weight" value="Pending (add via edit)" />
+              <Row label={t("success.netWeight")} value={t("success.weightPending")} />
             )}
-            <Row label="Status" value={result.batch.status} />
+            <Row label={t("success.status")} value={result.batch.status} />
             <Row
-              label="Advance Payment"
-              value={result.advance_payment_linked ? `Linked (${result.advance_payment_ref})` : "None"}
+              label={t("success.advancePayment")}
+              value={result.advance_payment_linked ? t("success.linked", { ref: result.advance_payment_ref }) : t("success.none")}
             />
           </div>
 
@@ -288,13 +290,13 @@ export default function GrnIntake() {
               onClick={handleNewIntake}
               className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
             >
-              New Intake
+              {t("success.newIntake")}
             </button>
             <Link
               to={`/batches/${result.batch.id}`}
               className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
             >
-              View / Edit Batch
+              {t("success.viewEditBatch")}
             </Link>
           </div>
         </div>
@@ -302,8 +304,8 @@ export default function GrnIntake() {
         /* ── New GRN form ───────────────────────────────── */
         <>
           <PageHeader
-            title="GRN Intake"
-            subtitle="Record a new Goods Received Note for incoming fruit."
+            title={t("title")}
+            subtitle={t("subtitle")}
           />
 
           {error && (
@@ -317,13 +319,13 @@ export default function GrnIntake() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Grower *
+              {t("form.grower")}
             </label>
             <select
-              {...register("grower_id", { required: "Grower is required" })}
+              {...register("grower_id", { required: t("form.growerRequired") })}
               className={errors.grower_id || getFieldError("grower_id") ? inputError : inputBase}
             >
-              <option value="">Select grower</option>
+              <option value="">{t("form.selectGrower")}</option>
               {growers.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}{g.grower_code ? ` (${g.grower_code})` : ""}
@@ -335,13 +337,13 @@ export default function GrnIntake() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Packhouse *
+              {t("form.packhouse")}
             </label>
             <select
-              {...register("packhouse_id", { required: "Packhouse is required" })}
+              {...register("packhouse_id", { required: t("form.packhouseRequired") })}
               className={errors.packhouse_id || getFieldError("packhouse_id") ? inputError : inputBase}
             >
-              <option value="">Select packhouse</option>
+              <option value="">{t("form.selectPackhouse")}</option>
               {packhouses.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -355,13 +357,13 @@ export default function GrnIntake() {
         {/* Harvest Team */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Harvest Team *
+            {t("form.harvestTeam")}
           </label>
           <select
-            {...register("harvest_team_id", { required: "Harvest team is required" })}
+            {...register("harvest_team_id", { required: t("form.harvestTeamRequired") })}
             className={errors.harvest_team_id || getFieldError("harvest_team_id") ? inputError : inputBase}
           >
-              <option value="">Select harvest team</option>
+              <option value="">{t("form.selectHarvestTeam")}</option>
               {harvestTeams.map((ht) => (
                 <option key={ht.id} value={ht.id}>
                   {ht.name}{ht.team_leader ? ` (${ht.team_leader})` : ""}
@@ -375,37 +377,37 @@ export default function GrnIntake() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fruit Type *
+              {t("form.fruitType")}
             </label>
             {hasProductConfig ? (
               <select
-                {...register("fruit_type", { required: "Fruit type is required" })}
+                {...register("fruit_type", { required: t("form.fruitTypeRequired") })}
                 className={errors.fruit_type || getFieldError("fruit_type") ? inputError : inputBase}
               >
-                <option value="">Select fruit type</option>
+                <option value="">{t("form.selectFruitType")}</option>
                 {fruitTypes.map((ft) => (
                   <option key={ft} value={ft}>{ft}</option>
                 ))}
               </select>
             ) : (
               <input
-                {...register("fruit_type", { required: "Fruit type is required" })}
+                {...register("fruit_type", { required: t("form.fruitTypeRequired") })}
                 className={errors.fruit_type || getFieldError("fruit_type") ? inputError : inputBase}
-                placeholder="e.g. apple, pear, citrus"
+                placeholder={t("form.fruitTypePlaceholder")}
               />
             )}
             <FieldMsg error={errors.fruit_type?.message || getFieldError("fruit_type")} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Variety
+              {t("form.variety")}
             </label>
             {hasProductConfig && varieties.length > 0 ? (
               <select
                 {...register("variety")}
                 className={getFieldError("variety") ? inputError : inputBase}
               >
-                <option value="">Select variety</option>
+                <option value="">{t("form.selectVariety")}</option>
                 {varieties.map((v) => (
                   <option key={v} value={v}>{v}</option>
                 ))}
@@ -414,7 +416,7 @@ export default function GrnIntake() {
               <input
                 {...register("variety")}
                 className={getFieldError("variety") ? inputError : inputBase}
-                placeholder="e.g. Fuji, Packham"
+                placeholder={t("form.varietyPlaceholder")}
               />
             )}
             <FieldMsg error={getFieldError("variety")} />
@@ -424,28 +426,28 @@ export default function GrnIntake() {
         {/* Receiving — weight and/or units */}
         <div className="bg-gray-50 border rounded-lg p-4 space-y-4">
           <div>
-            <p className="text-sm font-medium text-gray-700">Receiving Details</p>
+            <p className="text-sm font-medium text-gray-700">{t("form.receivingDetails")}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Enter weight, bin count, or both. Weight can be added later if not measured at intake.
+              {t("form.receivingHelp")}
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bin Count
+                {t("form.binCount")}
               </label>
               <input
                 type="number"
                 {...register("bin_count")}
                 className={getFieldError("bin_count") ? inputError : inputBase}
-                placeholder="e.g. 24"
+                placeholder={t("form.binCountPlaceholder")}
               />
               <FieldMsg error={getFieldError("bin_count")} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bin Type
+                {t("form.binType")}
               </label>
               {hasBinTypes ? (
                 <select
@@ -453,7 +455,7 @@ export default function GrnIntake() {
                   onChange={handleBinTypeChange}
                   className={getFieldError("bin_type") ? inputError : inputBase}
                 >
-                  <option value="">Select bin type</option>
+                  <option value="">{t("form.selectBinType")}</option>
                   {binTypes.map((bt) => {
                     const hints = [];
                     if (bt.default_weight_kg > 0) hints.push(`${bt.default_weight_kg} kg`);
@@ -469,7 +471,7 @@ export default function GrnIntake() {
                 <input
                   {...register("bin_type")}
                   className={getFieldError("bin_type") ? inputError : inputBase}
-                  placeholder="e.g. Plastic bin, Wooden crate"
+                  placeholder={t("form.binTypePlaceholder")}
                 />
               )}
               <FieldMsg error={getFieldError("bin_type")} />
@@ -479,27 +481,27 @@ export default function GrnIntake() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Gross Weight (kg)
+                {t("form.grossWeight")}
               </label>
               <input
                 type="number"
                 step="0.1"
                 {...register("gross_weight_kg")}
                 className={getFieldError("gross_weight_kg") ? inputError : inputBase}
-                placeholder="e.g. 1250"
+                placeholder={t("form.grossWeightPlaceholder")}
               />
               <FieldMsg error={getFieldError("gross_weight_kg")} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tare Weight (kg)
+                {t("form.tareWeight")}
               </label>
               <input
                 type="number"
                 step="0.1"
                 {...register("tare_weight_kg")}
                 className={getFieldError("tare_weight_kg") ? inputError : inputBase}
-                placeholder="e.g. 50"
+                placeholder={t("form.tareWeightPlaceholder")}
               />
               <FieldMsg error={getFieldError("tare_weight_kg")} />
             </div>
@@ -517,8 +519,8 @@ export default function GrnIntake() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
               </svg>
-              Net Weight: {netWeight.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
-              {netWeight <= 0 && <span className="text-xs ml-1">(tare exceeds gross)</span>}
+              {t("form.netWeight", { weight: netWeight.toLocaleString(undefined, { maximumFractionDigits: 1 }) })}
+              {netWeight <= 0 && <span className="text-xs ml-1">{t("form.tareExceedsGross")}</span>}
             </div>
           )}
         </div>
@@ -526,7 +528,7 @@ export default function GrnIntake() {
         {/* Harvest Date */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Harvest Date
+            {t("form.harvestDate")}
           </label>
           <input
             type="date"
@@ -537,15 +539,41 @@ export default function GrnIntake() {
           <FieldMsg error={getFieldError("harvest_date")} />
         </div>
 
+        {/* Vehicle Identification */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("form.vehicleReg")}
+            </label>
+            <input
+              {...register("vehicle_reg")}
+              className={getFieldError("vehicle_reg") ? inputError : inputBase}
+              placeholder={t("form.vehicleRegPlaceholder")}
+            />
+            <FieldMsg error={getFieldError("vehicle_reg")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("form.driverName")}
+            </label>
+            <input
+              {...register("driver_name")}
+              className={getFieldError("driver_name") ? inputError : inputBase}
+              placeholder={t("form.driverNamePlaceholder")}
+            />
+            <FieldMsg error={getFieldError("driver_name")} />
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Delivery Notes
+            {t("form.deliveryNotes")}
           </label>
           <textarea
             {...register("delivery_notes")}
             rows={2}
             className={getFieldError("delivery_notes") ? inputError : inputBase}
-            placeholder="Any additional notes about the delivery..."
+            placeholder={t("form.deliveryNotesPlaceholder")}
           />
           <FieldMsg error={getFieldError("delivery_notes")} />
         </div>
@@ -556,7 +584,7 @@ export default function GrnIntake() {
           className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting && <Spinner />}
-          {isSubmitting ? "Submitting..." : "Submit GRN"}
+          {isSubmitting ? t("common:actions.submitting") : t("form.submit")}
         </button>
           </form>
         </>
@@ -567,10 +595,10 @@ export default function GrnIntake() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-800">
-              GRNs for {grnDate === new Date().toISOString().split("T")[0] ? "Today" : grnDate}
+              {grnDate === new Date().toISOString().split("T")[0] ? t("recent.titleToday") : t("recent.titleDate", { date: grnDate })}
             </h2>
             <p className="text-sm text-gray-500">
-              Click a row to edit intake details.
+              {t("recent.clickToEdit")}
             </p>
           </div>
           <input
@@ -586,22 +614,22 @@ export default function GrnIntake() {
 
         {loadingRecent ? (
           <div className="flex items-center gap-2 text-gray-400 text-sm">
-            <Spinner /> Loading...
+            <Spinner /> {t("common:actions.loading")}
           </div>
         ) : recentBatches.length === 0 ? (
-          <p className="text-gray-400 text-sm">No GRNs recorded for this date.</p>
+          <p className="text-gray-400 text-sm">{t("recent.noGrns")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-gray-500 text-xs border-b">
                 <tr>
-                  <th className="text-left px-2 py-2 font-medium">Batch Code</th>
-                  <th className="text-left px-2 py-2 font-medium">Grower</th>
-                  <th className="text-left px-2 py-2 font-medium">Fruit / Variety</th>
-                  <th className="text-right px-2 py-2 font-medium">Bins</th>
-                  <th className="text-right px-2 py-2 font-medium">Gross (kg)</th>
-                  <th className="text-right px-2 py-2 font-medium">Net (kg)</th>
-                  <th className="text-left px-2 py-2 font-medium">Status</th>
+                  <th className="text-left px-2 py-2 font-medium">{t("recent.batchCode")}</th>
+                  <th className="text-left px-2 py-2 font-medium">{t("common:table.grower")}</th>
+                  <th className="text-left px-2 py-2 font-medium">{t("recent.fruitVariety")}</th>
+                  <th className="text-right px-2 py-2 font-medium">{t("recent.bins")}</th>
+                  <th className="text-right px-2 py-2 font-medium">{t("recent.grossKg")}</th>
+                  <th className="text-right px-2 py-2 font-medium">{t("recent.netKg")}</th>
+                  <th className="text-left px-2 py-2 font-medium">{t("common:table.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -668,6 +696,7 @@ function InlineEditPanel({
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation("grn");
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -679,6 +708,8 @@ function InlineEditPanel({
       gross_weight_kg: batch.gross_weight_kg ?? undefined,
       tare_weight_kg: batch.tare_weight_kg,
       harvest_date: batch.harvest_date?.split("T")[0] || "",
+      vehicle_reg: batch.vehicle_reg || "",
+      driver_name: batch.driver_name || "",
       notes: batch.notes || "",
     },
   });
@@ -718,13 +749,15 @@ function InlineEditPanel({
       if (data.tare_weight_kg !== undefined) payload.tare_weight_kg = Number(data.tare_weight_kg);
       if (data.bin_count) payload.bin_count = Number(data.bin_count);
       if (data.bin_type) payload.bin_type = data.bin_type;
+      if (data.vehicle_reg !== undefined) payload.vehicle_reg = data.vehicle_reg;
+      if (data.driver_name !== undefined) payload.driver_name = data.driver_name;
       if (data.notes !== undefined) payload.notes = data.notes;
 
       await updateBatch(batch.id, payload);
-      globalToast("success", `Batch ${batch.batch_code} updated.`);
+      globalToast("success", t("recent.batchUpdated", { code: batch.batch_code }));
       onSave();
     } catch (err: unknown) {
-      setEditError(getErrorMessage(err, "Update failed"));
+      setEditError(getErrorMessage(err, t("recent.updateFailed")));
     } finally {
       setSaving(false);
     }
@@ -740,13 +773,13 @@ function InlineEditPanel({
 
       <div className="grid grid-cols-4 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Variety</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.variety")}</label>
           <input {...register("variety")} className={inputCls} />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Bin Type</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.binType")}</label>
           <select {...register("bin_type")} className={inputCls}>
-            <option value="">— Select —</option>
+            <option value="">{t("edit.selectBinType")}</option>
             {binTypes.map((bt) => (
               <option key={bt.id} value={bt.name}>
                 {bt.name}{bt.default_weight_kg > 0 ? ` (${bt.default_weight_kg} kg)` : ""}
@@ -755,39 +788,50 @@ function InlineEditPanel({
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Bin Count</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.binCount")}</label>
           <input type="number" {...register("bin_count", { valueAsNumber: true })} className={inputCls} />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Harvest Date</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.harvestDate")}</label>
           <input type="date" {...register("harvest_date")} className={inputCls} />
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Gross Weight (kg)</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.grossWeight")}</label>
           <input type="number" step="0.1" {...register("gross_weight_kg", { valueAsNumber: true })} className={inputCls} />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Tare Weight (kg)</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.tareWeight")}</label>
           <input type="number" step="0.1" {...register("tare_weight_kg", { valueAsNumber: true })} className={inputCls} />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Net Weight</label>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.netWeight")}</label>
           <p className="px-2 py-1.5 text-sm text-gray-600 bg-amber-100 rounded">
             {netWeight != null ? `${netWeight.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg` : "—"}
           </p>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Notes</label>
-          <input {...register("notes")} className={inputCls} placeholder="Optional" />
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.notes")}</label>
+          <input {...register("notes")} className={inputCls} placeholder={t("edit.notesPlaceholder")} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.vehicleReg")}</label>
+          <input {...register("vehicle_reg")} className={inputCls} placeholder={t("edit.vehicleRegPlaceholder")} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">{t("edit.driverName")}</label>
+          <input {...register("driver_name")} className={inputCls} placeholder={t("edit.driverNamePlaceholder")} />
         </div>
       </div>
 
       {watchedBinType && binTypes.find((b) => b.name === watchedBinType) && (
         <p className="text-xs text-gray-500">
-          Weights auto-calculate from bin type when bin count changes.
+          {t("recent.autoCalcHint")}
         </p>
       )}
 
@@ -797,14 +841,14 @@ function InlineEditPanel({
           disabled={saving}
           className="bg-amber-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? t("common:actions.saving") : t("common:actions.saveChanges")}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="border text-gray-600 px-4 py-1.5 rounded text-sm hover:bg-gray-50"
         >
-          Cancel
+          {t("common:actions.cancel")}
         </button>
       </div>
     </form>

@@ -1,0 +1,150 @@
+{
+  "title": "Administration",
+  "tabs": {
+    "overview": "Vue d'ensemble",
+    "users": "Utilisateurs",
+    "activity": "Activite",
+    "deletedItems": "Elements supprimes"
+  },
+  "overview": {
+    "loading": "Chargement de la vue d'ensemble...",
+    "loadFailed": "Echec du chargement des donnees",
+    "stats": {
+      "batchesToday": "Lots aujourd'hui",
+      "palletsToday": "Palettes aujourd'hui",
+      "containersToday": "Conteneurs aujourd'hui",
+      "unpalletizedBoxes": "Cartons non palettises",
+      "wasteToday": "Pertes aujourd'hui",
+      "wasteWeek": "{{count}} kg cette semaine"
+    },
+    "alerts": {
+      "openAlerts_one": "{{count}} alerte ouverte",
+      "openAlerts_other": "{{count}} alertes ouvertes",
+      "critical_one": "{{count}} critique",
+      "critical_other": "{{count}} critiques",
+      "viewReconciliation": "— voir le rapprochement"
+    },
+    "pipeline": {
+      "title": "Chaine de traitement",
+      "batches": "Lots",
+      "lots": "Sous-lots",
+      "pallets": "Palettes",
+      "containers": "Conteneurs"
+    },
+    "staleItems": {
+      "title": "Elements en attente prolongee",
+      "empty": "Aucun element en attente prolongee detecte",
+      "stuck": "bloque depuis {{age}}"
+    },
+    "recentActivity": {
+      "title": "Activite recente",
+      "empty": "Aucune activite enregistree"
+    },
+    "activeUsers_one": "{{count}} utilisateur actif",
+    "activeUsers_other": "{{count}} utilisateurs actifs"
+  },
+  "users": {
+    "count_one": "{{count}} utilisateur",
+    "count_other": "{{count}} utilisateurs",
+    "newUser": "+ Nouvel utilisateur",
+    "loading": "Chargement des utilisateurs...",
+    "loadFailed": "Echec du chargement des utilisateurs",
+    "saveFailed": "Echec de l'enregistrement de l'utilisateur",
+    "statusFailed": "Echec de la mise a jour du statut de l'utilisateur",
+    "headers": {
+      "name": "Nom",
+      "email": "E-mail",
+      "phone": "Telephone",
+      "role": "Role",
+      "status": "Statut"
+    },
+    "modal": {
+      "editTitle": "Modifier l'utilisateur",
+      "newTitle": "Nouvel utilisateur",
+      "email": "E-mail *",
+      "fullName": "Nom complet *",
+      "phone": "Telephone",
+      "password": "Mot de passe",
+      "passwordHelp": "(facultatif pour les utilisateurs OTP)",
+      "role": "Role",
+      "roles": {
+        "administrator": "Administrateur",
+        "supervisor": "Superviseur",
+        "operator": "Operateur"
+      },
+      "assignedPackhouses": "Stations assignees",
+      "packhouseHelp": "Laissez vide pour donner acces a toutes les stations",
+      "saveChanges": "Enregistrer les modifications",
+      "createUser": "Creer l'utilisateur"
+    },
+    "confirm": {
+      "deactivateTitle": "Desactiver l'utilisateur ?",
+      "reactivateTitle": "Reactiver l'utilisateur ?",
+      "deactivateText": "Cela desactivera {{name}} et revoquera immediatement son acces. L'utilisateur sera deconnecte.",
+      "reactivateText": "Cela reactivera {{name}}, lui permettant de se reconnecter."
+    },
+    "toast": {
+      "updated": "{{name}} mis a jour",
+      "created": "Utilisateur {{name}} cree",
+      "deactivated": "{{name}} desactive",
+      "reactivated": "{{name}} reactive"
+    }
+  },
+  "activity": {
+    "allTypes": "Tous les types",
+    "allActions": "Toutes les actions",
+    "totalEntries_one": "{{count}} entree au total",
+    "totalEntries_other": "{{count}} entrees au total",
+    "entries_one": "{{count}} entree",
+    "entries_other": "{{count}} entrees",
+    "loading": "Chargement du journal d'activite...",
+    "loadFailed": "Echec du chargement du journal d'activite",
+    "empty": "Aucune entree d'activite trouvee.",
+    "headers": {
+      "time": "Heure",
+      "user": "Utilisateur",
+      "action": "Action",
+      "type": "Type",
+      "code": "Code",
+      "summary": "Resume"
+    }
+  },
+  "deleted": {
+    "count_one": "{{count}} element supprime dans tous les types",
+    "count_other": "{{count}} elements supprimes dans tous les types",
+    "tabs": {
+      "all": "Tous",
+      "batches": "Lots",
+      "lots": "Sous-lots",
+      "pallets": "Palettes",
+      "containers": "Conteneurs"
+    },
+    "searchPlaceholder": "Rechercher par code ou description...",
+    "loading": "Chargement des elements supprimes...",
+    "emptySearch": "Aucun element ne correspond a votre recherche.",
+    "empty": "Aucun element supprime trouve.",
+    "headers": {
+      "type": "Type",
+      "code": "Code",
+      "description": "Description",
+      "status": "Statut",
+      "deleted": "Supprime"
+    },
+    "restore": "Restaurer",
+    "purge": "Purger",
+    "purgeConfirm": {
+      "title": "Supprimer definitivement ?",
+      "text": "Cela supprimera definitivement {{code}} et ne pourra pas etre annule.",
+      "batchWarning": "Tous les sous-lots appartenant a ce lot seront egalement supprimes definitivement.",
+      "deleteForever": "Supprimer definitivement"
+    },
+    "toast": {
+      "restored": "{{code}} restaure",
+      "restoredWithRelated": "{{code}} restaure (+ {{count}} elements lies)",
+      "restoreFailed": "Echec de la restauration",
+      "purged": "{{code}} supprime definitivement",
+      "purgedWithRelated": "{{code}} supprime definitivement (+ {{count}} elements lies)",
+      "purgeFailed": "Echec de la suppression definitive"
+    }
+  }
+}

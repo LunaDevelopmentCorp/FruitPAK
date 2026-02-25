@@ -29,6 +29,8 @@ export interface GRNPayload {
   brix_reading?: number;
   bin_count?: number;
   bin_type?: string;
+  vehicle_reg?: string;
+  driver_name?: string;
   delivery_notes?: string;
 }
 
@@ -45,6 +47,8 @@ export interface BatchOut {
   gross_weight_kg: number | null;
   tare_weight_kg: number;
   net_weight_kg: number | null;
+  vehicle_reg: string | null;
+  driver_name: string | null;
   status: string;
   notes: string | null;
   created_at: string;
@@ -63,6 +67,8 @@ export interface BatchSummary {
   net_weight_kg: number | null;
   bin_count: number | null;
   bin_type: string | null;
+  vehicle_reg: string | null;
+  driver_name: string | null;
   harvest_date: string | null;
   notes: string | null;
   status: string;
@@ -119,6 +125,8 @@ export interface BatchDetail extends BatchOut {
   waste_reason: string | null;
   bin_count: number | null;
   bin_type: string | null;
+  vehicle_reg: string | null;
+  driver_name: string | null;
   received_by: string | null;
   received_by_name: string | null;
   updated_at: string;
@@ -140,6 +148,8 @@ export interface BatchUpdatePayload {
   waste_reason?: string;
   bin_count?: number;
   bin_type?: string;
+  vehicle_reg?: string;
+  driver_name?: string;
   notes?: string;
 }
 

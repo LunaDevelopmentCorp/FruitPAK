@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listUsers,
   createUser,
@@ -28,6 +29,7 @@ const ROLE_COLORS: Record<string, string> = {
 const ROLES = ["administrator", "supervisor", "operator"] as const;
 
 export default function UserManagement() {
+  const { t } = useTranslation("admin");
   const currentUser = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [packhouses, setPackhouses] = useState<Packhouse[]>([]);
@@ -68,7 +70,7 @@ export default function UserManagement() {
       setUsers(userList);
       setPackhouses(phList as Packhouse[]);
     } catch {
-      setError("Failed to load users");
+      setError(t("users.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -121,7 +123,7 @@ export default function UserManagement() {
           return;
         }
         await updateUser(editingUser.id, payload);
-        showToast("success", `Updated ${formData.full_name}`);
+        showToast("success", t("users.toast.updated", { name: formData.full_name }));
       } else {
         const payload: CreateUserPayload = {
           email: formData.email,
@@ -134,12 +136,12 @@ export default function UserManagement() {
           payload.assigned_packhouses = formData.assigned_packhouses;
         }
         await createUser(payload);
-        showToast("success", `Created user ${formData.full_name}`);
+        showToast("success", t("users.toast.created", { name: formData.full_name }));
       }
       setShowModal(false);
       await fetchData();
     } catch (err: unknown) {
-      showToast("error", getErrorMessage(err, "Failed to save user"));
+      showToast("error", getErrorMessage(err, t("users.saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -152,14 +154,14 @@ export default function UserManagement() {
     try {
       if (u.is_active) {
         await deactivateUser(u.id);
-        showToast("success", `Deactivated ${u.full_name}`);
+        showToast("success", t("users.toast.deactivated", { name: u.full_name }));
       } else {
         await activateUser(u.id);
-        showToast("success", `Reactivated ${u.full_name}`);
+        showToast("success", t("users.toast.reactivated", { name: u.full_name }));
       }
       await fetchData();
     } catch (err: unknown) {
-      showToast("error", getErrorMessage(err, "Failed to update user status"));
+      showToast("error", getErrorMessage(err, t("users.statusFailed")));
     }
   };
 
@@ -172,18 +174,18 @@ export default function UserManagement() {
     }));
   };
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading users...</p>;
+  if (loading) return <p className="text-gray-400 text-sm">{t("users.loading")}</p>;
   if (error) return <p className="text-red-600 text-sm">{error}</p>;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-500">{users.length} user{users.length !== 1 ? "s" : ""}</p>
+        <p className="text-sm text-gray-500">{t("users.count", { count: users.length })}</p>
         <button
           onClick={openCreate}
           className="bg-green-600 text-white text-sm px-4 py-2 rounded font-medium hover:bg-green-700"
         >
-          + New User
+          {t("users.newUser")}
         </button>
       </div>
 
@@ -191,11 +193,11 @@ export default function UserManagement() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">Name</th>
-              <th className="text-left px-4 py-2 font-medium">Email</th>
-              <th className="text-left px-4 py-2 font-medium">Phone</th>
-              <th className="text-left px-4 py-2 font-medium">Role</th>
-              <th className="text-left px-4 py-2 font-medium">Status</th>
+              <th className="text-left px-4 py-2 font-medium">{t("users.headers.name")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("users.headers.email")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("users.headers.phone")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("users.headers.role")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("users.headers.status")}</th>
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
@@ -204,7 +206,7 @@ export default function UserManagement() {
               <tr key={u.id} className={`hover:bg-gray-50 ${!u.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-2 font-medium text-gray-800">{u.full_name}</td>
                 <td className="px-4 py-2 text-gray-600">{u.email}</td>
-                <td className="px-4 py-2 text-gray-500">{u.phone || "—"}</td>
+                <td className="px-4 py-2 text-gray-500">{u.phone || "\u2014"}</td>
                 <td className="px-4 py-2">
                   <span
                     className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -222,7 +224,7 @@ export default function UserManagement() {
                         : "bg-red-50 text-red-600"
                     }`}
                   >
-                    {u.is_active ? "Active" : "Inactive"}
+                    {u.is_active ? t("common:status.active") : t("common:status.inactive")}
                   </span>
                 </td>
                 <td className="px-4 py-2 text-right">
@@ -231,7 +233,7 @@ export default function UserManagement() {
                       onClick={() => openEdit(u)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      Edit
+                      {t("common:actions.edit")}
                     </button>
                     {u.id !== currentUser?.id && (
                       <button
@@ -242,7 +244,7 @@ export default function UserManagement() {
                             : "text-green-600 hover:underline"
                         }`}
                       >
-                        {u.is_active ? "Deactivate" : "Activate"}
+                        {u.is_active ? t("common:actions.deactivate") : t("common:actions.activate")}
                       </button>
                     )}
                   </div>
@@ -258,13 +260,13 @@ export default function UserManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {editingUser ? "Edit User" : "New User"}
+              {editingUser ? t("users.modal.editTitle") : t("users.modal.newTitle")}
             </h3>
 
             <div className="space-y-3">
               {!editingUser && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Email *</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t("users.modal.email")}</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -275,7 +277,7 @@ export default function UserManagement() {
               )}
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Full Name *</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("users.modal.fullName")}</label>
                 <input
                   type="text"
                   value={formData.full_name}
@@ -285,7 +287,7 @@ export default function UserManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Phone</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("users.modal.phone")}</label>
                 <input
                   type="text"
                   value={formData.phone}
@@ -297,7 +299,7 @@ export default function UserManagement() {
               {!editingUser && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Password <span className="text-gray-400">(optional for OTP users)</span>
+                    {t("users.modal.password")} <span className="text-gray-400">{t("users.modal.passwordHelp")}</span>
                   </label>
                   <input
                     type="password"
@@ -309,7 +311,7 @@ export default function UserManagement() {
               )}
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Role</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("users.modal.role")}</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData((p) => ({ ...p, role: e.target.value }))}
@@ -318,7 +320,7 @@ export default function UserManagement() {
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                      {t(`users.modal.roles.${r}`)}
                     </option>
                   ))}
                 </select>
@@ -326,7 +328,7 @@ export default function UserManagement() {
 
               {packhouses.length > 0 && formData.role === "operator" && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Assigned Packhouses</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t("users.modal.assignedPackhouses")}</label>
                   <div className="flex flex-wrap gap-2">
                     {packhouses.map((ph) => (
                       <button
@@ -344,7 +346,7 @@ export default function UserManagement() {
                     ))}
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1">
-                    Leave empty for access to all packhouses
+                    {t("users.modal.packhouseHelp")}
                   </p>
                 </div>
               )}
@@ -355,14 +357,14 @@ export default function UserManagement() {
                 onClick={() => setShowModal(false)}
                 className="flex-1 border rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving || (!editingUser && (!formData.email || !formData.full_name))}
                 className="flex-1 bg-green-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
-                {saving ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
+                {saving ? t("common:actions.saving") : editingUser ? t("users.modal.saveChanges") : t("users.modal.createUser")}
               </button>
             </div>
           </div>
@@ -378,19 +380,19 @@ export default function UserManagement() {
                 confirmToggle.is_active ? "text-red-700" : "text-green-700"
               }`}
             >
-              {confirmToggle.is_active ? "Deactivate User?" : "Reactivate User?"}
+              {confirmToggle.is_active ? t("users.confirm.deactivateTitle") : t("users.confirm.reactivateTitle")}
             </h3>
             <p className="text-sm text-gray-600 mb-4">
               {confirmToggle.is_active
-                ? `This will deactivate ${confirmToggle.full_name} and immediately revoke their access. They will be logged out.`
-                : `This will reactivate ${confirmToggle.full_name}, allowing them to log in again.`}
+                ? t("users.confirm.deactivateText", { name: confirmToggle.full_name })
+                : t("users.confirm.reactivateText", { name: confirmToggle.full_name })}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmToggle(null)}
                 className="flex-1 border rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleToggleActive}
@@ -400,7 +402,7 @@ export default function UserManagement() {
                     : "bg-green-600 hover:bg-green-700"
                 }`}
               >
-                {confirmToggle.is_active ? "Deactivate" : "Reactivate"}
+                {confirmToggle.is_active ? t("common:actions.deactivate") : t("common:actions.reactivate")}
               </button>
             </div>
           </div>

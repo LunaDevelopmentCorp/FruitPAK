@@ -73,6 +73,10 @@ class Batch(TenantBase):
     bin_count: Mapped[int | None] = mapped_column(Integer)
     bin_type: Mapped[str | None] = mapped_column(String(50))
 
+    # ── Vehicle identification ─────────────────────────────
+    vehicle_reg: Mapped[str | None] = mapped_column(String(30))
+    driver_name: Mapped[str | None] = mapped_column(String(100))
+
     # ── Metadata ─────────────────────────────────────────────
     notes: Mapped[str | None] = mapped_column(Text)
     received_by: Mapped[str | None] = mapped_column(String(36))  # user_id

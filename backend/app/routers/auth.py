@@ -8,9 +8,11 @@ Route overview:
   POST /signup       — admin creates a user in their enterprise (requires auth)
   POST /refresh      — exchange a refresh token for new access + refresh tokens
   GET  /me           — return the current user profile + permissions
+  PATCH /me          — update current user's preferences (language, etc.)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,6 +72,7 @@ def _build_user_out(
         is_onboarded=is_onboarded,
         permissions=permissions,
         assigned_packhouses=user.assigned_packhouses,
+        preferred_language=user.preferred_language,
     )
 
 
@@ -138,6 +141,9 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Account deactivated")
 
     tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
+    # Platform admins are always considered onboarded
+    if user.role == UserRole.PLATFORM_ADMIN:
+        is_onboarded = True
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
     return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
@@ -274,6 +280,8 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
     # Re-resolve permissions (may have changed since last token)
     tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
+    if user.role == UserRole.PLATFORM_ADMIN:
+        is_onboarded = True
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
     return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
@@ -287,6 +295,35 @@ async def me(
 ):
     """Return the current authenticated user's profile and permissions."""
     _, is_onboarded = await _resolve_enterprise_info(db, user)
+    if user.role == UserRole.PLATFORM_ADMIN:
+        is_onboarded = True
+    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    return _build_user_out(user, permissions, is_onboarded)
+
+
+# ── PATCH /me ────────────────────────────────────────────────
+
+class UpdateMeRequest(BaseModel):
+    preferred_language: str | None = None
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(
+    body: UpdateMeRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's preferences (e.g. language)."""
+    if body.preferred_language is not None:
+        if body.preferred_language not in ("en", "fr", "pt", "es"):
+            raise HTTPException(status_code=400, detail="Unsupported language")
+        user.preferred_language = body.preferred_language
+
+    await db.flush()
+
+    _, is_onboarded = await _resolve_enterprise_info(db, user)
+    if user.role == UserRole.PLATFORM_ADMIN:
+        is_onboarded = True
     permissions = resolve_permissions(user.role.value, user.custom_permissions)
     return _build_user_out(user, permissions, is_onboarded)
 

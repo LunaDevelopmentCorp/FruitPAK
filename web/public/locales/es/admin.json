@@ -1,0 +1,150 @@
+{
+  "title": "Administración",
+  "tabs": {
+    "overview": "Resumen",
+    "users": "Usuarios",
+    "activity": "Actividad",
+    "deletedItems": "Elementos Eliminados"
+  },
+  "overview": {
+    "loading": "Cargando resumen...",
+    "loadFailed": "Error al cargar datos del resumen",
+    "stats": {
+      "batchesToday": "Lotes hoy",
+      "palletsToday": "Pallets hoy",
+      "containersToday": "Contenedores hoy",
+      "unpalletizedBoxes": "Cajas sin paletizar",
+      "wasteToday": "Merma hoy",
+      "wasteWeek": "{{count}} kg esta semana"
+    },
+    "alerts": {
+      "openAlerts_one": "{{count}} alerta abierta",
+      "openAlerts_other": "{{count}} alertas abiertas",
+      "critical_one": "{{count}} crítica",
+      "critical_other": "{{count}} críticas",
+      "viewReconciliation": "— ver conciliación"
+    },
+    "pipeline": {
+      "title": "Línea de Procesamiento",
+      "batches": "Lotes",
+      "lots": "Sublotes",
+      "pallets": "Pallets",
+      "containers": "Contenedores"
+    },
+    "staleItems": {
+      "title": "Elementos Estancados",
+      "empty": "No se detectaron elementos estancados",
+      "stuck": "detenido {{age}}"
+    },
+    "recentActivity": {
+      "title": "Actividad Reciente",
+      "empty": "No hay actividad registrada aún"
+    },
+    "activeUsers_one": "{{count}} usuario activo",
+    "activeUsers_other": "{{count}} usuarios activos"
+  },
+  "users": {
+    "count_one": "{{count}} usuario",
+    "count_other": "{{count}} usuarios",
+    "newUser": "+ Nuevo Usuario",
+    "loading": "Cargando usuarios...",
+    "loadFailed": "Error al cargar usuarios",
+    "saveFailed": "Error al guardar usuario",
+    "statusFailed": "Error al actualizar el estado del usuario",
+    "headers": {
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "role": "Rol",
+      "status": "Estado"
+    },
+    "modal": {
+      "editTitle": "Editar Usuario",
+      "newTitle": "Nuevo Usuario",
+      "email": "Correo electrónico *",
+      "fullName": "Nombre Completo *",
+      "phone": "Teléfono",
+      "password": "Contraseña",
+      "passwordHelp": "(opcional para usuarios OTP)",
+      "role": "Rol",
+      "roles": {
+        "administrator": "Administrador",
+        "supervisor": "Supervisor",
+        "operator": "Operador"
+      },
+      "assignedPackhouses": "Empacadoras Asignadas",
+      "packhouseHelp": "Deje vacío para acceso a todas las empacadoras",
+      "saveChanges": "Guardar Cambios",
+      "createUser": "Crear Usuario"
+    },
+    "confirm": {
+      "deactivateTitle": "¿Desactivar Usuario?",
+      "reactivateTitle": "¿Reactivar Usuario?",
+      "deactivateText": "Esto desactivará a {{name}} y revocará su acceso inmediatamente. Se cerrará su sesión.",
+      "reactivateText": "Esto reactivará a {{name}}, permitiéndole iniciar sesión nuevamente."
+    },
+    "toast": {
+      "updated": "{{name}} actualizado",
+      "created": "Usuario {{name}} creado",
+      "deactivated": "{{name}} desactivado",
+      "reactivated": "{{name}} reactivado"
+    }
+  },
+  "activity": {
+    "allTypes": "Todos los tipos",
+    "allActions": "Todas las acciones",
+    "totalEntries_one": "{{count}} entrada en total",
+    "totalEntries_other": "{{count}} entradas en total",
+    "entries_one": "{{count}} entrada",
+    "entries_other": "{{count}} entradas",
+    "loading": "Cargando registro de actividad...",
+    "loadFailed": "Error al cargar el registro de actividad",
+    "empty": "No se encontraron entradas de actividad.",
+    "headers": {
+      "time": "Hora",
+      "user": "Usuario",
+      "action": "Acción",
+      "type": "Tipo",
+      "code": "Código",
+      "summary": "Resumen"
+    }
+  },
+  "deleted": {
+    "count_one": "{{count}} elemento eliminado en todos los tipos",
+    "count_other": "{{count}} elementos eliminados en todos los tipos",
+    "tabs": {
+      "all": "Todos",
+      "batches": "Lotes",
+      "lots": "Sublotes",
+      "pallets": "Pallets",
+      "containers": "Contenedores"
+    },
+    "searchPlaceholder": "Buscar por código o descripción...",
+    "loading": "Cargando elementos eliminados...",
+    "emptySearch": "Ningún elemento coincide con su búsqueda.",
+    "empty": "No se encontraron elementos eliminados.",
+    "headers": {
+      "type": "Tipo",
+      "code": "Código",
+      "description": "Descripción",
+      "status": "Estado",
+      "deleted": "Eliminado"
+    },
+    "restore": "Restaurar",
+    "purge": "Purgar",
+    "purgeConfirm": {
+      "title": "¿Eliminar Permanentemente?",
+      "text": "Esto eliminará permanentemente {{code}} y no se puede deshacer.",
+      "batchWarning": "Todos los sublotes pertenecientes a este lote también serán eliminados permanentemente.",
+      "deleteForever": "Eliminar Permanentemente"
+    },
+    "toast": {
+      "restored": "{{code}} restaurado",
+      "restoredWithRelated": "{{code}} restaurado (+ {{count}} elementos relacionados)",
+      "restoreFailed": "Error al restaurar",
+      "purged": "{{code}} eliminado permanentemente",
+      "purgedWithRelated": "{{code}} eliminado permanentemente (+ {{count}} elementos relacionados)",
+      "purgeFailed": "Error al eliminar permanentemente"
+    }
+  }
+}

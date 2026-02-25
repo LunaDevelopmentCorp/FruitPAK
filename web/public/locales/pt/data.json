@@ -1,0 +1,22 @@
+{
+  "title": "Produtores e Equipas de Colheita",
+  "subtitle": "Gerir produtores e equipas de colheita. Baixe um modelo CSV, preencha e carregue para criar ou atualizar registos em massa.",
+  "growers": {
+    "title": "Produtores",
+    "empty": "Nenhum produtor ainda. Carregue um CSV para começar.",
+    "headers": {
+      "code": "Código",
+      "contact": "Contato",
+      "region": "Região",
+      "hectares": "Hectares"
+    }
+  },
+  "teams": {
+    "title": "Equipas de Colheita",
+    "empty": "Nenhuma equipa de colheita ainda. Carregue um CSV para começar.",
+    "headers": {
+      "teamLeader": "Líder da Equipa",
+      "teamSize": "Tamanho da Equipa"
+    }
+  }
+}

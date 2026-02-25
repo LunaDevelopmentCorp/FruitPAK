@@ -38,8 +38,8 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://fruitpak:fruitpak@db:5432/fruitpak
-      DATABASE_URL_SYNC: postgresql://fruitpak:fruitpak@db:5432/fruitpak
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://fruitpak:fruitpak@db:5432/fruitpak}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql://fruitpak:fruitpak@db:5432/fruitpak}
       REDIS_URL: redis://redis:6379/0
     # No host port — nginx handles external traffic.
     # Expose 8000 on the internal Docker network only.

@@ -1,0 +1,97 @@
+{
+  "grower": {
+    "title": "Registrar Pago a Productor",
+    "subtitle": "Registre un pago a un productor por fruta entregada. Las alertas de conciliación se actualizan automáticamente.",
+    "loadError": "Error al cargar datos. ¿Se completó el asistente de configuración?",
+    "loadingRef": "Cargando datos de referencia...",
+    "form": {
+      "grower": "Productor *",
+      "selectGrower": "Seleccionar productor",
+      "amount": "Monto *",
+      "amountPlaceholder": "ej. 25000",
+      "currency": "Moneda",
+      "paymentType": "Tipo de Pago",
+      "typeFinal": "Final",
+      "typeAdvance": "Anticipo",
+      "paymentDate": "Fecha de Pago *",
+      "linkToBatches": "Vincular a Lotes",
+      "linkHelp": "Seleccione los lotes GRN que cubre este pago. Deje vacío para cubrir todos automáticamente.",
+      "noBatches": "No se encontraron lotes para este productor.",
+      "batchesSelected_one": "{{count}} lote seleccionado",
+      "batchesSelected_other": "{{count}} lotes seleccionados",
+      "kgTotal": "{{kg}} kg en total",
+      "notes": "Notas",
+      "notesPlaceholder": "Notas opcionales sobre este pago...",
+      "submit": "Registrar Pago",
+      "submitting": "Registrando...",
+      "amountError": "El monto debe ser un número positivo.",
+      "fixFields": "Por favor corrija los campos resaltados a continuación.",
+      "submissionFailed": "Error al enviar el pago"
+    },
+    "success": {
+      "title": "Pago Registrado",
+      "reference": "Referencia",
+      "grower": "Productor",
+      "amount": "Monto",
+      "type": "Tipo",
+      "batchesCovered": "Lotes Cubiertos",
+      "totalKg": "Total kg",
+      "status": "Estado",
+      "date": "Fecha",
+      "recordAnother": "Registrar Otro",
+      "viewReconciliation": "Ver Conciliación",
+      "toast": "Pago {{ref}} registrado — alertas actualizadas"
+    },
+    "recent": {
+      "title": "Pagos Recientes"
+    }
+  },
+  "team": {
+    "title": "Pagos a Equipos de Cosecha",
+    "tabs": {
+      "recordPayment": "Registrar Pago",
+      "teamSummary": "Resumen del Equipo"
+    },
+    "form": {
+      "team": "Equipo de Cosecha *",
+      "selectTeam": "Seleccionar equipo...",
+      "amount": "Monto *",
+      "paymentType": "Tipo de Pago",
+      "typeAdvance": "Anticipo",
+      "typeFinal": "Liquidación Final",
+      "paymentDate": "Fecha de Pago *",
+      "notes": "Notas",
+      "notesPlaceholder": "Referencia de pago, motivo del anticipo, etc.",
+      "linkToBatches": "Vincular a Lotes (opcional)",
+      "noBatches": "No se encontraron lotes para este equipo.",
+      "batchesSelected_one": "{{count}} lote",
+      "batchesSelected_other": "{{count}} lotes",
+      "binsCount": "{{count}} bins",
+      "submit": "Registrar Pago",
+      "submitting": "Registrando..."
+    },
+    "success": {
+      "title": "Pago Registrado",
+      "team": "Equipo",
+      "leader": "Líder",
+      "toast": "Pago {{ref}} registrado"
+    },
+    "recent": {
+      "title": "Pagos Recientes a Equipos",
+      "empty": "No hay pagos registrados aún."
+    },
+    "summary": {
+      "title": "Resumen de Conciliación por Equipo",
+      "empty": "No hay equipos de cosecha ni pagos aún.",
+      "headers": {
+        "batches": "Lotes",
+        "totalKg": "Total kg",
+        "bins": "Bins",
+        "advances": "Anticipos",
+        "finals": "Finales",
+        "totalPaid": "Total Pagado"
+      },
+      "totals": "Totales"
+    }
+  }
+}

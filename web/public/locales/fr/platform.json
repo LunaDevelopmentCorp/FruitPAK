@@ -1,0 +1,58 @@
+{
+  "title": "Administration de la plateforme",
+  "tabs": {
+    "stats": "Statistiques",
+    "enterprises": "Entreprises",
+    "users": "Utilisateurs"
+  },
+  "stats": {
+    "totalEnterprises": "Total entreprises",
+    "totalUsers": "Total utilisateurs",
+    "activeEnterprises": "Entreprises actives",
+    "onboardedEnterprises": "Integrees",
+    "recentUsers": "Utilisateurs recents"
+  },
+  "enterprises": {
+    "loading": "Chargement des entreprises...",
+    "empty": "Aucune entreprise enregistree pour le moment.",
+    "headers": {
+      "name": "Nom",
+      "country": "Pays",
+      "schema": "Schema",
+      "users": "Utilisateurs",
+      "onboarded": "Integree",
+      "status": "Statut",
+      "created": "Creee le"
+    },
+    "yes": "Oui",
+    "no": "Non",
+    "activated": "{{name}} activee",
+    "deactivated": "{{name}} desactivee",
+    "updateFailed": "Echec de la mise a jour de l'entreprise"
+  },
+  "users": {
+    "loading": "Chargement des utilisateurs...",
+    "empty": "Aucun utilisateur enregistre pour le moment.",
+    "headers": {
+      "name": "Nom",
+      "email": "E-mail",
+      "enterprise": "Entreprise",
+      "role": "Role",
+      "status": "Statut",
+      "created": "Cree le",
+      "actions": "Actions"
+    },
+    "resetPw": "Reinit. MDP",
+    "impersonate": "Se connecter en tant que",
+    "tempPassword": "Mot de passe temporaire pour {{email}} :",
+    "tempPasswordHelp": "Partagez-le avec l'utilisateur. Il devra le changer apres sa connexion.",
+    "dismiss": "Fermer",
+    "impersonateConfirm": "Se connecter en tant que {{email}} ? Vous serez redirige vers son tableau de bord.",
+    "resetConfirm": "Reinitialiser le mot de passe pour {{email}} ?",
+    "passwordReset": "Mot de passe reinitialise pour {{email}}",
+    "resetFailed": "Echec de la reinitialisation du mot de passe",
+    "activateSuccess": "{{name}} {{status}}",
+    "activateFailed": "Echec de la mise a jour de l'utilisateur",
+    "impersonateFailed": "Echec de la connexion en tant que cet utilisateur"
+  }
+}

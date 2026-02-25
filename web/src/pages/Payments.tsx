@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { listGrowers, listBatches, Grower, BatchSummary } from "../api/batches";
 import { getErrorMessage } from "../api/client";
@@ -25,6 +26,7 @@ interface FieldError {
 }
 
 export default function Payments() {
+  const { t } = useTranslation("payments");
   const { baseCurrency } = useFinancialConfig();
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [batches, setBatches] = useState<BatchSummary[]>([]);
@@ -78,7 +80,7 @@ export default function Payments() {
         setRecentPayments(p);
       })
       .catch(() => {
-        setError("Failed to load data. Is the wizard complete?");
+        setError(t("grower.loadError"));
       })
       .finally(() => setLoadingRef(false));
   }, []);
@@ -91,8 +93,8 @@ export default function Payments() {
   // Auto-dismiss toast
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
   }, [toast]);
 
   const getFieldError = (field: string): string | undefined =>
@@ -117,7 +119,7 @@ export default function Payments() {
 
     const amount = Number(data.amount);
     if (!amount || amount <= 0) {
-      setError("Amount must be a positive number.");
+      setError(t("grower.form.amountError"));
       return;
     }
 
@@ -130,7 +132,7 @@ export default function Payments() {
     try {
       const res = await submitGrowerPayment(payload);
       setResult(res);
-      setToast(`Payment ${res.payment_ref} recorded — alerts updated`);
+      setToast(t("grower.success.toast", { ref: res.payment_ref }));
       // Refresh recent payments
       listGrowerPayments().then(setRecentPayments).catch(() => {});
     } catch (err: unknown) {
@@ -151,9 +153,9 @@ export default function Payments() {
             message: e.msg!,
           }));
         setFieldErrors(mapped);
-        setError("Please fix the highlighted fields below.");
+        setError(t("grower.form.fixFields"));
       } else {
-        setError(getErrorMessage(err, "Payment submission failed"));
+        setError(getErrorMessage(err, t("grower.form.submissionFailed")));
       }
     }
   };
@@ -176,7 +178,7 @@ export default function Payments() {
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <Spinner />
-          Loading reference data...
+          {t("grower.loadingRef")}
         </div>
       </div>
     );
@@ -193,20 +195,20 @@ export default function Payments() {
             <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h2 className="text-xl font-bold text-green-800">Payment Recorded</h2>
+            <h2 className="text-xl font-bold text-green-800">{t("grower.success.title")}</h2>
           </div>
 
           <div className="space-y-2 text-sm">
-            <Row label="Reference" value={result.payment_ref} mono />
-            <Row label="Grower" value={result.grower_name || result.grower_id} />
-            <Row label="Amount" value={`${result.currency} ${result.gross_amount.toLocaleString()}`} bold />
-            <Row label="Type" value={result.payment_type} />
-            <Row label="Batches Covered" value={`${result.batch_ids.length}`} />
+            <Row label={t("grower.success.reference")} value={result.payment_ref} mono />
+            <Row label={t("grower.success.grower")} value={result.grower_name || result.grower_id} />
+            <Row label={t("grower.success.amount")} value={`${result.currency} ${result.gross_amount.toLocaleString()}`} bold />
+            <Row label={t("grower.success.type")} value={result.payment_type} />
+            <Row label={t("grower.success.batchesCovered")} value={`${result.batch_ids.length}`} />
             {result.total_kg != null && (
-              <Row label="Total kg" value={`${result.total_kg.toLocaleString()} kg`} />
+              <Row label={t("grower.success.totalKg")} value={`${result.total_kg.toLocaleString()} kg`} />
             )}
-            <Row label="Status" value={result.status} />
-            <Row label="Date" value={result.paid_date || "—"} />
+            <Row label={t("grower.success.status")} value={result.status} />
+            <Row label={t("grower.success.date")} value={result.paid_date || "—"} />
           </div>
 
           <div className="mt-6 flex gap-3">
@@ -214,13 +216,13 @@ export default function Payments() {
               onClick={handleNewPayment}
               className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
             >
-              Record Another
+              {t("grower.success.recordAnother")}
             </button>
             <Link
               to="/reconciliation"
               className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
             >
-              View Reconciliation
+              {t("grower.success.viewReconciliation")}
             </Link>
           </div>
         </div>
@@ -233,8 +235,8 @@ export default function Payments() {
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
       <PageHeader
-        title="Record Grower Payment"
-        subtitle="Record a payment to a grower for delivered fruit. Reconciliation alerts update automatically."
+        title={t("grower.title")}
+        subtitle={t("grower.subtitle")}
       />
 
       {error && (
@@ -247,13 +249,13 @@ export default function Payments() {
         {/* Grower */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Grower *
+            {t("grower.form.grower")}
           </label>
           <select
             {...register("grower_id", { required: "Grower is required" })}
             className={errors.grower_id || getFieldError("grower_id") ? inputError : inputBase}
           >
-            <option value="">Select grower</option>
+            <option value="">{t("grower.form.selectGrower")}</option>
             {growers.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}{g.grower_code ? ` (${g.grower_code})` : ""}
@@ -267,20 +269,20 @@ export default function Payments() {
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount *
+              {t("grower.form.amount")}
             </label>
             <input
               type="number"
               step="0.01"
               {...register("amount", { required: "Amount is required", valueAsNumber: true })}
               className={errors.amount || getFieldError("amount") ? inputError : inputBase}
-              placeholder="e.g. 25000"
+              placeholder={t("grower.form.amountPlaceholder")}
             />
             <FieldMsg error={errors.amount?.message || getFieldError("amount")} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Currency
+              {t("grower.form.currency")}
             </label>
             <select
               {...register("currency")}
@@ -295,14 +297,14 @@ export default function Payments() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Payment Type
+              {t("grower.form.paymentType")}
             </label>
             <select
               {...register("payment_type")}
               className={inputBase}
             >
-              <option value="final">Final</option>
-              <option value="advance">Advance</option>
+              <option value="final">{t("grower.form.typeFinal")}</option>
+              <option value="advance">{t("grower.form.typeAdvance")}</option>
             </select>
           </div>
         </div>
@@ -310,7 +312,7 @@ export default function Payments() {
         {/* Payment Date */}
         <div className="w-1/2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Payment Date *
+            {t("grower.form.paymentDate")}
           </label>
           <input
             type="date"
@@ -325,9 +327,9 @@ export default function Payments() {
           <div className="bg-gray-50 border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium text-gray-700">Link to Batches</p>
+                <p className="text-sm font-medium text-gray-700">{t("grower.form.linkToBatches")}</p>
                 <p className="text-xs text-gray-500">
-                  Select GRN batches this payment covers. Leave empty to auto-cover all.
+                  {t("grower.form.linkHelp")}
                 </p>
               </div>
               {growerBatches.length > 0 && (
@@ -336,13 +338,13 @@ export default function Payments() {
                   onClick={selectAllBatches}
                   className="text-xs text-green-600 hover:text-green-700 font-medium"
                 >
-                  Select All
+                  {t("common:actions.selectAll")}
                 </button>
               )}
             </div>
 
             {growerBatches.length === 0 ? (
-              <p className="text-sm text-gray-400">No batches found for this grower.</p>
+              <p className="text-sm text-gray-400">{t("grower.form.noBatches")}</p>
             ) : (
               <>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -382,10 +384,10 @@ export default function Payments() {
                 {selectedBatchIds.length > 0 && (
                   <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
                     <span className="font-medium">
-                      {selectedBatchIds.length} batch{selectedBatchIds.length > 1 ? "es" : ""} selected
+                      {t("grower.form.batchesSelected", { count: selectedBatchIds.length })}
                     </span>
                     <span>&middot;</span>
-                    <span>{selectedKg.toLocaleString()} kg total</span>
+                    <span>{t("grower.form.kgTotal", { kg: selectedKg.toLocaleString() })}</span>
                   </div>
                 )}
               </>
@@ -396,13 +398,13 @@ export default function Payments() {
         {/* Notes */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes
+            {t("grower.form.notes")}
           </label>
           <textarea
             {...register("notes")}
             rows={2}
             className={inputBase}
-            placeholder="Optional notes about this payment..."
+            placeholder={t("grower.form.notesPlaceholder")}
           />
         </div>
 
@@ -412,24 +414,24 @@ export default function Payments() {
           className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting && <Spinner />}
-          {isSubmitting ? "Recording..." : "Record Payment"}
+          {isSubmitting ? t("grower.form.submitting") : t("grower.form.submit")}
         </button>
       </form>
 
       {/* Recent payments */}
       {recentPayments.length > 0 && (
         <div className="mt-10">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Recent Payments</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">{t("grower.recent.title")}</h2>
           <div className="bg-white rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium">Ref</th>
-                  <th className="text-left px-4 py-2 font-medium">Grower</th>
-                  <th className="text-right px-4 py-2 font-medium">Amount</th>
-                  <th className="text-left px-4 py-2 font-medium">Type</th>
-                  <th className="text-left px-4 py-2 font-medium">Status</th>
-                  <th className="text-left px-4 py-2 font-medium">Date</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.ref")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.grower")}</th>
+                  <th className="text-right px-4 py-2 font-medium">{t("common:table.amount")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.type")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.status")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.date")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

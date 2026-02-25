@@ -1,0 +1,67 @@
+{
+  "title": "Stock d'emballages",
+  "receiveStock": "+ Recevoir du stock",
+  "loading": "Chargement du stock d'emballages...",
+  "loadFailed": "Echec du chargement des donnees d'emballage.",
+  "receive": {
+    "title": "Recevoir du stock d'emballages",
+    "item": "Article d'emballage *",
+    "selectItem": "Selectionner un article",
+    "boxesGroup": "Cartons",
+    "palletsGroup": "Palettes",
+    "quantity": "Quantite *",
+    "costPerUnit": "Cout unitaire",
+    "costPlaceholder": "Facultatif",
+    "notes": "Notes",
+    "notesPlaceholder": "ex. Reference de livraison",
+    "submit": "Recevoir",
+    "received": "{{count}} x {{name}} recu(s).",
+    "receiveFailed": "Echec de la reception du stock."
+  },
+  "tabs": {
+    "stockLevels": "Niveaux de stock",
+    "movementHistory": "Historique des mouvements"
+  },
+  "stock": {
+    "boxesTitle": "Cartons",
+    "palletsTitle": "Palettes",
+    "headers": {
+      "weight": "Poids",
+      "costPerUnit": "Cout/Unite",
+      "inStock": "En stock",
+      "minLevel": "Niveau min",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "adjust": "Ajuster",
+    "writeOff": "Passer en perte",
+    "noBoxTypes": "Aucun type de carton configure. Ajoutez-les dans l'assistant de configuration.",
+    "noPalletTypes": "Aucun type de palette configure. Ajoutez-les dans l'assistant de configuration.",
+    "adjusted": "Stock ajuste de {{amount}}.",
+    "adjustFailed": "Echec de l'ajustement (risque de stock negatif).",
+    "writtenOff": "{{count}} x {{name}} passe(s) en perte.",
+    "writeOffFailed": "Echec de la mise en perte (risque de stock negatif).",
+    "minStockFailed": "Echec de la mise a jour du stock minimum."
+  },
+  "movements": {
+    "allItems": "Tous les articles",
+    "allTypes": "Tous les types",
+    "typeReceipt": "Reception",
+    "typeConsumption": "Consommation",
+    "typeAdjustment": "Ajustement",
+    "typeWriteOff": "Mise en perte",
+    "typeReversal": "Annulation",
+    "from": "Du",
+    "to": "Au",
+    "headers": {
+      "date": "Date",
+      "item": "Article",
+      "type": "Type",
+      "qty": "Qte",
+      "costPerUnit": "Cout/Unite",
+      "notes": "Notes"
+    },
+    "empty": "Aucun mouvement enregistre pour le moment.",
+    "emptyFiltered": "Aucun mouvement ne correspond aux filtres actuels."
+  }
+}

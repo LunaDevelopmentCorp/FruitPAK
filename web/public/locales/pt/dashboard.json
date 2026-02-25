@@ -1,0 +1,45 @@
+{
+  "welcome": "Bem-vindo, {{name}}",
+  "subtitle": "{{role}} · Empresa: {{status}}",
+  "enterpriseActive": "Ativa",
+  "enterpriseNotSetUp": "Não configurada",
+  "alerts": {
+    "openAlerts_one": "{{count}} alerta de reconciliação em aberto",
+    "openAlerts_other": "{{count}} alertas de reconciliação em aberto",
+    "critical": "({{count}} críticos)",
+    "view": "Ver"
+  },
+  "stats": {
+    "totalBatches": "Total de Lotes",
+    "receivedToday": "Recebidos Hoje",
+    "unpalletized": "Não Paletizados",
+    "paymentsPending": "Pagamentos Pendentes",
+    "openAlerts": "Alertas em Aberto"
+  },
+  "quickLinks": {
+    "newGrn": "Nova Receção GRN",
+    "allBatches": "Todos os Lotes",
+    "recordPayment": "Registar Pagamento",
+    "reconciliation": "Reconciliação",
+    "editSetup": "Editar Configuração"
+  },
+  "recentBatches": "Lotes Recentes",
+  "noBatches": "Nenhum lote ainda. Comece criando uma receção GRN.",
+  "tableHeaders": {
+    "code": "Código",
+    "grower": "Produtor",
+    "fruit": "Fruta",
+    "netKg": "Líquido (kg)",
+    "status": "Estado",
+    "date": "Data"
+  },
+  "recentPayments": "Pagamentos Recentes",
+  "paymentHeaders": {
+    "ref": "Ref",
+    "grower": "Produtor",
+    "amount": "Valor",
+    "type": "Tipo",
+    "status": "Estado",
+    "date": "Data"
+  }
+}

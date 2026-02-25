@@ -1,0 +1,67 @@
+{
+  "title": "Packaging Stock",
+  "receiveStock": "+ Receive Stock",
+  "loading": "Loading packaging stock...",
+  "loadFailed": "Failed to load packaging data.",
+  "receive": {
+    "title": "Receive Packaging Stock",
+    "item": "Packaging Item *",
+    "selectItem": "Select item",
+    "boxesGroup": "Boxes",
+    "palletsGroup": "Pallets",
+    "quantity": "Quantity *",
+    "costPerUnit": "Cost per Unit",
+    "costPlaceholder": "Optional",
+    "notes": "Notes",
+    "notesPlaceholder": "e.g. Delivery ref",
+    "submit": "Receive",
+    "received": "Received {{count}} × {{name}}.",
+    "receiveFailed": "Failed to receive stock."
+  },
+  "tabs": {
+    "stockLevels": "Stock Levels",
+    "movementHistory": "Movement History"
+  },
+  "stock": {
+    "boxesTitle": "Boxes",
+    "palletsTitle": "Pallets",
+    "headers": {
+      "weight": "Weight",
+      "costPerUnit": "Cost/Unit",
+      "inStock": "In Stock",
+      "minLevel": "Min Level",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "adjust": "Adjust",
+    "writeOff": "Write Off",
+    "noBoxTypes": "No box types configured. Add them in Setup Wizard.",
+    "noPalletTypes": "No pallet types configured. Add them in Setup Wizard.",
+    "adjusted": "Stock adjusted by {{amount}}.",
+    "adjustFailed": "Adjustment failed (may cause negative stock).",
+    "writtenOff": "Wrote off {{count}} × {{name}}.",
+    "writeOffFailed": "Write-off failed (may cause negative stock).",
+    "minStockFailed": "Failed to update min stock."
+  },
+  "movements": {
+    "allItems": "All items",
+    "allTypes": "All types",
+    "typeReceipt": "Receipt",
+    "typeConsumption": "Consumption",
+    "typeAdjustment": "Adjustment",
+    "typeWriteOff": "Write-off",
+    "typeReversal": "Reversal",
+    "from": "From",
+    "to": "To",
+    "headers": {
+      "date": "Date",
+      "item": "Item",
+      "type": "Type",
+      "qty": "Qty",
+      "costPerUnit": "Cost/Unit",
+      "notes": "Notes"
+    },
+    "empty": "No movements recorded yet.",
+    "emptyFiltered": "No movements match the current filters."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "title": "Stock de Embalagens",
+  "receiveStock": "+ Receber Stock",
+  "loading": "Carregando stock de embalagens...",
+  "loadFailed": "Falha ao carregar dados de embalagem.",
+  "receive": {
+    "title": "Receber Stock de Embalagens",
+    "item": "Item de Embalagem *",
+    "selectItem": "Selecionar item",
+    "boxesGroup": "Caixas",
+    "palletsGroup": "Paletes",
+    "quantity": "Quantidade *",
+    "costPerUnit": "Custo por Unidade",
+    "costPlaceholder": "Opcional",
+    "notes": "Notas",
+    "notesPlaceholder": "ex. Ref. de entrega",
+    "submit": "Receber",
+    "received": "Recebido {{count}} x {{name}}.",
+    "receiveFailed": "Falha ao receber stock."
+  },
+  "tabs": {
+    "stockLevels": "Níveis de Stock",
+    "movementHistory": "Histórico de Movimentação"
+  },
+  "stock": {
+    "boxesTitle": "Caixas",
+    "palletsTitle": "Paletes",
+    "headers": {
+      "weight": "Peso",
+      "costPerUnit": "Custo/Unidade",
+      "inStock": "Em Stock",
+      "minLevel": "Nível Mín",
+      "status": "Estado",
+      "actions": "Ações"
+    },
+    "adjust": "Ajustar",
+    "writeOff": "Dar Baixa",
+    "noBoxTypes": "Nenhum tipo de caixa configurado. Adicione no Assistente de Configuração.",
+    "noPalletTypes": "Nenhum tipo de palete configurado. Adicione no Assistente de Configuração.",
+    "adjusted": "Stock ajustado em {{amount}}.",
+    "adjustFailed": "Falha no ajuste (pode causar stock negativo).",
+    "writtenOff": "Baixa de {{count}} x {{name}}.",
+    "writeOffFailed": "Falha na baixa (pode causar stock negativo).",
+    "minStockFailed": "Falha ao atualizar stock mínimo."
+  },
+  "movements": {
+    "allItems": "Todos os itens",
+    "allTypes": "Todos os tipos",
+    "typeReceipt": "Receção",
+    "typeConsumption": "Consumo",
+    "typeAdjustment": "Ajuste",
+    "typeWriteOff": "Baixa",
+    "typeReversal": "Reversão",
+    "from": "De",
+    "to": "Até",
+    "headers": {
+      "date": "Data",
+      "item": "Item",
+      "type": "Tipo",
+      "qty": "Qtd",
+      "costPerUnit": "Custo/Unidade",
+      "notes": "Notas"
+    },
+    "empty": "Nenhuma movimentação registada ainda.",
+    "emptyFiltered": "Nenhuma movimentação corresponde aos filtros atuais."
+  }
+}

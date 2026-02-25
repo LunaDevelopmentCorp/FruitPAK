@@ -1,0 +1,80 @@
+{
+  "list": {
+    "title": "Contentores",
+    "count_one": "{{count}} contentor",
+    "count_other": "{{count}} contentores",
+    "createContainer": "+ Criar Contentor",
+    "allStatuses": "Todos os estados",
+    "searchPlaceholder": "Pesquisar número, cliente, destino...",
+    "loading": "Carregando contentores...",
+    "empty": "Nenhum contentor encontrado. Atribua paletes para criar um.",
+    "headers": {
+      "containerNumber": "Contentor #",
+      "shippingNumber": "Embarque #",
+      "type": "Tipo",
+      "customer": "Cliente",
+      "destination": "Destino",
+      "pallets": "Paletes",
+      "fillPercent": "Preench. %",
+      "cartons": "Caixas",
+      "status": "Estado",
+      "date": "Data"
+    }
+  },
+  "create": {
+    "title": "Novo Contentor",
+    "containerType": "Tipo de Contentor",
+    "capacity": "Capacidade",
+    "client": "Cliente",
+    "noClient": "— Nenhum —",
+    "shippingNumber": "Número do Contentor de Embarque #",
+    "shippingPlaceholder": "ex. MSKU1234567",
+    "destination": "Destino",
+    "destinationPlaceholder": "ex. Roterdão, NL",
+    "sealNumber": "Número do Selo"
+  },
+  "detail": {
+    "loading": "Carregando contentor...",
+    "notFound": "Contentor não encontrado.",
+    "backLabel": "Todos os Contentores",
+    "pallets": "Paletes",
+    "fill": "Preenchimento",
+    "totalCartons": "Total de Caixas",
+    "weight": "Peso",
+    "capacity": "Capacidade",
+    "shipmentDetails": "Detalhes do Embarque",
+    "containerType": "Tipo de Contentor",
+    "capacityPallets": "Capacidade (paletes)",
+    "shippingNumber": "Número do Contentor de Embarque #",
+    "customer": "Cliente",
+    "destination": "Destino",
+    "exportDate": "Data de Exportação",
+    "sealNumber": "Número do Selo",
+    "notes": "Notas",
+    "loadPallets": "Carregar Paletes",
+    "headers": {
+      "palletNumber": "Palete #",
+      "fruit": "Fruta",
+      "grade": "Grau",
+      "size": "Tamanho",
+      "boxType": "Tipo de Caixa",
+      "boxes": "Caixas",
+      "status": "Estado"
+    },
+    "noPallets": "Nenhuma palete carregada.",
+    "traceability": "Rastreabilidade Completa",
+    "lots": "Sublotes:",
+    "grns": "GRNs / Produtores:",
+    "qrCode": "QR Code"
+  },
+  "loadPallets": {
+    "title": "Carregar Paletes",
+    "loading": "Carregando paletes disponíveis...",
+    "empty": "Nenhuma palete fechada disponível para carregar.",
+    "help": "Selecione paletes fechadas para carregar neste contentor. {{count}} selecionadas.",
+    "loadSelected": "Carregar Selecionadas ({{count}})",
+    "loadingButton": "Carregando...",
+    "loaded": "{{count}} palete(s) carregada(s) no contentor",
+    "loadFailed": "Falha ao carregar paletes"
+  }
+}

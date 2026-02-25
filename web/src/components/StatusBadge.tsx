@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 const COLOR_MAP: Record<string, string> = {
   // Batch
   received: "bg-blue-50 text-blue-700",
@@ -35,12 +37,13 @@ interface Props {
 }
 
 export default function StatusBadge({ status, className = "" }: Props) {
+  const { t } = useTranslation("common");
   const colors = COLOR_MAP[status] || "bg-gray-100 text-gray-600";
   return (
     <span
       className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${colors} ${className}`}
     >
-      {status}
+      {t(`status.${status}`, status)}
     </span>
   );
 }

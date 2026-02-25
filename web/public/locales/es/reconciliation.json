@@ -1,0 +1,55 @@
+{
+  "title": "Conciliación",
+  "runNow": "Ejecutar Ahora",
+  "kpi": {
+    "openAlerts": "Alertas Abiertas",
+    "acknowledged": "Reconocidas",
+    "resolved30d": "Resueltas (30d)"
+  },
+  "lastRun": {
+    "title": "Última Ejecución",
+    "noRuns": "Sin ejecuciones aún"
+  },
+  "alertTypes": {
+    "grn_vs_payment": "GRN vs Pago",
+    "export_vs_invoice": "Exportación vs Factura",
+    "labour_vs_cost": "Mano de Obra vs Costo",
+    "pallet_vs_container": "Pallet vs Contenedor",
+    "lot_vs_batch": "Sublote vs Lote",
+    "cold_storage_gap": "Brecha de Almacenamiento en Frío"
+  },
+  "severity": {
+    "critical": "crítica",
+    "high": "alta",
+    "medium": "media",
+    "low": "baja"
+  },
+  "filters": {
+    "allTypes": "Todos los tipos",
+    "allSeverities": "Todas las severidades",
+    "allStatuses": "Todos los estados"
+  },
+  "alertCount_one": "{{count}} alerta",
+  "alertCount_other": "{{count}} alertas",
+  "headers": {
+    "type": "Tipo",
+    "title": "Título",
+    "variance": "Varianza",
+    "status": "Estado",
+    "actions": "Acciones"
+  },
+  "empty": "No se encontraron alertas. Ejecute una verificación de conciliación para buscar discrepancias.",
+  "actions": {
+    "ack": "Reconocer",
+    "resolve": "Resolver",
+    "dismiss": "Descartar",
+    "recordPayment": "Registrar Pago"
+  },
+  "toast": {
+    "runComplete": "Conciliación completa: {{count}} alerta(s) encontrada(s)",
+    "runFailed": "Ejecución fallida",
+    "alertUpdated": "Alerta {{status}}",
+    "actionFailed": "Acción fallida"
+  },
+  "loadFailed": "Error al cargar el panel"
+}

@@ -1,12 +1,14 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { BatchDetail as BatchDetailType } from "../../api/batches";
 
 export default React.memo(function BatchHistory({ batch }: { batch: BatchDetailType }) {
+  const { t } = useTranslation("batches");
   if (!batch.history || batch.history.length === 0) return null;
 
   return (
     <div className="bg-white rounded-lg border p-4">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">History</h3>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("history.title")}</h3>
       <div className="space-y-0">
         {batch.history.map((event, idx) => (
           <div key={event.id} className="flex gap-3">

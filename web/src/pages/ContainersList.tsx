@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listContainers, ContainerSummary, createEmptyContainer, CreateEmptyContainerPayload } from "../api/containers";
 import { listClients, ClientSummary } from "../api/clients";
 import { getErrorMessage } from "../api/client";
@@ -10,6 +11,7 @@ import StatusBadge from "../components/StatusBadge";
 const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
 
 export default function ContainersList() {
+  const { t } = useTranslation("containers");
   const navigate = useNavigate();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,24 +98,24 @@ export default function ContainersList() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader
-        title="Containers"
-        subtitle={`${filtered.length} container${filtered.length !== 1 ? "s" : ""}`}
+        title={t("list.title")}
+        subtitle={t("list.count", { count: filtered.length })}
         action={
           <button
             onClick={handleOpenCreate}
             className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700"
           >
-            + Create Container
+            {t("list.createContainer")}
           </button>
         }
       />
 
       {showCreate && (
         <div className="mb-6 bg-white border rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">New Container</h2>
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">{t("create.title")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Container Type</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.containerType")}</label>
               <select
                 value={newContainerType}
                 onChange={(e) => setNewContainerType(e.target.value)}
@@ -125,7 +127,7 @@ export default function ContainersList() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Capacity</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.capacity")}</label>
               <input
                 type="number"
                 value={newCapacity || ""}
@@ -134,40 +136,40 @@ export default function ContainersList() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Client</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.client")}</label>
               <select
                 value={newClientId}
                 onChange={(e) => setNewClientId(e.target.value)}
                 className="w-full border rounded px-3 py-2 text-sm"
               >
-                <option value="">— None —</option>
+                <option value="">{t("create.noClient")}</option>
                 {clients.map((cl) => (
                   <option key={cl.id} value={cl.id}>{cl.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Shipping Container #</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.shippingNumber")}</label>
               <input
                 type="text"
                 value={newShippingNumber}
                 onChange={(e) => setNewShippingNumber(e.target.value)}
-                placeholder="e.g. MSKU1234567"
+                placeholder={t("create.shippingPlaceholder")}
                 className="w-full border rounded px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Destination</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.destination")}</label>
               <input
                 type="text"
                 value={newDestination}
                 onChange={(e) => setNewDestination(e.target.value)}
-                placeholder="e.g. Rotterdam, NL"
+                placeholder={t("create.destinationPlaceholder")}
                 className="w-full border rounded px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Seal Number</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.sealNumber")}</label>
               <input
                 type="text"
                 value={newSealNumber}
@@ -182,14 +184,14 @@ export default function ContainersList() {
               disabled={creating}
               className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50"
             >
-              {creating ? "Creating..." : "Create"}
+              {creating ? t("common:actions.creating") : t("common:actions.create")}
             </button>
             <button
               onClick={handleCancelCreate}
               disabled={creating}
               className="px-4 py-2 border text-sm rounded hover:bg-gray-50 disabled:opacity-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -205,7 +207,7 @@ export default function ContainersList() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm"
         >
-          <option value="">All statuses</option>
+          <option value="">{t("list.allStatuses")}</option>
           {["open", "loading", "sealed", "dispatched", "delivered"].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
@@ -213,7 +215,7 @@ export default function ContainersList() {
 
         <input
           type="text"
-          placeholder="Search number, customer, destination..."
+          placeholder={t("list.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -221,24 +223,24 @@ export default function ContainersList() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading containers...</p>
+        <p className="text-gray-400 text-sm">{t("list.loading")}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-gray-400 text-sm">No containers found. Assign pallets to create one.</p>
+        <p className="text-gray-400 text-sm">{t("list.empty")}</p>
       ) : (
         <div className="bg-white rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Container #</th>
-                <th className="text-left px-4 py-2 font-medium">Shipping #</th>
-                <th className="text-left px-4 py-2 font-medium">Type</th>
-                <th className="text-left px-4 py-2 font-medium">Customer</th>
-                <th className="text-left px-4 py-2 font-medium">Destination</th>
-                <th className="text-right px-4 py-2 font-medium">Pallets</th>
-                <th className="text-right px-4 py-2 font-medium">Fill %</th>
-                <th className="text-right px-4 py-2 font-medium">Cartons</th>
-                <th className="text-left px-4 py-2 font-medium">Status</th>
-                <th className="text-left px-4 py-2 font-medium">Date</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.containerNumber")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.shippingNumber")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.type")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.customer")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.destination")}</th>
+                <th className="text-right px-4 py-2 font-medium">{t("list.headers.pallets")}</th>
+                <th className="text-right px-4 py-2 font-medium">{t("list.headers.fillPercent")}</th>
+                <th className="text-right px-4 py-2 font-medium">{t("list.headers.cartons")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">

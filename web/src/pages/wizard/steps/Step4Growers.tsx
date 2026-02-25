@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 
@@ -26,6 +27,7 @@ const EMPTY_GROWER: GrowerForm = {
 };
 
 export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
+  const { t } = useTranslation("wizard");
   const { register, control, watch, getValues, setError, clearErrors, formState } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? { growers: [{ ...EMPTY_GROWER }] },
   });
@@ -36,6 +38,7 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
 
   const hasUncertified = growers?.some((g) => g.name?.trim() && !g.globalg_ap_certified);
   const hasEntries = growers?.some((g) => g.name?.trim());
+  const growerCount = growers?.filter((g) => g.name?.trim()).length ?? 0;
 
   const filterEmpty = (data: FormData) => ({
     growers: data.growers.filter((g) => g.name?.trim()),
@@ -50,7 +53,7 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
       if (g.globalg_ap_certified && !g.globalg_ap_number?.trim()) {
         setError(`growers.${idx}.globalg_ap_number`, {
           type: "manual",
-          message: "GGN number is required for certified growers",
+          message: t("step4.ggnError"),
         });
         valid = false;
       }
@@ -67,7 +70,7 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
       {/* Certification warning */}
       {hasUncertified && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-          Some growers are not GLOBALG.A.P. certified. Certification may be required for export markets.
+          {t("step4.certWarning")}
         </div>
       )}
 
@@ -76,24 +79,24 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
         <div className="bg-white rounded-lg border overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b">
             <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-              {growers.filter((g) => g.name?.trim()).length} Grower(s)
+              {t("step4.growerCount", { count: growerCount })}
             </span>
             <button
               type="button"
               onClick={() => setShowForms(!showForms)}
               className="text-xs text-green-600 hover:text-green-700"
             >
-              {showForms ? "Collapse" : "Expand"} forms
+              {t("step4.collapseExpand")}
             </button>
           </div>
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-4 py-1.5 font-medium">Name</th>
-                <th className="text-left px-4 py-1.5 font-medium">Code</th>
-                <th className="text-left px-4 py-1.5 font-medium">Region</th>
-                <th className="text-right px-4 py-1.5 font-medium">Hectares</th>
-                <th className="text-center px-4 py-1.5 font-medium">Certified</th>
+                <th className="text-left px-4 py-1.5 font-medium">{t("step4.headers.name")}</th>
+                <th className="text-left px-4 py-1.5 font-medium">{t("step4.headers.code")}</th>
+                <th className="text-left px-4 py-1.5 font-medium">{t("step4.headers.region")}</th>
+                <th className="text-right px-4 py-1.5 font-medium">{t("step4.headers.hectares")}</th>
+                <th className="text-center px-4 py-1.5 font-medium">{t("step4.headers.certified")}</th>
                 <th className="px-4 py-1.5"></th>
               </tr>
             </thead>
@@ -116,10 +119,10 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
                         onClick={() => setShowForms(true)}
                         className="text-xs text-green-600 hover:text-green-700 mr-2"
                       >
-                        Edit
+                        {t("common:actions.edit")}
                       </button>
                       <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">
-                          Remove
+                          {t("common:actions.remove")}
                         </button>
                     </td>
                   </tr>
@@ -139,21 +142,21 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
             return (
               <fieldset key={field.id} className="p-4 border rounded space-y-3">
                 <div className="flex justify-between items-center">
-                  <legend className="text-sm font-medium text-gray-700">Grower {idx + 1}</legend>
-                  <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                  <legend className="text-sm font-medium text-gray-700">{t("step4.grower", { index: idx + 1 })}</legend>
+                  <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">{t("common:actions.remove")}</button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input {...register(`growers.${idx}.name`)} placeholder="Grower name" className="border rounded px-3 py-2 text-sm" />
-                  <input {...register(`growers.${idx}.grower_code`)} placeholder="Grower code" className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.name`)} placeholder={t("step4.growerName")} className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.grower_code`)} placeholder={t("step4.growerCode")} className="border rounded px-3 py-2 text-sm" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <input {...register(`growers.${idx}.contact_person`)} placeholder="Contact" className="border rounded px-3 py-2 text-sm" />
-                  <input {...register(`growers.${idx}.phone`)} placeholder="Phone" className="border rounded px-3 py-2 text-sm" />
-                  <input {...register(`growers.${idx}.region`)} placeholder="Region" className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.contact_person`)} placeholder={t("step4.contact")} className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.phone`)} placeholder={t("step4.phone")} className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.region`)} placeholder={t("step4.region")} className="border rounded px-3 py-2 text-sm" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input {...register(`growers.${idx}.total_hectares`, { valueAsNumber: true })} placeholder="Total hectares" type="number" className="border rounded px-3 py-2 text-sm" />
-                  <input {...register(`growers.${idx}.estimated_volume_tons`, { valueAsNumber: true })} placeholder="Est. volume (tons)" type="number" className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.total_hectares`, { valueAsNumber: true })} placeholder={t("step4.totalHectares")} type="number" className="border rounded px-3 py-2 text-sm" />
+                  <input {...register(`growers.${idx}.estimated_volume_tons`, { valueAsNumber: true })} placeholder={t("step4.estVolume")} type="number" className="border rounded px-3 py-2 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
@@ -164,14 +167,14 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
                           onChange: () => clearErrors(`growers.${idx}.globalg_ap_number`),
                         })}
                       />
-                      GLOBALG.A.P. certified
+                      {t("step4.certified")}
                     </label>
                     <div className="flex-1">
                       <input
                         {...register(`growers.${idx}.globalg_ap_number`, {
-                          required: isCertified ? "GGN number is required" : false,
+                          required: isCertified ? t("step4.ggnError") : false,
                         })}
-                        placeholder={isCertified ? "GGN number *" : "GGN number"}
+                        placeholder={isCertified ? t("step4.ggnRequired") : t("step4.ggnOptional")}
                         className={`w-full border rounded px-3 py-2 text-sm ${ggnError ? "border-red-400" : ""}`}
                       />
                     </div>
@@ -191,15 +194,15 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
         onClick={() => { append({ ...EMPTY_GROWER }); setShowForms(true); }}
         className="text-sm text-green-600"
       >
-        + Add grower
+        {t("step4.addGrower")}
       </button>
 
       <div className="flex gap-3 pt-4 border-t">
         <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">
-          {saving && <Spinner />} Save Draft
+          {saving && <Spinner />} {t("saveDraft")}
         </button>
         <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">
-          {saving && <Spinner />} Save & Continue
+          {saving && <Spinner />} {t("saveContinue")}
         </button>
       </div>
     </form>

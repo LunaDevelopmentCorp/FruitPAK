@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listDeletedItems,
   restoreDeletedItem,
@@ -19,6 +20,7 @@ const TABS = ["all", "batch", "lot", "pallet", "container"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function DeletedItems() {
+  const { t } = useTranslation("admin");
   const [data, setData] = useState<DeletedItemsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,14 +101,14 @@ export default function DeletedItems() {
     try {
       const result = await restoreDeletedItem(item.item_type, item.id);
       const extra = result.cascade_restored.length
-        ? ` (+ ${result.cascade_restored.length} related items)`
-        : "";
-      globalToast("success", `Restored ${result.code}${extra}`);
+        ? t("deleted.toast.restoredWithRelated", { code: result.code, count: result.cascade_restored.length })
+        : t("deleted.toast.restored", { code: result.code });
+      globalToast("success", extra);
       await fetchData();
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail || "Failed to restore";
+          ?.detail || t("deleted.toast.restoreFailed");
       globalToast("error", msg);
     } finally {
       setActionLoading(null);
@@ -121,18 +123,26 @@ export default function DeletedItems() {
     try {
       const result = await purgeDeletedItem(item.item_type, item.id);
       const extra = result.cascade_purged.length
-        ? ` (+ ${result.cascade_purged.length} related items)`
-        : "";
-      globalToast("success", `Permanently deleted ${result.code}${extra}`);
+        ? t("deleted.toast.purgedWithRelated", { code: result.code, count: result.cascade_purged.length })
+        : t("deleted.toast.purged", { code: result.code });
+      globalToast("success", extra);
       await fetchData();
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail || "Failed to delete permanently";
+          ?.detail || t("deleted.toast.purgeFailed");
       globalToast("error", msg);
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const TAB_LABELS: Record<Tab, string> = {
+    all: t("deleted.tabs.all"),
+    batch: t("deleted.tabs.batches"),
+    lot: t("deleted.tabs.lots"),
+    pallet: t("deleted.tabs.pallets"),
+    container: t("deleted.tabs.containers"),
   };
 
   return (
@@ -140,8 +150,8 @@ export default function DeletedItems() {
       {/* Sub-header */}
       <p className="text-sm text-gray-500 mb-4">
         {data
-          ? `${data.total_count} deleted item${data.total_count !== 1 ? "s" : ""} across all types`
-          : "Loading..."}
+          ? t("deleted.count", { count: data.total_count })
+          : t("common:actions.loading")}
       </p>
 
       {error && (
@@ -162,7 +172,7 @@ export default function DeletedItems() {
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
             }`}
           >
-            {tab === "all" ? "All" : tab.charAt(0).toUpperCase() + tab.slice(1) + "s"}
+            {TAB_LABELS[tab]}
             <span className="ml-1.5 text-xs text-gray-400">
               ({tabCounts[tab]})
             </span>
@@ -174,7 +184,7 @@ export default function DeletedItems() {
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Search by code or description..."
+          placeholder={t("deleted.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -183,21 +193,21 @@ export default function DeletedItems() {
 
       {/* Table */}
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading deleted items...</p>
+        <p className="text-gray-400 text-sm">{t("deleted.loading")}</p>
       ) : currentItems.length === 0 ? (
         <p className="text-gray-400 text-sm">
-          {search ? "No items match your search." : "No deleted items found."}
+          {search ? t("deleted.emptySearch") : t("deleted.empty")}
         </p>
       ) : (
         <div className="bg-white rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Type</th>
-                <th className="text-left px-4 py-2 font-medium">Code</th>
-                <th className="text-left px-4 py-2 font-medium">Description</th>
-                <th className="text-left px-4 py-2 font-medium">Status</th>
-                <th className="text-left px-4 py-2 font-medium">Deleted</th>
+                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.type")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.code")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.description")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.status")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.deleted")}</th>
                 <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
@@ -230,14 +240,14 @@ export default function DeletedItems() {
                         disabled={actionLoading === item.id}
                         className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 rounded font-medium hover:bg-green-100 disabled:opacity-50"
                       >
-                        {actionLoading === item.id ? "..." : "Restore"}
+                        {actionLoading === item.id ? "..." : t("deleted.restore")}
                       </button>
                       <button
                         onClick={() => setConfirmPurge(item)}
                         disabled={actionLoading === item.id}
                         className="text-xs text-red-600 border border-red-200 px-2.5 py-1 rounded font-medium hover:bg-red-50 disabled:opacity-50"
                       >
-                        Purge
+                        {t("deleted.purge")}
                       </button>
                     </div>
                   </td>
@@ -253,15 +263,14 @@ export default function DeletedItems() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-red-700 mb-2">
-              Permanently Delete?
+              {t("deleted.purgeConfirm.title")}
             </h3>
             <p className="text-sm text-gray-600 mb-1">
-              This will permanently remove{" "}
-              <strong>{confirmPurge.code}</strong> and cannot be undone.
+              {t("deleted.purgeConfirm.text", { code: confirmPurge.code })}
             </p>
             {confirmPurge.item_type === "batch" && (
               <p className="text-sm text-red-600 mb-3">
-                All lots belonging to this batch will also be permanently deleted.
+                {t("deleted.purgeConfirm.batchWarning")}
               </p>
             )}
             <div className="flex gap-3 mt-4">
@@ -269,13 +278,13 @@ export default function DeletedItems() {
                 onClick={() => setConfirmPurge(null)}
                 className="flex-1 border rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handlePurge}
                 className="flex-1 bg-red-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-red-700"
               >
-                Delete Forever
+                {t("deleted.purgeConfirm.deleteForever")}
               </button>
             </div>
           </div>

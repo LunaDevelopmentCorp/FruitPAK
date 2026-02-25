@@ -1,0 +1,45 @@
+{
+  "welcome": "Welcome, {{name}}",
+  "subtitle": "{{role}} · Enterprise: {{status}}",
+  "enterpriseActive": "Active",
+  "enterpriseNotSetUp": "Not set up",
+  "alerts": {
+    "openAlerts_one": "{{count}} open reconciliation alert",
+    "openAlerts_other": "{{count}} open reconciliation alerts",
+    "critical": "({{count}} critical)",
+    "view": "View"
+  },
+  "stats": {
+    "totalBatches": "Total Batches",
+    "receivedToday": "Received Today",
+    "unpalletized": "Unpalletized",
+    "paymentsPending": "Payments Pending",
+    "openAlerts": "Open Alerts"
+  },
+  "quickLinks": {
+    "newGrn": "New GRN Intake",
+    "allBatches": "All Batches",
+    "recordPayment": "Record Payment",
+    "reconciliation": "Reconciliation",
+    "editSetup": "Edit Setup"
+  },
+  "recentBatches": "Recent Batches",
+  "noBatches": "No batches yet. Start by creating a GRN intake.",
+  "tableHeaders": {
+    "code": "Code",
+    "grower": "Grower",
+    "fruit": "Fruit",
+    "netKg": "Net (kg)",
+    "status": "Status",
+    "date": "Date"
+  },
+  "recentPayments": "Recent Payments",
+  "paymentHeaders": {
+    "ref": "Ref",
+    "grower": "Grower",
+    "amount": "Amount",
+    "type": "Type",
+    "status": "Status",
+    "date": "Date"
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import api from "../api/client";
 import CsvImport from "../components/CsvImport";
 import PageHeader from "../components/PageHeader";
@@ -22,6 +23,7 @@ interface HarvestTeamSummary {
 }
 
 export default function DataManagement() {
+  const { t } = useTranslation("data");
   const [growers, setGrowers] = useState<GrowerSummary[]>([]);
   const [teams, setTeams] = useState<HarvestTeamSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,32 +51,32 @@ export default function DataManagement() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       <PageHeader
-        title="Growers & Harvest Teams"
-        subtitle="Manage growers and harvest teams. Download a CSV template, fill it in, and upload to bulk-create or update records."
+        title={t("title")}
+        subtitle={t("subtitle")}
       />
 
       {/* Growers section */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Growers</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">{t("growers.title")}</h2>
         <CsvImport entity="growers" label="Growers" onSuccess={fetchData} />
         <div className="mt-3 bg-white border rounded-lg overflow-hidden">
           {loading ? (
-            <p className="text-gray-400 text-sm p-4">Loading...</p>
+            <p className="text-gray-400 text-sm p-4">{t("common:actions.loading")}</p>
           ) : growers.length === 0 ? (
             <p className="text-gray-400 text-sm p-4">
-              No growers yet. Upload a CSV to get started.
+              {t("growers.empty")}
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium">Name</th>
-                  <th className="text-left px-4 py-2 font-medium">Code</th>
-                  <th className="text-left px-4 py-2 font-medium">Contact</th>
-                  <th className="text-left px-4 py-2 font-medium">Phone</th>
-                  <th className="text-left px-4 py-2 font-medium">Region</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.name")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("growers.headers.code")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.contact")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.phone")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("growers.headers.region")}</th>
                   <th className="text-right px-4 py-2 font-medium">
-                    Hectares
+                    {t("growers.headers.hectares")}
                   </th>
                 </tr>
               </thead>
@@ -108,7 +110,7 @@ export default function DataManagement() {
       {/* Harvest Teams section */}
       <section>
         <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          Harvest Teams
+          {t("teams.title")}
         </h2>
         <CsvImport
           entity="harvest-teams"
@@ -117,33 +119,33 @@ export default function DataManagement() {
         />
         <div className="mt-3 bg-white border rounded-lg overflow-hidden">
           {loading ? (
-            <p className="text-gray-400 text-sm p-4">Loading...</p>
+            <p className="text-gray-400 text-sm p-4">{t("common:actions.loading")}</p>
           ) : teams.length === 0 ? (
             <p className="text-gray-400 text-sm p-4">
-              No harvest teams yet. Upload a CSV to get started.
+              {t("teams.empty")}
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium">Name</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.name")}</th>
                   <th className="text-left px-4 py-2 font-medium">
-                    Team Leader
+                    {t("teams.headers.teamLeader")}
                   </th>
                   <th className="text-right px-4 py-2 font-medium">
-                    Team Size
+                    {t("teams.headers.teamSize")}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {teams.map((t) => (
-                  <tr key={t.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
-                    <td className="px-4 py-2 font-medium">{t.name}</td>
+                {teams.map((tm) => (
+                  <tr key={tm.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
+                    <td className="px-4 py-2 font-medium">{tm.name}</td>
                     <td className="px-4 py-2 text-gray-500">
-                      {t.team_leader || "\u2014"}
+                      {tm.team_leader || "\u2014"}
                     </td>
                     <td className="px-4 py-2 text-right text-gray-500">
-                      {t.team_size ?? "\u2014"}
+                      {tm.team_size ?? "\u2014"}
                     </td>
                   </tr>
                 ))}

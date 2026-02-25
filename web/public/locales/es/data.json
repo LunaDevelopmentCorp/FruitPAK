@@ -1,0 +1,22 @@
+{
+  "title": "Productores y Equipos de Cosecha",
+  "subtitle": "Administre productores y equipos de cosecha. Descargue una plantilla CSV, complétela y súbala para crear o actualizar registros en lote.",
+  "growers": {
+    "title": "Productores",
+    "empty": "No hay productores aún. Suba un CSV para comenzar.",
+    "headers": {
+      "code": "Código",
+      "contact": "Contacto",
+      "region": "Región",
+      "hectares": "Hectáreas"
+    }
+  },
+  "teams": {
+    "title": "Equipos de Cosecha",
+    "empty": "No hay equipos de cosecha aún. Suba un CSV para comenzar.",
+    "headers": {
+      "teamLeader": "Líder del Equipo",
+      "teamSize": "Tamaño del Equipo"
+    }
+  }
+}

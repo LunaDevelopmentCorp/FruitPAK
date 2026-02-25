@@ -53,10 +53,10 @@ export function getCurrencyLabel(code: string): string {
   return c ? `${c.code} (${c.name})` : code;
 }
 
-export function formatCurrency(amount: number | null, code: string): string {
+export function formatCurrency(amount: number | null, code: string, locale?: string): string {
   if (amount == null) return "\u2014";
   const symbol = getCurrencySymbol(code);
-  return `${symbol} ${amount.toLocaleString(undefined, {
+  return `${symbol} ${amount.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

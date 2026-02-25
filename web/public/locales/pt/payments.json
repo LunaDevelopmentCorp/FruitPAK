@@ -1,0 +1,97 @@
+{
+  "grower": {
+    "title": "Registar Pagamento ao Produtor",
+    "subtitle": "Registar um pagamento a um produtor pela fruta entregue. Os alertas de reconciliação são atualizados automaticamente.",
+    "loadError": "Falha ao carregar dados. O assistente de configuração está completo?",
+    "loadingRef": "Carregando dados de referência...",
+    "form": {
+      "grower": "Produtor *",
+      "selectGrower": "Selecionar produtor",
+      "amount": "Valor *",
+      "amountPlaceholder": "ex. 25000",
+      "currency": "Moeda",
+      "paymentType": "Tipo de Pagamento",
+      "typeFinal": "Final",
+      "typeAdvance": "Adiantamento",
+      "paymentDate": "Data do Pagamento *",
+      "linkToBatches": "Vincular a Lotes",
+      "linkHelp": "Selecione os lotes GRN que este pagamento cobre. Deixe vazio para cobrir todos automaticamente.",
+      "noBatches": "Nenhum lote encontrado para este produtor.",
+      "batchesSelected_one": "{{count}} lote selecionado",
+      "batchesSelected_other": "{{count}} lotes selecionados",
+      "kgTotal": "{{kg}} kg total",
+      "notes": "Notas",
+      "notesPlaceholder": "Notas opcionais sobre este pagamento...",
+      "submit": "Registar Pagamento",
+      "submitting": "Registando...",
+      "amountError": "O valor deve ser um número positivo.",
+      "fixFields": "Por favor, corrija os campos destacados abaixo.",
+      "submissionFailed": "Falha no registo do pagamento"
+    },
+    "success": {
+      "title": "Pagamento Registado",
+      "reference": "Referência",
+      "grower": "Produtor",
+      "amount": "Valor",
+      "type": "Tipo",
+      "batchesCovered": "Lotes Cobertos",
+      "totalKg": "Total kg",
+      "status": "Estado",
+      "date": "Data",
+      "recordAnother": "Registar Outro",
+      "viewReconciliation": "Ver Reconciliação",
+      "toast": "Pagamento {{ref}} registado — alertas atualizados"
+    },
+    "recent": {
+      "title": "Pagamentos Recentes"
+    }
+  },
+  "team": {
+    "title": "Pagamentos a Equipas de Colheita",
+    "tabs": {
+      "recordPayment": "Registar Pagamento",
+      "teamSummary": "Resumo da Equipa"
+    },
+    "form": {
+      "team": "Equipa de Colheita *",
+      "selectTeam": "Selecionar equipa...",
+      "amount": "Valor *",
+      "paymentType": "Tipo de Pagamento",
+      "typeAdvance": "Adiantamento",
+      "typeFinal": "Liquidação Final",
+      "paymentDate": "Data do Pagamento *",
+      "notes": "Notas",
+      "notesPlaceholder": "Referência do pagamento, motivo do adiantamento, etc.",
+      "linkToBatches": "Vincular a Lotes (opcional)",
+      "noBatches": "Nenhum lote encontrado para esta equipa.",
+      "batchesSelected_one": "{{count}} lote",
+      "batchesSelected_other": "{{count}} lotes",
+      "binsCount": "{{count}} contentores",
+      "submit": "Registar Pagamento",
+      "submitting": "Registando..."
+    },
+    "success": {
+      "title": "Pagamento Registado",
+      "team": "Equipa",
+      "leader": "Líder",
+      "toast": "Pagamento {{ref}} registado"
+    },
+    "recent": {
+      "title": "Pagamentos Recentes a Equipas",
+      "empty": "Nenhum pagamento registado ainda."
+    },
+    "summary": {
+      "title": "Resumo de Reconciliação por Equipa",
+      "empty": "Nenhuma equipa de colheita ou pagamentos ainda.",
+      "headers": {
+        "batches": "Lotes",
+        "totalKg": "Total kg",
+        "bins": "Contentores",
+        "advances": "Adiantamentos",
+        "finals": "Finais",
+        "totalPaid": "Total Pago"
+      },
+      "totals": "Totais"
+    }
+  }
+}

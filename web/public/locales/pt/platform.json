@@ -1,0 +1,58 @@
+{
+  "title": "Administração da Plataforma",
+  "tabs": {
+    "stats": "Estatísticas",
+    "enterprises": "Empresas",
+    "users": "Utilizadores"
+  },
+  "stats": {
+    "totalEnterprises": "Total de Empresas",
+    "totalUsers": "Total de Utilizadores",
+    "activeEnterprises": "Empresas Ativas",
+    "onboardedEnterprises": "Integradas",
+    "recentUsers": "Utilizadores Recentes"
+  },
+  "enterprises": {
+    "loading": "Carregando empresas...",
+    "empty": "Nenhuma empresa registada ainda.",
+    "headers": {
+      "name": "Nome",
+      "country": "País",
+      "schema": "Schema",
+      "users": "Utilizadores",
+      "onboarded": "Integrada",
+      "status": "Estado",
+      "created": "Criada"
+    },
+    "yes": "Sim",
+    "no": "Não",
+    "activated": "{{name}} ativada",
+    "deactivated": "{{name}} desativada",
+    "updateFailed": "Falha ao atualizar empresa"
+  },
+  "users": {
+    "loading": "Carregando utilizadores...",
+    "empty": "Nenhum utilizador registado ainda.",
+    "headers": {
+      "name": "Nome",
+      "email": "Email",
+      "enterprise": "Empresa",
+      "role": "Função",
+      "status": "Estado",
+      "created": "Criado",
+      "actions": "Ações"
+    },
+    "resetPw": "Redefinir Senha",
+    "impersonate": "Personificar",
+    "tempPassword": "Senha temporária para {{email}}:",
+    "tempPasswordHelp": "Partilhe isto com o utilizador. Deve alterar a senha após o login.",
+    "dismiss": "Fechar",
+    "impersonateConfirm": "Entrar como {{email}}? Você será redirecionado para o painel do utilizador.",
+    "resetConfirm": "Redefinir senha para {{email}}?",
+    "passwordReset": "Senha redefinida para {{email}}",
+    "resetFailed": "Falha ao redefinir senha",
+    "activateSuccess": "{{name}} {{status}}",
+    "activateFailed": "Falha ao atualizar utilizador",
+    "impersonateFailed": "Falha ao personificar utilizador"
+  }
+}

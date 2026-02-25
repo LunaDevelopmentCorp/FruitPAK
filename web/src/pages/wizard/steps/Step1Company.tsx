@@ -1,5 +1,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 
@@ -22,6 +23,7 @@ interface FormData {
 }
 
 export default function Step1Company({ onSave, saving, draftData }: StepProps) {
+  const { t } = useTranslation("wizard");
   const { register, handleSubmit, formState } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {},
   });
@@ -34,27 +36,27 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
       {/* Business identity */}
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium text-gray-700">
-          Business Identity
+          {t("step1.businessIdentity")}
         </legend>
         <input
           {...register("trading_name", { required: true })}
-          placeholder="Trading name *"
+          placeholder={t("step1.tradingName")}
           className="w-full border rounded px-3 py-2 text-sm"
         />
         <input
           {...register("legal_name")}
-          placeholder="Legal / registered name"
+          placeholder={t("step1.legalName")}
           className="w-full border rounded px-3 py-2 text-sm"
         />
         <div className="grid grid-cols-2 gap-3">
           <input
             {...register("registration_number")}
-            placeholder="Company reg. number"
+            placeholder={t("step1.companyReg")}
             className="border rounded px-3 py-2 text-sm"
           />
           <input
             {...register("vat_number")}
-            placeholder="VAT number"
+            placeholder={t("step1.vatNumber")}
             className="border rounded px-3 py-2 text-sm"
           />
         </div>
@@ -63,22 +65,22 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
       {/* Exporter details */}
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium text-gray-700">
-          Exporter Details
+          {t("step1.exporterDetails")}
         </legend>
         <div className="grid grid-cols-3 gap-3">
           <input
             {...register("exporter_code")}
-            placeholder="Exporter code"
+            placeholder={t("step1.exporterCode")}
             className="border rounded px-3 py-2 text-sm"
           />
           <input
             {...register("fbo_code")}
-            placeholder="FBO code"
+            placeholder={t("step1.fboCode")}
             className="border rounded px-3 py-2 text-sm"
           />
           <input
             {...register("ppecb_code")}
-            placeholder="PPECB code"
+            placeholder={t("step1.ppecbCode")}
             className="border rounded px-3 py-2 text-sm"
           />
         </div>
@@ -86,32 +88,32 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
 
       {/* Address */}
       <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-gray-700">Address</legend>
+        <legend className="text-sm font-medium text-gray-700">{t("step1.address")}</legend>
         <input
           {...register("address_line_1")}
-          placeholder="Street address"
+          placeholder={t("step1.streetAddress")}
           className="w-full border rounded px-3 py-2 text-sm"
         />
         <div className="grid grid-cols-3 gap-3">
           <input
             {...register("city")}
-            placeholder="City"
+            placeholder={t("step1.city")}
             className="border rounded px-3 py-2 text-sm"
           />
           <input
             {...register("province")}
-            placeholder="Province / State"
+            placeholder={t("step1.province")}
             className="border rounded px-3 py-2 text-sm"
           />
           <input
             {...register("postal_code")}
-            placeholder="Postal code"
+            placeholder={t("step1.postalCode")}
             className="border rounded px-3 py-2 text-sm"
           />
         </div>
         <input
           {...register("country")}
-          placeholder="Country"
+          placeholder={t("step1.country")}
           className="w-full border rounded px-3 py-2 text-sm"
         />
       </fieldset>
@@ -119,23 +121,23 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
       {/* Contact */}
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium text-gray-700">
-          Primary Contact
+          {t("step1.primaryContact")}
         </legend>
         <input
           {...register("contact_name")}
-          placeholder="Full name"
+          placeholder={t("step1.fullName")}
           className="w-full border rounded px-3 py-2 text-sm"
         />
         <div className="grid grid-cols-2 gap-3">
           <input
             {...register("contact_email")}
-            placeholder="Email"
+            placeholder={t("step1.email")}
             type="email"
             className="border rounded px-3 py-2 text-sm"
           />
           <input
             {...register("contact_phone")}
-            placeholder="Phone"
+            placeholder={t("step1.phone")}
             className="border rounded px-3 py-2 text-sm"
           />
         </div>
@@ -149,7 +151,7 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
           disabled={saving}
           className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          {saving && <Spinner />} Save Draft
+          {saving && <Spinner />} {t("saveDraft")}
         </button>
         <button
           type="button"
@@ -157,7 +159,7 @@ export default function Step1Company({ onSave, saving, draftData }: StepProps) {
           disabled={saving || !formState.isValid}
           className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
         >
-          {saving && <Spinner />} Save & Continue
+          {saving && <Spinner />} {t("saveContinue")}
         </button>
       </div>
     </form>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listPallets, allocateBoxesToPallet, getPalletTypes, getPalletTypeCapacities, getBoxSizes, createEmptyPallet, PalletSummary, PalletTypeConfig, BoxSizeConfig, LotAssignment } from "../api/pallets";
 import { listLots, listPackhouses, LotSummary, Packhouse } from "../api/batches";
 import { createContainerFromPallets } from "../api/containers";
@@ -11,6 +12,7 @@ import StatusBadge from "../components/StatusBadge";
 const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
 
 export default function PalletsList() {
+  const { t } = useTranslation("pallets");
   const navigate = useNavigate();
   const [pallets, setPallets] = useState<PalletSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,7 @@ export default function PalletsList() {
         destination: destination || undefined,
         seal_number: sealNumber || undefined,
       });
-      globalToast("success", `Container ${result.container_number} created with ${assignableSelected.length} pallet(s).`);
+      globalToast("success", t("createContainer.containerCreated", { number: result.container_number, count: assignableSelected.length }));
       setShowContainerForm(false);
       setSelectedIds(new Set());
       setClientId("");
@@ -143,7 +145,7 @@ export default function PalletsList() {
       setSealNumber("");
       fetchPallets();
     } catch {
-      globalToast("error", "Failed to create container.");
+      globalToast("error", t("createContainer.containerCreateFailed"));
     } finally {
       setContainerSaving(false);
     }
@@ -152,8 +154,8 @@ export default function PalletsList() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader
-        title="Pallets"
-        subtitle={`${filtered.length} pallet${filtered.length !== 1 ? "s" : ""}${selectedIds.size > 0 ? ` \u00b7 ${selectedIds.size} selected` : ""}`}
+        title={t("list.title")}
+        subtitle={`${t("list.count", { count: filtered.length })}${selectedIds.size > 0 ? ` \u00b7 ${selectedIds.size} ${t("list.selected")}` : ""}`}
         action={
           <div className="flex gap-2">
             {selectedIds.size > 0 && !showContainerForm && (
@@ -164,7 +166,7 @@ export default function PalletsList() {
                 }}
                 className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
               >
-                Assign to Container ({selectedIds.size})
+                {t("list.assignToContainer")} ({selectedIds.size})
               </button>
             )}
             <button
@@ -190,13 +192,13 @@ export default function PalletsList() {
               }}
               className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
             >
-              + Create Pallet
+              {t("list.createPallet")}
             </button>
             <Link
               to="/containers"
               className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
             >
-              View Containers
+              {t("list.viewContainers")}
             </Link>
           </div>
         }
@@ -209,13 +211,13 @@ export default function PalletsList() {
       {/* Create empty pallet form */}
       {showCreateForm && (
         <div className="mb-6 bg-white rounded-lg border p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-700">Create Empty Pallet</h3>
+          <h3 className="text-sm font-semibold text-gray-700">{t("createEmpty.title")}</h3>
           <p className="text-xs text-gray-500">
-            Create a pallet shell — allocate boxes from lots afterwards.
+            {t("createEmpty.help")}
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Pallet Type *</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createEmpty.palletType")}</label>
               <select
                 value={newPalletType}
                 onChange={async (e) => {
@@ -235,14 +237,14 @@ export default function PalletsList() {
                 }}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               >
-                <option value="">Select type</option>
+                <option value="">{t("createEmpty.selectType")}</option>
                 {palletTypes.map((pt) => (
                   <option key={pt.id} value={pt.name}>{pt.name} ({pt.capacity_boxes})</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Box Type</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createEmpty.boxType")}</label>
               <select
                 value={newBoxSizeId}
                 onChange={async (e) => {
@@ -271,7 +273,7 @@ export default function PalletsList() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Size</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createEmpty.size")}</label>
               <select
                 value={newSize}
                 onChange={(e) => setNewSize(e.target.value)}
@@ -284,7 +286,7 @@ export default function PalletsList() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Capacity (boxes)</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createEmpty.capacityBoxes")}</label>
               <input
                 type="number"
                 value={newCapacity || ""}
@@ -294,24 +296,24 @@ export default function PalletsList() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Packhouse *</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createEmpty.packhouse")}</label>
               <select
                 value={newPackhouseId}
                 onChange={(e) => setNewPackhouseId(e.target.value)}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               >
-                <option value="">Select packhouse</option>
+                <option value="">{t("createEmpty.selectPackhouse")}</option>
                 {packhouses.map((ph) => (
                   <option key={ph.id} value={ph.id}>{ph.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createEmpty.notes")}</label>
               <input
                 value={newNotes}
                 onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Optional"
+                placeholder={t("createEmpty.notesPlaceholder")}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
             </div>
@@ -322,13 +324,13 @@ export default function PalletsList() {
               disabled={createSaving}
               className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {createSaving ? "Creating..." : "Create Pallet"}
+              {createSaving ? t("common:actions.creating") : t("createEmpty.title").replace("Empty ", "")}
             </button>
             <button
               onClick={() => { setShowCreateForm(false); setNewPalletType(""); setNewCapacity(240); setNewBoxSizeId(""); setNewSize(""); setNewNotes(""); }}
               className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -344,37 +346,37 @@ export default function PalletsList() {
           <div className="mb-6 bg-white rounded-lg border p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-700">
-                Allocate Boxes to {pallet.pallet_number}
+                {t("allocateBoxes.title", { palletNumber: pallet.pallet_number })}
               </h3>
               <span className="text-xs text-gray-500">
-                {pallet.current_boxes} / {pallet.capacity_boxes} boxes ({remaining} remaining)
+                {t("allocateBoxes.info", { current: pallet.current_boxes, capacity: pallet.capacity_boxes, remaining })}
               </span>
             </div>
 
             {allocateLoading ? (
-              <p className="text-gray-400 text-sm">Loading available lots...</p>
+              <p className="text-gray-400 text-sm">{t("allocateBoxes.loadingLots")}</p>
             ) : allocateLots.length === 0 ? (
-              <p className="text-gray-400 text-sm">No lots with unallocated boxes found.</p>
+              <p className="text-gray-400 text-sm">{t("allocateBoxes.noLots")}</p>
             ) : (
               <>
                 {pallet.size && (
                   <p className="text-xs text-blue-600 mb-1">
-                    Pallet size: <span className="font-medium">{pallet.size}</span> — showing matching lots only.
+                    {t("allocateBoxes.sizeFilter", { size: pallet.size })}
                   </p>
                 )}
                 {pallet.box_size_name && (
                   <p className="text-xs text-blue-600 mb-1">
-                    Box type: <span className="font-medium">{pallet.box_size_name}</span> — showing matching lots only.
+                    {t("allocateBoxes.boxTypeFilter", { boxType: pallet.box_size_name })}
                   </p>
                 )}
                 <div className="border rounded overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-100 text-gray-600 text-xs">
                       <tr>
-                        <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
-                        <th className="text-left px-2 py-1.5 font-medium">Grade</th>
-                        <th className="text-left px-2 py-1.5 font-medium">Size</th>
-                        <th className="text-left px-2 py-1.5 font-medium">Box Type</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("detail.lotCode")}</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
+                        <th className="text-left px-2 py-1.5 font-medium">{t("list.headers.boxType")}</th>
                         <th className="text-right px-2 py-1.5 font-medium">Available</th>
                         <th className="text-right px-2 py-1.5 font-medium">Assign</th>
                       </tr>
@@ -389,8 +391,8 @@ export default function PalletsList() {
                         return (
                           <tr key={lot.id}>
                             <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
-                            <td className="px-2 py-1.5">{lot.grade || "—"}</td>
-                            <td className="px-2 py-1.5">{lot.size || "—"}</td>
+                            <td className="px-2 py-1.5">{lot.grade || "\u2014"}</td>
+                            <td className="px-2 py-1.5">{lot.size || "\u2014"}</td>
                             <td className="px-2 py-1.5 text-xs text-gray-600">{boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || "\u2014"}</td>
                             <td className="px-2 py-1.5 text-right text-gray-500">{available}</td>
                             <td className="px-2 py-1.5 text-right">
@@ -413,10 +415,10 @@ export default function PalletsList() {
                   </table>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Assigning: <span className="font-medium">{totalAssigning}</span> boxes
+                  {t("allocateBoxes.assigning", { count: totalAssigning })}
                   {totalAssigning > remaining && (
                     <span className="text-red-600 ml-2">
-                      Exceeds remaining capacity ({remaining})
+                      {t("allocateBoxes.exceedsCapacity")} ({remaining})
                     </span>
                   )}
                 </p>
@@ -443,13 +445,13 @@ export default function PalletsList() {
                   setAllocateSaving(true);
                   try {
                     await allocateBoxesToPallet(allocatingPalletId, { lot_assignments: assignments });
-                    globalToast("success", `${totalAssigning} box(es) allocated to ${pallet.pallet_number}.`);
+                    globalToast("success", t("allocateBoxes.allocated", { count: totalAssigning, palletNumber: pallet.pallet_number }));
                     setAllocatingPalletId(null);
                     setAllocateAssignments({});
                     setAllocateLots([]);
                     fetchPallets();
                   } catch {
-                    globalToast("error", "Failed to allocate boxes.");
+                    globalToast("error", t("allocateBoxes.allocateFailed"));
                   } finally {
                     setAllocateSaving(false);
                   }
@@ -457,13 +459,13 @@ export default function PalletsList() {
                 disabled={allocateSaving || totalAssigning === 0 || totalAssigning > remaining}
                 className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
-                {allocateSaving ? "Allocating..." : "Allocate Boxes"}
+                {allocateSaving ? "Allocating..." : t("allocateBoxes.allocateButton")}
               </button>
               <button
                 onClick={() => { setAllocatingPalletId(null); setAllocateAssignments({}); setAllocateLots([]); }}
                 className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
             </div>
           </div>
@@ -473,14 +475,13 @@ export default function PalletsList() {
       {/* Container creation form */}
       {showContainerForm && (
         <div className="mb-6 bg-white rounded-lg border p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-700">Create Container</h3>
+          <h3 className="text-sm font-semibold text-gray-700">{t("createContainer.title")}</h3>
           <p className="text-xs text-gray-500">
-            Assigning {assignableSelected.length} pallet(s) with{" "}
-            {assignableSelected.reduce((a, p) => a + p.current_boxes, 0)} total boxes.
+            {t("createContainer.help", { palletCount: assignableSelected.length, boxCount: assignableSelected.reduce((a, p) => a + p.current_boxes, 0) })}
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Container Type *</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.containerType")}</label>
               <select
                 value={containerType}
                 onChange={(e) => setContainerType(e.target.value)}
@@ -492,7 +493,7 @@ export default function PalletsList() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Capacity (pallets)</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.capacityPallets")}</label>
               <input
                 type="number"
                 value={capacityPallets || ""}
@@ -502,42 +503,42 @@ export default function PalletsList() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Client</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.client")}</label>
               <select
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               >
-                <option value="">Select client</option>
+                <option value="">{t("createContainer.selectClient")}</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Shipping Container #</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.shippingNumber")}</label>
               <input
                 value={shippingContainerNumber}
                 onChange={(e) => setShippingContainerNumber(e.target.value)}
-                placeholder="e.g. MSKU1234567"
+                placeholder={t("createContainer.shippingPlaceholder")}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Destination</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.destination")}</label>
               <input
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
-                placeholder="e.g. Rotterdam, NL"
+                placeholder={t("createContainer.destinationPlaceholder")}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Seal Number</label>
+              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.sealNumber")}</label>
               <input
                 value={sealNumber}
                 onChange={(e) => setSealNumber(e.target.value)}
-                placeholder="Optional"
+                placeholder={t("createEmpty.notesPlaceholder")}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
             </div>
@@ -548,13 +549,13 @@ export default function PalletsList() {
               disabled={containerSaving}
               className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {containerSaving ? "Creating..." : "Create Container"}
+              {containerSaving ? t("common:actions.creating") : t("createContainer.title")}
             </button>
             <button
               onClick={() => setShowContainerForm(false)}
               className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -566,7 +567,7 @@ export default function PalletsList() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm"
         >
-          <option value="">All statuses</option>
+          <option value="">{t("list.allStatuses")}</option>
           {["open", "closed", "stored", "allocated", "loaded", "exported"].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
@@ -574,7 +575,7 @@ export default function PalletsList() {
 
         <input
           type="text"
-          placeholder="Search number, fruit, grade..."
+          placeholder={t("list.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -585,15 +586,15 @@ export default function PalletsList() {
             onClick={() => setSelectedIds(new Set())}
             className="text-xs text-gray-500 hover:text-gray-700 underline"
           >
-            Clear selection
+            {t("list.clearSelection")}
           </button>
         )}
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading pallets...</p>
+        <p className="text-gray-400 text-sm">{t("list.loading")}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-gray-400 text-sm">No pallets found.</p>
+        <p className="text-gray-400 text-sm">{t("list.empty")}</p>
       ) : (
         <div className="bg-white rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
@@ -613,16 +614,16 @@ export default function PalletsList() {
                     className="rounded"
                   />
                 </th>
-                <th className="text-left px-4 py-2 font-medium">Pallet #</th>
-                <th className="text-left px-4 py-2 font-medium">Type</th>
-                <th className="text-left px-4 py-2 font-medium">Fruit</th>
-                <th className="text-left px-4 py-2 font-medium">Grade</th>
-                <th className="text-left px-4 py-2 font-medium">Size</th>
-                <th className="text-left px-4 py-2 font-medium">Box Type</th>
-                <th className="text-right px-4 py-2 font-medium">Boxes</th>
-                <th className="text-left px-4 py-2 font-medium">Notes</th>
-                <th className="text-left px-4 py-2 font-medium">Status</th>
-                <th className="text-left px-4 py-2 font-medium">Date</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.palletNumber")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.type")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.fruit")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.grade")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.size")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.boxType")}</th>
+                <th className="text-right px-4 py-2 font-medium">{t("list.headers.boxes")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.notes")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
                 <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
@@ -691,7 +692,7 @@ export default function PalletsList() {
                           }}
                           className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-0.5 rounded font-medium hover:bg-green-100"
                         >
-                          + Allocate
+                          {t("list.allocate")}
                         </button>
                       )}
                     </td>

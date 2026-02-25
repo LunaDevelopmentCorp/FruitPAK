@@ -1,4 +1,5 @@
 import { useFieldArray, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 
@@ -74,6 +75,7 @@ const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, notes: "",
 const EMPTY_BIN: BinTypeForm = { name: "", default_weight_kg: 0, tare_weight_kg: 0 };
 
 export default function Step6ProductPacking({ onSave, saving, draftData }: StepProps) {
+  const { t } = useTranslation("wizard");
   const { register, control, watch, getValues, setValue } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
       products: [{ fruit_type: "", variety: "", grades: "", sizes: "" }],
@@ -132,29 +134,29 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
     <form className="space-y-8 max-w-2xl">
       {/* Products */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Products / Fruit types</h3>
+        <h3 className="text-sm font-medium text-gray-700">{t("step6.products")}</h3>
         {products.fields.map((field, idx) => (
           <fieldset key={field.id} className="p-4 border rounded space-y-3">
             <div className="flex justify-between items-center">
-              <legend className="text-xs font-medium text-gray-500">Product {idx + 1}</legend>
-              <button type="button" onClick={() => products.remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+              <legend className="text-xs font-medium text-gray-500">{t("step6.product", { index: idx + 1 })}</legend>
+              <button type="button" onClick={() => products.remove(idx)} className="text-xs text-red-500 hover:text-red-700">{t("common:actions.remove")}</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <input {...register(`products.${idx}.fruit_type`)} placeholder="Fruit type" className="border rounded px-3 py-2 text-sm" />
-              <input {...register(`products.${idx}.variety`)} placeholder="Variety" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`products.${idx}.fruit_type`)} placeholder={t("step6.fruitType")} className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`products.${idx}.variety`)} placeholder={t("step6.variety")} className="border rounded px-3 py-2 text-sm" />
             </div>
-            <input {...register(`products.${idx}.grades`)} placeholder="Grades (comma separated)" className="w-full border rounded px-3 py-2 text-sm" />
-            <input {...register(`products.${idx}.sizes`)} placeholder="Sizes (comma separated)" className="w-full border rounded px-3 py-2 text-sm" />
+            <input {...register(`products.${idx}.grades`)} placeholder={t("step6.grades")} className="w-full border rounded px-3 py-2 text-sm" />
+            <input {...register(`products.${idx}.sizes`)} placeholder={t("step6.sizes")} className="w-full border rounded px-3 py-2 text-sm" />
           </fieldset>
         ))}
-        <button type="button" onClick={() => products.append({ fruit_type: "", variety: "", grades: "", sizes: "" })} className="text-sm text-green-600">+ Add product</button>
+        <button type="button" onClick={() => products.append({ fruit_type: "", variety: "", grades: "", sizes: "" })} className="text-sm text-green-600">{t("step6.addProduct")}</button>
       </div>
 
       {/* Bin Types */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Bin Types</h3>
+        <h3 className="text-sm font-medium text-gray-700">{t("step6.binTypes")}</h3>
         <p className="text-xs text-gray-500">
-          Define the bin types used for receiving fruit at intake. Tare weight is auto-applied on the GRN form.
+          {t("step6.binTypesHelp")}
         </p>
 
         {binTypes.fields.length > 0 && (
@@ -162,9 +164,9 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs">
                 <tr>
-                  <th className="text-left px-3 py-2 font-medium">Bin Name *</th>
-                  <th className="text-right px-3 py-2 font-medium">Default Weight (kg)</th>
-                  <th className="text-right px-3 py-2 font-medium">Tare Weight (kg)</th>
+                  <th className="text-left px-3 py-2 font-medium">{t("step6.binName")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.defaultWeight")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.tareWeight")}</th>
                   <th className="w-16"></th>
                 </tr>
               </thead>
@@ -174,7 +176,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                     <td className="px-3 py-2">
                       <input
                         {...register(`bin_types.${idx}.name`)}
-                        placeholder="e.g. Plastic bin, Wooden crate"
+                        placeholder={t("step6.binNamePlaceholder")}
                         className="w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
@@ -184,7 +186,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         type="number"
                         step="0.1"
                         min={0}
-                        placeholder="Full bin weight"
+                        placeholder={t("step6.fullBinWeight")}
                         className="w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
@@ -199,7 +201,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                     </td>
                     <td className="px-3 py-2 text-center">
                       <button type="button" onClick={() => binTypes.remove(idx)} className="text-xs text-red-500 hover:text-red-700">
-                        Remove
+                        {t("common:actions.remove")}
                       </button>
                     </td>
                   </tr>
@@ -210,7 +212,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         )}
 
         {binTypes.fields.length === 0 && (
-          <p className="text-xs text-gray-400 italic">No bin types defined yet.</p>
+          <p className="text-xs text-gray-400 italic">{t("step6.noBinTypes")}</p>
         )}
 
         <button
@@ -218,16 +220,16 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           onClick={() => binTypes.append({ ...EMPTY_BIN })}
           className="text-sm text-green-600"
         >
-          + Add Bin Type
+          {t("step6.addBinType")}
         </button>
       </div>
 
       {/* Pack specs — presets */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Pack Specifications</h3>
+        <h3 className="text-sm font-medium text-gray-700">{t("step6.packSpecs")}</h3>
 
         <div className="bg-gray-50 rounded-lg p-4 border">
-          <p className="text-xs text-gray-500 mb-2">Quick add common specs:</p>
+          <p className="text-xs text-gray-500 mb-2">{t("step6.quickAdd")}</p>
           <div className="flex flex-wrap gap-2">
             {COMMON_PACK_SPECS.map((preset) => {
               const alreadyAdded = addedNames.has(preset.name);
@@ -256,28 +258,28 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           <fieldset key={field.id} className="p-4 border rounded space-y-3">
             <div className="flex justify-between items-center">
               <legend className="text-xs font-medium text-gray-500">Spec {idx + 1}</legend>
-              <button type="button" onClick={() => packSpecs.remove(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+              <button type="button" onClick={() => packSpecs.remove(idx)} className="text-xs text-red-500 hover:text-red-700">{t("common:actions.remove")}</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <input {...register(`pack_specs.${idx}.name`)} placeholder="Spec name" className="border rounded px-3 py-2 text-sm" />
-              <input {...register(`pack_specs.${idx}.pack_type`)} placeholder="Pack type" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`pack_specs.${idx}.name`)} placeholder={t("step6.specName")} className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`pack_specs.${idx}.pack_type`)} placeholder={t("step6.packType")} className="border rounded px-3 py-2 text-sm" />
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <input {...register(`pack_specs.${idx}.weight_kg`, { valueAsNumber: true })} placeholder="Weight (kg)" type="number" className="border rounded px-3 py-2 text-sm" />
-              <input {...register(`pack_specs.${idx}.cartons_per_layer`, { valueAsNumber: true })} placeholder="Cartons/layer" type="number" className="border rounded px-3 py-2 text-sm" />
-              <input {...register(`pack_specs.${idx}.layers_per_pallet`, { valueAsNumber: true })} placeholder="Layers/pallet" type="number" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`pack_specs.${idx}.weight_kg`, { valueAsNumber: true })} placeholder={t("step6.weightKg")} type="number" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`pack_specs.${idx}.cartons_per_layer`, { valueAsNumber: true })} placeholder={t("step6.cartonsPerLayer")} type="number" className="border rounded px-3 py-2 text-sm" />
+              <input {...register(`pack_specs.${idx}.layers_per_pallet`, { valueAsNumber: true })} placeholder={t("step6.layersPerPallet")} type="number" className="border rounded px-3 py-2 text-sm" />
             </div>
-            <input {...register(`pack_specs.${idx}.target_market`)} placeholder="Target market" className="w-full border rounded px-3 py-2 text-sm" />
+            <input {...register(`pack_specs.${idx}.target_market`)} placeholder={t("step6.targetMarket")} className="w-full border rounded px-3 py-2 text-sm" />
           </fieldset>
         ))}
-        <button type="button" onClick={() => packSpecs.append({ name: "", pack_type: "", weight_kg: null, cartons_per_layer: null, layers_per_pallet: null, target_market: "" })} className="text-sm text-green-600">+ Add pack spec</button>
+        <button type="button" onClick={() => packSpecs.append({ name: "", pack_type: "", weight_kg: null, cartons_per_layer: null, layers_per_pallet: null, target_market: "" })} className="text-sm text-green-600">{t("step6.addPackSpec")}</button>
       </div>
 
       {/* Box Types */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Box Types</h3>
+        <h3 className="text-sm font-medium text-gray-700">{t("step6.boxTypes")}</h3>
         <p className="text-xs text-gray-500">
-          Define the packaging types used on your pack lines. Includes weight specifications for quality control.
+          {t("step6.boxTypesHelp")}
         </p>
 
         {boxSizes.fields.length > 0 && (
@@ -285,13 +287,13 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs">
                 <tr>
-                  <th className="text-left px-3 py-2 font-medium">Box Name *</th>
-                  <th className="text-right px-3 py-2 font-medium">Weight (kg)</th>
-                  <th className="text-left px-3 py-2 font-medium">Dimensions</th>
-                  <th className="text-right px-3 py-2 font-medium">Tare (kg)</th>
-                  <th className="text-right px-3 py-2 font-medium">Net Target (kg)</th>
-                  <th className="text-right px-3 py-2 font-medium">Min (kg)</th>
-                  <th className="text-right px-3 py-2 font-medium">Max (kg)</th>
+                  <th className="text-left px-3 py-2 font-medium">{t("step6.boxName")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.weightKg")}</th>
+                  <th className="text-left px-3 py-2 font-medium">{t("step6.dimensions")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.tare")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.netTarget")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.min")}</th>
+                  <th className="text-right px-3 py-2 font-medium">{t("step6.max")}</th>
                   <th className="w-16"></th>
                 </tr>
               </thead>
@@ -301,7 +303,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                     <td className="px-3 py-2">
                       <input
                         {...register(`box_sizes.${idx}.name`)}
-                        placeholder="e.g. 4kg Open Top"
+                        placeholder={t("step6.boxNamePlaceholder")}
                         className="w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
@@ -317,7 +319,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                     <td className="px-3 py-2">
                       <input
                         {...register(`box_sizes.${idx}.dimensions`)}
-                        placeholder="e.g. 400x300x120mm"
+                        placeholder={t("step6.dimPlaceholder")}
                         className="w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
@@ -363,7 +365,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                     </td>
                     <td className="px-3 py-2 text-center">
                       <button type="button" onClick={() => boxSizes.remove(idx)} className="text-xs text-red-500 hover:text-red-700">
-                        Remove
+                        {t("common:actions.remove")}
                       </button>
                     </td>
                   </tr>
@@ -374,7 +376,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         )}
 
         {boxSizes.fields.length === 0 && (
-          <p className="text-xs text-gray-400 italic">No box types defined yet.</p>
+          <p className="text-xs text-gray-400 italic">{t("step6.noBoxTypes")}</p>
         )}
 
         <button
@@ -382,15 +384,15 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           onClick={() => boxSizes.append({ ...EMPTY_BOX })}
           className="text-sm text-green-600"
         >
-          + Add Box Type
+          {t("step6.addBoxType")}
         </button>
       </div>
 
       {/* Pallet Structures */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Pallet Structures</h3>
+        <h3 className="text-sm font-medium text-gray-700">{t("step6.palletStructures")}</h3>
         <p className="text-xs text-gray-500">
-          Define pallet types and their default box capacity. You can set per-box-type capacities if different boxes have different pallet limits.
+          {t("step6.palletStructuresHelp")}
         </p>
 
         {palletTypes.fields.map((field, idx) => {
@@ -398,27 +400,27 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           return (
             <fieldset key={field.id} className="p-4 border rounded space-y-3">
               <div className="flex justify-between items-center">
-                <legend className="text-xs font-medium text-gray-500">Pallet Type {idx + 1}</legend>
+                <legend className="text-xs font-medium text-gray-500">{t("step6.palletType", { index: idx + 1 })}</legend>
                 <button type="button" onClick={() => palletTypes.remove(idx)} className="text-xs text-red-500 hover:text-red-700">
-                  Remove
+                  {t("common:actions.remove")}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <input
                   {...register(`pallet_types.${idx}.name`)}
-                  placeholder="e.g. Standard 240"
+                  placeholder={t("step6.palletTypePlaceholder")}
                   className="border rounded px-2 py-1.5 text-sm"
                 />
                 <input
                   {...register(`pallet_types.${idx}.capacity_boxes`, { valueAsNumber: true, min: 1 })}
                   type="number"
                   min={1}
-                  placeholder="Default capacity"
+                  placeholder={t("step6.defaultCapacity")}
                   className="border rounded px-2 py-1.5 text-sm text-right"
                 />
                 <input
                   {...register(`pallet_types.${idx}.notes`)}
-                  placeholder="Notes (optional)"
+                  placeholder={t("step6.notesOptional")}
                   className="border rounded px-2 py-1.5 text-sm"
                 />
               </div>
@@ -426,9 +428,9 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
               {/* Per-box-size capacity overrides */}
               {boxSizeNames.length > 0 && (
                 <div className="mt-2 bg-gray-50 rounded p-3 space-y-2">
-                  <p className="text-xs text-gray-500 font-medium">Capacity per box type (optional)</p>
+                  <p className="text-xs text-gray-500 font-medium">{t("step6.capacityPerBoxType")}</p>
                   <p className="text-xs text-gray-400">
-                    Leave blank to use the default capacity ({currentPallet?.capacity_boxes || 240}) for all box types.
+                    {t("step6.capacityPerBoxHelp", { capacity: currentPallet?.capacity_boxes || 240 })}
                   </p>
                   <div className="space-y-1">
                     {boxSizeNames.map((bsName) => {
@@ -458,7 +460,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                               setValue(`pallet_types.${idx}.box_capacities`, newCaps);
                             }}
                           />
-                          <span className="text-xs text-gray-400">boxes</span>
+                          <span className="text-xs text-gray-400">{t("common:units.boxes")}</span>
                         </div>
                       );
                     })}
@@ -470,7 +472,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
         })}
 
         {palletTypes.fields.length === 0 && (
-          <p className="text-xs text-gray-400 italic">No pallet types defined yet.</p>
+          <p className="text-xs text-gray-400 italic">{t("step6.noPalletTypes")}</p>
         )}
 
         <button
@@ -478,15 +480,15 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
           onClick={() => palletTypes.append({ ...EMPTY_PALLET })}
           className="text-sm text-green-600"
         >
-          + Add Pallet Type
+          {t("step6.addPalletType")}
         </button>
       </div>
 
       {/* Pallet Rules */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Pallet Rules</h3>
+        <h3 className="text-sm font-medium text-gray-700">{t("step6.palletRules")}</h3>
         <p className="text-xs text-gray-500">
-          Set default rules for pallet allocation. These can be overridden per-request during operations.
+          {t("step6.palletRulesHelp")}
         </p>
         <div className="space-y-3">
           <label className="flex items-center gap-3 cursor-pointer">
@@ -496,8 +498,8 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
               className="rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
             <div>
-              <span className="text-sm text-gray-700">Allow mixed sizes on pallets</span>
-              <p className="text-xs text-gray-400">Lots with different sizes can be allocated to the same pallet</p>
+              <span className="text-sm text-gray-700">{t("step6.allowMixedSizes")}</span>
+              <p className="text-xs text-gray-400">{t("step6.mixedSizesHelp")}</p>
             </div>
           </label>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -507,8 +509,8 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
               className="rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
             <div>
-              <span className="text-sm text-gray-700">Allow mixed box types on pallets</span>
-              <p className="text-xs text-gray-400">Lots with different box types can be allocated to the same pallet</p>
+              <span className="text-sm text-gray-700">{t("step6.allowMixedBoxTypes")}</span>
+              <p className="text-xs text-gray-400">{t("step6.mixedBoxTypesHelp")}</p>
             </div>
           </label>
         </div>
@@ -516,10 +518,10 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
 
       <div className="flex gap-3 pt-4 border-t">
         <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">
-          {saving && <Spinner />} Save Draft
+          {saving && <Spinner />} {t("saveDraft")}
         </button>
         <button type="button" onClick={saveAndComplete} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium">
-          {saving && <Spinner />} Save & Continue
+          {saving && <Spinner />} {t("saveContinue")}
         </button>
       </div>
     </form>

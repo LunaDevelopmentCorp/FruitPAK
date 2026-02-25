@@ -1,7 +1,9 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { BatchDetail as BatchDetailType } from "../../api/batches";
 
 export default React.memo(function MassBalance({ batch }: { batch: BatchDetailType }) {
+  const { t } = useTranslation("batches");
   const lots = batch.lots || [];
   if (lots.length === 0) return null;
 
@@ -18,22 +20,22 @@ export default React.memo(function MassBalance({ batch }: { batch: BatchDetailTy
 
   return (
     <div className={`rounded-lg border p-4 ${balanced ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}`}>
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">Mass Balance</h3>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("massBalance.title")}</h3>
       <div className="grid grid-cols-4 gap-4 text-sm">
         <div>
-          <p className="text-gray-500">Incoming Net</p>
+          <p className="text-gray-500">{t("massBalance.incomingNet")}</p>
           <p className="font-medium">{incomingNet.toLocaleString()} kg</p>
         </div>
         <div>
-          <p className="text-gray-500">Lot Weight</p>
+          <p className="text-gray-500">{t("massBalance.lotWeight")}</p>
           <p className="font-medium">{totalLotWeight.toLocaleString()} kg</p>
         </div>
         <div>
-          <p className="text-gray-500">Waste</p>
+          <p className="text-gray-500">{t("massBalance.waste")}</p>
           <p className="font-medium">{waste.toLocaleString()} kg</p>
         </div>
         <div>
-          <p className="text-gray-500">Difference</p>
+          <p className="text-gray-500">{t("massBalance.difference")}</p>
           <p className={`font-semibold ${balanced ? "text-green-700" : "text-yellow-700"}`}>
             {diff > 0 ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
             {balanced && " \u2713"}

@@ -81,6 +81,8 @@ async def create_grn(
         status="received",
         bin_count=body.bin_count,
         bin_type=body.bin_type,
+        vehicle_reg=body.vehicle_reg,
+        driver_name=body.driver_name,
         notes=body.delivery_notes,
         received_by=user_id,
     )

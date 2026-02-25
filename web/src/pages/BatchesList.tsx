@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { listBatches, listGrowers, Grower } from "../api/batches";
 import PageHeader from "../components/PageHeader";
@@ -9,6 +10,7 @@ const STATUSES = ["received", "grading", "packing", "complete", "rejected"];
 const PAGE_SIZE = 50;
 
 export default function BatchesList() {
+  const { t } = useTranslation("batches");
   const navigate = useNavigate();
   const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [growers, setGrowers] = useState<Grower[]>([]);
@@ -99,8 +101,8 @@ export default function BatchesList() {
     <div className="max-w-5xl mx-auto px-6 py-8">
       {/* Header */}
       <PageHeader
-        title="Batches"
-        subtitle={`${total.toLocaleString()} batch${total !== 1 ? "es" : ""}${hasActiveFilters ? " (filtered)" : ""}`}
+        title={t("list.title")}
+        subtitle={`${t("list.count", { count: total })}${hasActiveFilters ? ` ${t("list.filtered")}` : ""}`}
       />
 
       {error && (
@@ -116,7 +118,7 @@ export default function BatchesList() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm"
         >
-          <option value="">All statuses</option>
+          <option value="">{t("list.allStatuses")}</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -129,7 +131,7 @@ export default function BatchesList() {
           onChange={(e) => setGrowerFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm"
         >
-          <option value="">All growers</option>
+          <option value="">{t("list.allGrowers")}</option>
           {growers.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
@@ -142,7 +144,7 @@ export default function BatchesList() {
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
           className="border rounded px-3 py-2 text-sm"
-          title="From date"
+          title={t("list.fromDate")}
         />
         <span className="text-gray-400 text-sm">to</span>
         <input
@@ -150,12 +152,12 @@ export default function BatchesList() {
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
           className="border rounded px-3 py-2 text-sm"
-          title="To date"
+          title={t("list.toDate")}
         />
 
         <input
           type="text"
-          placeholder="Search code, grower, fruit..."
+          placeholder={t("list.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -172,32 +174,32 @@ export default function BatchesList() {
             }}
             className="text-xs text-gray-500 hover:text-gray-700 underline"
           >
-            Clear filters
+            {t("common:actions.clearFilters")}
           </button>
         )}
       </div>
 
       {/* Table */}
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading batches...</p>
+        <p className="text-gray-400 text-sm">{t("list.loading")}</p>
       ) : batches.length === 0 ? (
-        <p className="text-gray-400 text-sm">No batches found.</p>
+        <p className="text-gray-400 text-sm">{t("list.empty")}</p>
       ) : (
         <>
           <div className="bg-white rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium">Code</th>
-                  <th className="text-left px-4 py-2 font-medium">Grower</th>
-                  <th className="text-left px-4 py-2 font-medium">Fruit</th>
-                  <th className="text-left px-4 py-2 font-medium">Variety</th>
-                  <th className="text-right px-4 py-2 font-medium">Bins</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("common:table.code")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.grower")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.fruit")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.variety")}</th>
+                  <th className="text-right px-4 py-2 font-medium">{t("list.headers.bins")}</th>
                   <th className="text-right px-4 py-2 font-medium">
-                    Net (kg)
+                    {t("list.headers.netKg")}
                   </th>
-                  <th className="text-left px-4 py-2 font-medium">Status</th>
-                  <th className="text-left px-4 py-2 font-medium">Date</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -241,7 +243,7 @@ export default function BatchesList() {
                 disabled={cursorStack.length === 0}
                 className="border text-gray-600 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Previous
+                {t("common:actions.previous")}
               </button>
               <span className="text-sm text-gray-500">
                 Page {pageNumber}
@@ -252,7 +254,7 @@ export default function BatchesList() {
                 disabled={!hasMore}
                 className="border text-gray-600 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next
+                {t("common:actions.next")}
               </button>
             </div>
           )}

@@ -1,0 +1,67 @@
+{
+  "title": "Stock de Empaque",
+  "receiveStock": "+ Recibir Stock",
+  "loading": "Cargando stock de empaque...",
+  "loadFailed": "Error al cargar datos de empaque.",
+  "receive": {
+    "title": "Recibir Stock de Empaque",
+    "item": "Artículo de Empaque *",
+    "selectItem": "Seleccionar artículo",
+    "boxesGroup": "Cajas",
+    "palletsGroup": "Pallets",
+    "quantity": "Cantidad *",
+    "costPerUnit": "Costo por Unidad",
+    "costPlaceholder": "Opcional",
+    "notes": "Notas",
+    "notesPlaceholder": "ej. Referencia de entrega",
+    "submit": "Recibir",
+    "received": "Recibidos {{count}} × {{name}}.",
+    "receiveFailed": "Error al recibir stock."
+  },
+  "tabs": {
+    "stockLevels": "Niveles de Stock",
+    "movementHistory": "Historial de Movimientos"
+  },
+  "stock": {
+    "boxesTitle": "Cajas",
+    "palletsTitle": "Pallets",
+    "headers": {
+      "weight": "Peso",
+      "costPerUnit": "Costo/Unidad",
+      "inStock": "En Stock",
+      "minLevel": "Nivel Mínimo",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "adjust": "Ajustar",
+    "writeOff": "Dar de Baja",
+    "noBoxTypes": "No hay tipos de caja configurados. Agréguelos en el Asistente de Configuración.",
+    "noPalletTypes": "No hay tipos de pallet configurados. Agréguelos en el Asistente de Configuración.",
+    "adjusted": "Stock ajustado en {{amount}}.",
+    "adjustFailed": "Ajuste fallido (puede causar stock negativo).",
+    "writtenOff": "Dados de baja {{count}} × {{name}}.",
+    "writeOffFailed": "Baja fallida (puede causar stock negativo).",
+    "minStockFailed": "Error al actualizar el stock mínimo."
+  },
+  "movements": {
+    "allItems": "Todos los artículos",
+    "allTypes": "Todos los tipos",
+    "typeReceipt": "Recepción",
+    "typeConsumption": "Consumo",
+    "typeAdjustment": "Ajuste",
+    "typeWriteOff": "Baja",
+    "typeReversal": "Reversión",
+    "from": "Desde",
+    "to": "Hasta",
+    "headers": {
+      "date": "Fecha",
+      "item": "Artículo",
+      "type": "Tipo",
+      "qty": "Cant.",
+      "costPerUnit": "Costo/Unidad",
+      "notes": "Notas"
+    },
+    "empty": "No hay movimientos registrados aún.",
+    "emptyFiltered": "Ningún movimiento coincide con los filtros actuales."
+  }
+}

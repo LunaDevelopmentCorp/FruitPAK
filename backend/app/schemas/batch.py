@@ -33,6 +33,8 @@ class GRNRequest(BaseModel):
     quality_assessment: dict | None = None
     bin_count: int | None = Field(None, ge=1)
     bin_type: str | None = None
+    vehicle_reg: str | None = None
+    driver_name: str | None = None
     delivery_notes: str | None = None
 
     @model_validator(mode="after")
@@ -91,6 +93,8 @@ class BatchUpdate(BaseModel):
     waste_reason: str | None = None
     bin_count: int | None = None
     bin_type: str | None = None
+    vehicle_reg: str | None = None
+    driver_name: str | None = None
     notes: str | None = None
 
 
@@ -119,6 +123,8 @@ class BatchOut(BaseModel):
     waste_reason: str | None = None
     bin_count: int | None
     bin_type: str | None
+    vehicle_reg: str | None = None
+    driver_name: str | None = None
     notes: str | None
     received_by: str | None
     created_at: datetime
@@ -149,6 +155,8 @@ class BatchSummary(BaseModel):
     net_weight_kg: float | None
     bin_count: int | None = None
     bin_type: str | None = None
+    vehicle_reg: str | None = None
+    driver_name: str | None = None
     harvest_date: date | None = None
     notes: str | None = None
     status: str

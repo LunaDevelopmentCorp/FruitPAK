@@ -1,0 +1,80 @@
+{
+  "list": {
+    "title": "Containers",
+    "count_one": "{{count}} container",
+    "count_other": "{{count}} containers",
+    "createContainer": "+ Create Container",
+    "allStatuses": "All statuses",
+    "searchPlaceholder": "Search number, customer, destination...",
+    "loading": "Loading containers...",
+    "empty": "No containers found. Assign pallets to create one.",
+    "headers": {
+      "containerNumber": "Container #",
+      "shippingNumber": "Shipping #",
+      "type": "Type",
+      "customer": "Customer",
+      "destination": "Destination",
+      "pallets": "Pallets",
+      "fillPercent": "Fill %",
+      "cartons": "Cartons",
+      "status": "Status",
+      "date": "Date"
+    }
+  },
+  "create": {
+    "title": "New Container",
+    "containerType": "Container Type",
+    "capacity": "Capacity",
+    "client": "Client",
+    "noClient": "— None —",
+    "shippingNumber": "Shipping Container #",
+    "shippingPlaceholder": "e.g. MSKU1234567",
+    "destination": "Destination",
+    "destinationPlaceholder": "e.g. Rotterdam, NL",
+    "sealNumber": "Seal Number"
+  },
+  "detail": {
+    "loading": "Loading container...",
+    "notFound": "Container not found.",
+    "backLabel": "All Containers",
+    "pallets": "Pallets",
+    "fill": "Fill",
+    "totalCartons": "Total Cartons",
+    "weight": "Weight",
+    "capacity": "Capacity",
+    "shipmentDetails": "Shipment Details",
+    "containerType": "Container Type",
+    "capacityPallets": "Capacity (pallets)",
+    "shippingNumber": "Shipping Container #",
+    "customer": "Customer",
+    "destination": "Destination",
+    "exportDate": "Export Date",
+    "sealNumber": "Seal Number",
+    "notes": "Notes",
+    "loadPallets": "Load Pallets",
+    "headers": {
+      "palletNumber": "Pallet #",
+      "fruit": "Fruit",
+      "grade": "Grade",
+      "size": "Size",
+      "boxType": "Box Type",
+      "boxes": "Boxes",
+      "status": "Status"
+    },
+    "noPallets": "No pallets loaded.",
+    "traceability": "Full Traceability",
+    "lots": "Lots:",
+    "grns": "GRNs / Growers:",
+    "qrCode": "QR Code"
+  },
+  "loadPallets": {
+    "title": "Load Pallets",
+    "loading": "Loading available pallets...",
+    "empty": "No closed pallets available to load.",
+    "help": "Select closed pallets to load into this container. {{count}} selected.",
+    "loadSelected": "Load Selected ({{count}})",
+    "loadingButton": "Loading...",
+    "loaded": "Loaded {{count}} pallet(s) into container",
+    "loadFailed": "Failed to load pallets"
+  }
+}

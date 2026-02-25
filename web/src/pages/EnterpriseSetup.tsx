@@ -1,10 +1,12 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
 import { createEnterprise, reissueToken } from "../api/enterprise";
 import { useAuthStore } from "../store/authStore";
 
 export default function EnterpriseSetup() {
+  const { t } = useTranslation("auth");
   const [name, setName] = useState("");
   const [country, setCountry] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +18,7 @@ export default function EnterpriseSetup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !country.trim()) {
-      setError("Company name and country are required.");
+      setError(t("enterpriseSetup.validation"));
       return;
     }
 
@@ -34,7 +36,7 @@ export default function EnterpriseSetup() {
       // 3. Go to wizard
       navigate("/setup");
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Failed to create enterprise"));
+      setError(getErrorMessage(err, t("enterpriseSetup.failed")));
     } finally {
       setLoading(false);
     }
@@ -44,9 +46,9 @@ export default function EnterpriseSetup() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-700">FruitPAK</h1>
+          <h1 className="text-3xl font-bold text-green-700">{t("common:appName")}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Create your enterprise to get started
+            {t("enterpriseSetup.subtitle")}
           </p>
         </div>
 
@@ -55,7 +57,7 @@ export default function EnterpriseSetup() {
           className="bg-white shadow rounded-lg p-6 space-y-4"
         >
           <h2 className="text-lg font-semibold text-gray-800">
-            Enterprise Details
+            {t("enterpriseSetup.heading")}
           </h2>
 
           {error && (
@@ -66,7 +68,7 @@ export default function EnterpriseSetup() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company Name *
+              {t("enterpriseSetup.companyName")}
             </label>
             <input
               type="text"
@@ -75,13 +77,13 @@ export default function EnterpriseSetup() {
               required
               autoFocus
               className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="e.g. Cape Citrus Packers"
+              placeholder={t("enterpriseSetup.companyNamePlaceholder")}
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Country *
+              {t("enterpriseSetup.country")}
             </label>
             <input
               type="text"
@@ -89,7 +91,7 @@ export default function EnterpriseSetup() {
               onChange={(e) => setCountry(e.target.value)}
               required
               className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="e.g. South Africa"
+              placeholder={t("enterpriseSetup.countryPlaceholder")}
             />
           </div>
 
@@ -98,7 +100,7 @@ export default function EnterpriseSetup() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
           >
-            {loading ? "Creating..." : "Create Enterprise"}
+            {loading ? t("enterpriseSetup.submitting") : t("enterpriseSetup.submit")}
           </button>
         </form>
       </div>

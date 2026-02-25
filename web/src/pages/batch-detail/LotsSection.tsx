@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getBatch,
   updateBatch,
@@ -20,6 +21,7 @@ interface Props extends BatchSectionProps {
 }
 
 export default function LotsSection({ batch, batchId, onRefresh, configs }: Props) {
+  const { t } = useTranslation("batches");
   const { boxSizes, binTypes, fruitConfigs } = configs;
 
   const [creatingLots, setCreatingLots] = useState(false);
@@ -82,8 +84,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
     if (missingGrade || !hasAnyData) {
       setLotValidationError(true);
       globalToast("error", missingGrade
-        ? "Every row needs a grade selected before saving."
-        : "At least one lot with a grade is required.");
+        ? t("lots.gradeRequired")
+        : t("lots.atLeastOneLot"));
       return;
     }
     setLotValidationError(false);
@@ -99,7 +101,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
     setLotSaving(true);
     try {
       await createLotsFromBatch(batchId, apiLots);
-      globalToast("success", `${apiLots.length} lot(s) created.`);
+      globalToast("success", t("lots.lotsCreated", { count: apiLots.length }));
       setCreatingLots(false);
       setLotRows([{ grade: "", carton_count: 0, unit: "cartons" as const }]);
       // Refresh and auto-calculate waste
@@ -113,7 +115,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
       }
       await onRefresh();
     } catch {
-      globalToast("error", "Failed to create lots.");
+      globalToast("error", t("lots.lotCreateFailed"));
     } finally {
       setLotSaving(false);
     }
@@ -123,7 +125,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
     <div className="bg-white rounded-lg border p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700">
-          Packing Lots {lots.length > 0 && `(${lots.length})`}
+          {t("lots.title")} {lots.length > 0 && `(${lots.length})`}
         </h3>
         {!creatingLots && (
           <button
@@ -134,7 +136,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
             }}
             className="text-sm text-green-600 hover:text-green-700 font-medium"
           >
-            + Create Lots
+            {t("lots.createLots")}
           </button>
         )}
       </div>
@@ -143,7 +145,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
       {creatingLots && (
         <div className="mb-4 p-4 bg-gray-50 rounded-lg border space-y-3">
           <p className="text-xs text-gray-500">
-            Split this batch into lots by grade/size. Each row creates one lot.
+            {t("lots.splitHelp")}
           </p>
           {lotRows.map((row, idx) => {
             const selectedBox = boxSizes.find((bs) => bs.id === row.box_size_id);
@@ -158,7 +160,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
             <div key={idx}>
               <div className="grid grid-cols-7 gap-2 items-end">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Grade *</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t("lots.grade")}</label>
                   <select
                     value={row.grade}
                     onChange={(e) => {
@@ -177,14 +179,14 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                     }}
                     className={`w-full border rounded px-2 py-1.5 text-sm ${lotValidationError && !row.grade ? "border-red-400 bg-red-50" : ""}`}
                   >
-                    <option value="">Select</option>
+                    <option value="">{t("lots.selectGrade")}</option>
                     {availableGrades.map((g) => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Size</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t("lots.sizeLot")}</label>
                   <select
                     value={row.size || ""}
                     onChange={(e) => {
@@ -194,14 +196,14 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                     }}
                     className="w-full border rounded px-2 py-1.5 text-sm"
                   >
-                    <option value="">Select</option>
+                    <option value="">{t("lots.selectGrade")}</option>
                     {availableSizes.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Unit</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t("lots.unit")}</label>
                   <select
                     value={row.unit}
                     onChange={(e) => {
@@ -217,13 +219,13 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                     }}
                     className="w-full border rounded px-2 py-1.5 text-sm"
                   >
-                    <option value="cartons">Cartons</option>
-                    <option value="bins">Bins</option>
+                    <option value="cartons">{t("lots.cartons")}</option>
+                    <option value="bins">{t("lots.bins")}</option>
                   </select>
                 </div>
                 {row.unit === "cartons" ? (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Box Type *</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t("lots.boxType")}</label>
                     <select
                       value={row.box_size_id || ""}
                       onChange={(e) => {
@@ -233,7 +235,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                       }}
                       className="w-full border rounded px-2 py-1.5 text-sm"
                     >
-                      <option value="">Select box</option>
+                      <option value="">{t("lots.selectBox")}</option>
                       {boxSizes.map((bs) => (
                         <option key={bs.id} value={bs.id}>
                           {bs.name} ({bs.weight_kg} kg)
@@ -243,7 +245,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Bin Type *</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t("lots.binType")}</label>
                     <select
                       value={row.bin_type_id || ""}
                       onChange={(e) => {
@@ -253,7 +255,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                       }}
                       className="w-full border rounded px-2 py-1.5 text-sm"
                     >
-                      <option value="">Select bin</option>
+                      <option value="">{t("lots.selectBin")}</option>
                       {binTypes.map((bt) => (
                         <option key={bt.id} value={bt.id}>
                           {bt.name} ({(bt.default_weight_kg - bt.tare_weight_kg).toFixed(0)} kg net)
@@ -263,7 +265,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">{row.unit === "bins" ? "Bins" : "Cartons"}</label>
+                  <label className="block text-xs text-gray-500 mb-1">{row.unit === "bins" ? t("lots.bins") : t("lots.cartons")}</label>
                   <input
                     type="number"
                     value={row.unit === "bins" ? (row.bin_count || "") : (row.carton_count || "")}
@@ -281,7 +283,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Weight</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t("lots.weight")}</label>
                   <p className="px-2 py-1.5 text-sm text-gray-600 bg-gray-100 rounded text-right">
                     {autoWeight != null ? `${autoWeight.toLocaleString()} kg` : "—"}
                   </p>
@@ -292,7 +294,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                       onClick={() => setLotRows(lotRows.filter((_, i) => i !== idx))}
                       className="text-xs text-red-500 hover:text-red-700 py-1.5"
                     >
-                      Remove
+                      {t("common:actions.remove")}
                     </button>
                   )}
                 </div>
@@ -304,10 +306,10 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
           {/* Auto-waste summary (memoized) */}
           {autoWasteInfo.incomingNet > 0 && (
             <div className={`mt-2 p-2 rounded text-xs ${autoWasteInfo.autoWaste >= 0 ? "bg-blue-50 text-blue-700" : "bg-yellow-50 text-yellow-700"}`}>
-              <span className="font-medium">Auto-waste:</span>{" "}
+              <span className="font-medium">{t("lots.autoWaste")}</span>{" "}
               {autoWasteInfo.autoWaste >= 0
-                ? `${autoWasteInfo.autoWaste.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg will be recorded to balance mass.`
-                : `Lot weights exceed incoming net by ${Math.abs(autoWasteInfo.autoWaste).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg — check quantities.`}
+                ? `${autoWasteInfo.autoWaste.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg ${t("lots.autoWasteText")}`
+                : t("lots.overweightWarning", { excess: Math.abs(autoWasteInfo.autoWaste).toLocaleString(undefined, { maximumFractionDigits: 1 }) })}
               <span className="text-gray-500 ml-2">
                 ({autoWasteInfo.incomingNet.toLocaleString()} net − {(autoWasteInfo.existingLotWeight + autoWasteInfo.newLotWeight).toLocaleString()} lots − {autoWasteInfo.existingLotWaste.toLocaleString()} waste)
               </span>
@@ -319,7 +321,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
             onClick={() => setLotRows([...lotRows, { grade: "", carton_count: 0, unit: "cartons" as const }])}
             className="text-xs text-green-600 hover:text-green-700"
           >
-            + Add row
+            {t("lots.addRow")}
           </button>
           <div className="flex gap-2 pt-2 border-t">
             <button
@@ -327,13 +329,13 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
               disabled={lotSaving}
               className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {lotSaving ? "Creating..." : "Create Lots"}
+              {lotSaving ? t("lots.creating") : t("lots.create")}
             </button>
             <button
               onClick={() => { setCreatingLots(false); setLotRows([{ grade: "", carton_count: 0, unit: "cartons" as const }]); }}
               className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -345,14 +347,14 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
-                <th className="text-left px-2 py-1.5 font-medium">Grade</th>
-                <th className="text-left px-2 py-1.5 font-medium">Size</th>
-                <th className="text-left px-2 py-1.5 font-medium">Box Type</th>
-                <th className="text-right px-2 py-1.5 font-medium">Cartons</th>
-                <th className="text-right px-2 py-1.5 font-medium">Weight</th>
-                <th className="text-right px-2 py-1.5 font-medium">Unallocated</th>
-                <th className="text-left px-2 py-1.5 font-medium">Status</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("lots.lotCode")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("palletize.boxType")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("lots.cartons")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("lots.weight")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("lots.unallocated")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.status")}</th>
                 <th className="px-2 py-1.5 font-medium"></th>
               </tr>
             </thead>
@@ -402,7 +404,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               }}
                               className="text-xs text-green-600 hover:text-green-700 font-medium"
                             >
-                              Edit
+                              {t("common:actions.edit")}
                             </button>
                             {/^2$|class\s*2|industrial/i.test(lot.grade || "") && lot.status !== "returned" && (
                               <button
@@ -412,9 +414,9 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                                   try {
                                     await updateLot(lot.id, { status: "returned", notes: "Returned to grower" });
                                     await onRefresh();
-                                    globalToast("success", `${lot.lot_code} marked as returned to grower.`);
+                                    globalToast("success", `${lot.lot_code} ${t("lots.lotReturned")}`);
                                   } catch {
-                                    globalToast("error", "Failed to update lot status.");
+                                    globalToast("error", t("lots.lotReturnFailed"));
                                   } finally {
                                     setLotUpdateSaving(false);
                                   }
@@ -434,39 +436,39 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                         <td colSpan={9} className="px-2 py-3 bg-gray-50 border-t-0">
                           <div className="grid grid-cols-4 gap-3">
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Grade</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("common:table.grade")}</label>
                               <select
                                 value={editLotForm.grade || ""}
                                 onChange={(e) => setEditLotForm({ ...editLotForm, grade: e.target.value || undefined })}
                                 className="w-full border rounded px-2 py-1.5 text-sm"
                               >
-                                <option value="">Select</option>
+                                <option value="">{t("lots.selectGrade")}</option>
                                 {availableGrades.map((g) => (
                                   <option key={g} value={g}>{g}</option>
                                 ))}
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Size</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("common:table.size")}</label>
                               <select
                                 value={editLotForm.size || ""}
                                 onChange={(e) => setEditLotForm({ ...editLotForm, size: e.target.value || undefined })}
                                 className="w-full border rounded px-2 py-1.5 text-sm"
                               >
-                                <option value="">Select</option>
+                                <option value="">{t("lots.selectGrade")}</option>
                                 {availableSizes.map((s) => (
                                   <option key={s} value={s}>{s}</option>
                                 ))}
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Box Type</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("palletize.boxType")}</label>
                               <select
                                 value={editLotForm.box_size_id || ""}
                                 onChange={(e) => setEditLotForm({ ...editLotForm, box_size_id: e.target.value || undefined })}
                                 className="w-full border rounded px-2 py-1.5 text-sm"
                               >
-                                <option value="">Select</option>
+                                <option value="">{t("lots.selectGrade")}</option>
                                 {boxSizes.map((bs) => (
                                   <option key={bs.id} value={bs.id}>
                                     {bs.name} ({bs.weight_kg} kg)
@@ -475,7 +477,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Carton Count</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("lots.cartons")}</label>
                               <input
                                 type="number"
                                 min={0}
@@ -487,7 +489,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                           </div>
                           <div className="grid grid-cols-4 gap-3 mt-3">
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Waste (kg)</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("waste.wasteWeight")}</label>
                               <input
                                 type="number"
                                 step="0.1"
@@ -498,7 +500,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">Waste Reason</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("waste.reason")}</label>
                               <input
                                 value={editLotForm.waste_reason || ""}
                                 onChange={(e) => setEditLotForm({ ...editLotForm, waste_reason: e.target.value || undefined })}
@@ -507,7 +509,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               />
                             </div>
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                              <label className="block text-xs text-gray-500 mb-1">{t("common:table.notes")}</label>
                               <input
                                 value={editLotForm.notes || ""}
                                 onChange={(e) => setEditLotForm({ ...editLotForm, notes: e.target.value || undefined })}
@@ -524,22 +526,22 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                                   await updateLot(lot.id, editLotForm);
                                   await onRefresh();
                                   setEditingLotId(null);
-                                  globalToast("success", "Lot updated.");
+                                  globalToast("success", t("lots.lotUpdated"));
                                 } catch {
-                                  globalToast("error", "Failed to update lot.");
+                                  globalToast("error", t("lots.lotUpdateFailed"));
                                 } finally {
                                   setLotUpdateSaving(false);
                                 }
                               }}
                               className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                             >
-                              {lotUpdateSaving ? "Saving..." : "Save"}
+                              {lotUpdateSaving ? t("common:actions.saving") : t("common:actions.save")}
                             </button>
                             <button
                               onClick={() => setEditingLotId(null)}
                               className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
                             >
-                              Cancel
+                              {t("common:actions.cancel")}
                             </button>
                             {/^2$|class\s*2|industrial/i.test(lot.grade || "") && lot.status !== "returned" && (
                               <button
@@ -551,16 +553,16 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                                     await updateLot(lot.id, { status: "returned", notes: "Returned to grower" });
                                     await onRefresh();
                                     setEditingLotId(null);
-                                    globalToast("success", `${lot.lot_code} marked as returned to grower.`);
+                                    globalToast("success", `${lot.lot_code} ${t("lots.lotReturned")}`);
                                   } catch {
-                                    globalToast("error", "Failed to update lot status.");
+                                    globalToast("error", t("lots.lotReturnFailed"));
                                   } finally {
                                     setLotUpdateSaving(false);
                                   }
                                 }}
                                 className="ml-auto bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
                               >
-                                Return to Grower
+                                {t("lots.returnToGrower")}
                               </button>
                             )}
                           </div>
@@ -577,7 +579,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-3 pt-3 border-t">
               <p className="text-xs text-gray-500">
-                Showing {lotsPage * LOTS_PER_PAGE + 1}–{Math.min((lotsPage + 1) * LOTS_PER_PAGE, lots.length)} of {lots.length} lots
+                {t("lots.showingLots", { start: lotsPage * LOTS_PER_PAGE + 1, end: Math.min((lotsPage + 1) * LOTS_PER_PAGE, lots.length), total: lots.length })}
               </p>
               <div className="flex gap-1">
                 <button
@@ -608,7 +610,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
           )}
         </>
       ) : !creatingLots ? (
-        <p className="text-gray-400 text-sm">No lots yet. Click "Create Lots" to split this batch.</p>
+        <p className="text-gray-400 text-sm">{t("lots.noLots")}</p>
       ) : null}
     </div>
   );

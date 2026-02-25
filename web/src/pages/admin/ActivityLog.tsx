@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listActivity, ActivityEntry, ActivityListResponse } from "../../api/admin";
 
 const ACTION_COLORS: Record<string, string> = {
@@ -37,6 +38,7 @@ const ACTIONS = [
 const PAGE_SIZE = 50;
 
 export default function ActivityLogPage() {
+  const { t } = useTranslation("admin");
   const [data, setData] = useState<ActivityListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function ActivityLogPage() {
       setData(result);
       setOffset(newOffset);
     } catch {
-      setError("Failed to load activity log");
+      setError(t("activity.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -80,10 +82,10 @@ export default function ActivityLogPage() {
           onChange={(e) => setEntityFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         >
-          <option value="">All types</option>
-          {ENTITY_TYPES.filter(Boolean).map((t) => (
-            <option key={t} value={t}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+          <option value="">{t("activity.allTypes")}</option>
+          {ENTITY_TYPES.filter(Boolean).map((tp) => (
+            <option key={tp} value={tp}>
+              {tp.charAt(0).toUpperCase() + tp.slice(1)}
             </option>
           ))}
         </select>
@@ -93,7 +95,7 @@ export default function ActivityLogPage() {
           onChange={(e) => setActionFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         >
-          <option value="">All actions</option>
+          <option value="">{t("activity.allActions")}</option>
           {ACTIONS.filter(Boolean).map((a) => (
             <option key={a} value={a}>
               {a.replace(/_/g, " ")}
@@ -103,7 +105,7 @@ export default function ActivityLogPage() {
 
         {data && (
           <span className="text-sm text-gray-400 self-center ml-auto">
-            {data.total} total entr{data.total !== 1 ? "ies" : "y"}
+            {t("activity.totalEntries", { count: data.total })}
           </span>
         )}
       </div>
@@ -113,21 +115,21 @@ export default function ActivityLogPage() {
       )}
 
       {loading && !data ? (
-        <p className="text-gray-400 text-sm">Loading activity log...</p>
+        <p className="text-gray-400 text-sm">{t("activity.loading")}</p>
       ) : data && data.items.length === 0 ? (
-        <p className="text-gray-400 text-sm">No activity entries found.</p>
+        <p className="text-gray-400 text-sm">{t("activity.empty")}</p>
       ) : data ? (
         <>
           <div className="bg-white border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium w-36">Time</th>
-                  <th className="text-left px-4 py-2 font-medium w-32">User</th>
-                  <th className="text-left px-4 py-2 font-medium w-28">Action</th>
-                  <th className="text-left px-4 py-2 font-medium w-24">Type</th>
-                  <th className="text-left px-4 py-2 font-medium w-28">Code</th>
-                  <th className="text-left px-4 py-2 font-medium">Summary</th>
+                  <th className="text-left px-4 py-2 font-medium w-36">{t("activity.headers.time")}</th>
+                  <th className="text-left px-4 py-2 font-medium w-32">{t("activity.headers.user")}</th>
+                  <th className="text-left px-4 py-2 font-medium w-28">{t("activity.headers.action")}</th>
+                  <th className="text-left px-4 py-2 font-medium w-24">{t("activity.headers.type")}</th>
+                  <th className="text-left px-4 py-2 font-medium w-28">{t("activity.headers.code")}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t("activity.headers.summary")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -148,10 +150,10 @@ export default function ActivityLogPage() {
                     </td>
                     <td className="px-4 py-2 text-gray-500 text-xs">{a.entity_type}</td>
                     <td className="px-4 py-2 font-mono text-xs text-gray-700">
-                      {a.entity_code || "—"}
+                      {a.entity_code || "\u2014"}
                     </td>
                     <td className="px-4 py-2 text-gray-500 truncate max-w-xs" title={a.summary || ""}>
-                      {a.summary || "—"}
+                      {a.summary || "\u2014"}
                     </td>
                   </tr>
                 ))}
@@ -166,17 +168,17 @@ export default function ActivityLogPage() {
               disabled={offset === 0 || loading}
               className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30"
             >
-              Previous
+              {t("common:actions.previous")}
             </button>
             <span className="text-xs text-gray-400">
-              Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, data.total)} of {data.total}
+              {t("common:pagination.showing", { start: offset + 1, end: Math.min(offset + PAGE_SIZE, data.total), total: data.total })}
             </span>
             <button
               onClick={() => fetchData(offset + PAGE_SIZE)}
               disabled={!hasMore || loading}
               className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30"
             >
-              Next
+              {t("common:actions.next")}
             </button>
           </div>
         </>

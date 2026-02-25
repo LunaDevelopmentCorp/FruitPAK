@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listClients,
   createClient,
@@ -18,6 +19,7 @@ import StatusBadge from "../components/StatusBadge";
 const INCOTERMS = ["FOB", "CIF", "CFR", "EXW", "DDP"] as const;
 
 export default function ClientManagement() {
+  const { t } = useTranslation("clients");
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +64,7 @@ export default function ClientManagement() {
       const clientList = await listClients();
       setClients(clientList);
     } catch {
-      setError("Failed to load clients");
+      setError(t("loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -142,7 +144,7 @@ export default function ClientManagement() {
           return;
         }
         await updateClient(editingClient.id, payload);
-        showToast("success", `Updated ${formData.name}`);
+        showToast("success", t("toast.updated", { name: formData.name }));
       } else {
         const payload: ClientCreate = {
           name: formData.name,
@@ -158,12 +160,12 @@ export default function ClientManagement() {
         if (formData.credit_limit) payload.credit_limit = Number(formData.credit_limit);
         if (formData.notes) payload.notes = formData.notes;
         await createClient(payload);
-        showToast("success", `Created client ${formData.name}`);
+        showToast("success", t("toast.created", { name: formData.name }));
       }
       setShowModal(false);
       await fetchData();
     } catch (err: unknown) {
-      showToast("error", getErrorMessage(err, "Failed to save client"));
+      showToast("error", getErrorMessage(err, t("saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -177,28 +179,30 @@ export default function ClientManagement() {
       await deleteClient(c.id);
       showToast(
         "success",
-        c.is_active ? `Deactivated ${c.name}` : `Reactivated ${c.name}`,
+        c.is_active
+          ? `${t("common:actions.deactivate")} ${c.name}`
+          : `${t("common:actions.reactivate")} ${c.name}`,
       );
       await fetchData();
     } catch (err: unknown) {
-      showToast("error", getErrorMessage(err, "Failed to update client status"));
+      showToast("error", getErrorMessage(err, t("statusFailed")));
     }
   };
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading clients...</p>;
+  if (loading) return <p className="text-gray-400 text-sm">{t("loading")}</p>;
   if (error) return <p className="text-red-600 text-sm">{error}</p>;
 
   return (
     <div>
       <PageHeader
-        title="Clients"
-        subtitle={`${clients.length} client${clients.length !== 1 ? "s" : ""}`}
+        title={t("title")}
+        subtitle={t("count", { count: clients.length })}
         action={
           <button
             onClick={openCreate}
             className="bg-green-600 text-white text-sm px-4 py-2 rounded font-medium hover:bg-green-700"
           >
-            + New Client
+            {t("newClient")}
           </button>
         }
       />
@@ -209,15 +213,15 @@ export default function ClientManagement() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">Name</th>
-              <th className="text-left px-4 py-2 font-medium">Contact</th>
-              <th className="text-left px-4 py-2 font-medium">Email</th>
-              <th className="text-left px-4 py-2 font-medium">Phone</th>
-              <th className="text-left px-4 py-2 font-medium">Country</th>
-              <th className="text-left px-4 py-2 font-medium">Incoterm</th>
-              <th className="text-left px-4 py-2 font-medium">Payment Terms</th>
-              <th className="text-left px-4 py-2 font-medium">Credit Limit</th>
-              <th className="text-left px-4 py-2 font-medium">Status</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.name")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.contact")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.email")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.phone")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.country")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.incoterm")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.paymentTerms")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.creditLimit")}</th>
+              <th className="text-left px-4 py-2 font-medium">{t("headers.status")}</th>
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
@@ -231,7 +235,7 @@ export default function ClientManagement() {
                 <td className="px-4 py-2 text-gray-500">{c.country || "\u2014"}</td>
                 <td className="px-4 py-2 text-gray-500">{c.incoterm || "\u2014"}</td>
                 <td className="px-4 py-2 text-gray-500">
-                  {c.payment_terms_days != null ? `${c.payment_terms_days} days` : "\u2014"}
+                  {c.payment_terms_days != null ? `${c.payment_terms_days} ${t("days")}` : "\u2014"}
                 </td>
                 <td className="px-4 py-2 text-gray-500">
                   {formatCurrency(c.credit_limit, c.currency || "USD")}
@@ -245,7 +249,7 @@ export default function ClientManagement() {
                       onClick={() => openEdit(c)}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      Edit
+                      {t("common:actions.edit")}
                     </button>
                     <button
                       onClick={() => setConfirmToggle(c)}
@@ -255,7 +259,7 @@ export default function ClientManagement() {
                           : "text-green-600 hover:underline"
                       }`}
                     >
-                      {c.is_active ? "Deactivate" : "Activate"}
+                      {c.is_active ? t("common:actions.deactivate") : t("common:actions.activate")}
                     </button>
                   </div>
                 </td>
@@ -270,12 +274,12 @@ export default function ClientManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {editingClient ? "Edit Client" : "New Client"}
+              {editingClient ? t("modal.editTitle") : t("modal.newTitle")}
             </h3>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Name *</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.name")}</label>
                 <input
                   type="text"
                   value={formData.name}
@@ -285,7 +289,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Contact Person</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.contactPerson")}</label>
                 <input
                   type="text"
                   value={formData.contact_person}
@@ -295,7 +299,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Email</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.email")}</label>
                 <input
                   type="email"
                   value={formData.email}
@@ -305,7 +309,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Phone</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.phone")}</label>
                 <input
                   type="text"
                   value={formData.phone}
@@ -315,7 +319,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Address</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.address")}</label>
                 <textarea
                   value={formData.address}
                   onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
@@ -325,7 +329,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Country</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.country")}</label>
                 <input
                   type="text"
                   value={formData.country}
@@ -335,23 +339,23 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Incoterm</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.incoterm")}</label>
                 <select
                   value={formData.incoterm}
                   onChange={(e) => setFormData((p) => ({ ...p, incoterm: e.target.value }))}
                   className="border rounded px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="">— Select —</option>
-                  {INCOTERMS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  <option value="">{t("modal.selectIncoterm")}</option>
+                  {INCOTERMS.map((term) => (
+                    <option key={term} value={term}>
+                      {term}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Payment Terms (days)</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.paymentTerms")}</label>
                 <input
                   type="number"
                   min={0}
@@ -362,13 +366,13 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Currency</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.currency")}</label>
                 <select
                   value={formData.currency}
                   onChange={(e) => setFormData((p) => ({ ...p, currency: e.target.value }))}
                   className="border rounded px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="">— Select —</option>
+                  <option value="">{t("modal.selectIncoterm")}</option>
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.code} ({c.name})
@@ -378,7 +382,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Credit Limit</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.creditLimit")}</label>
                 <input
                   type="number"
                   min={0}
@@ -390,7 +394,7 @@ export default function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                <label className="block text-xs text-gray-500 mb-1">{t("modal.notes")}</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
@@ -405,14 +409,14 @@ export default function ClientManagement() {
                 onClick={() => setShowModal(false)}
                 className="flex-1 border rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving || !formData.name}
                 className="flex-1 bg-green-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
-                {saving ? "Saving..." : editingClient ? "Save Changes" : "Create Client"}
+                {saving ? t("common:actions.saving") : editingClient ? t("modal.saveChanges") : t("modal.createClient")}
               </button>
             </div>
           </div>
@@ -428,19 +432,19 @@ export default function ClientManagement() {
                 confirmToggle.is_active ? "text-red-700" : "text-green-700"
               }`}
             >
-              {confirmToggle.is_active ? "Deactivate Client?" : "Reactivate Client?"}
+              {confirmToggle.is_active ? t("confirm.deactivateTitle") : t("confirm.reactivateTitle")}
             </h3>
             <p className="text-sm text-gray-600 mb-4">
               {confirmToggle.is_active
-                ? `This will deactivate ${confirmToggle.name}. They will no longer appear in active client lists.`
-                : `This will reactivate ${confirmToggle.name}, making them available for orders again.`}
+                ? t("confirm.deactivateText", { name: confirmToggle.name })
+                : t("confirm.reactivateText", { name: confirmToggle.name })}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmToggle(null)}
                 className="flex-1 border rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleToggleActive}
@@ -450,7 +454,7 @@ export default function ClientManagement() {
                     : "bg-green-600 hover:bg-green-700"
                 }`}
               >
-                {confirmToggle.is_active ? "Deactivate" : "Reactivate"}
+                {confirmToggle.is_active ? t("common:actions.deactivate") : t("common:actions.reactivate")}
               </button>
             </div>
           </div>

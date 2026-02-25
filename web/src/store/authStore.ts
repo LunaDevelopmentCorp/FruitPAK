@@ -11,6 +11,7 @@ export interface AuthUser {
   is_onboarded: boolean;
   permissions: string[];
   assigned_packhouses: string[] | null;
+  preferred_language: string;
 }
 
 interface AuthState {

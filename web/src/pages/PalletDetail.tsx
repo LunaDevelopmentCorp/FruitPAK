@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import {
   getPallet,
@@ -20,6 +21,7 @@ import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
 export default function PalletDetail() {
+  const { t } = useTranslation("pallets");
   const { palletId } = useParams<{ palletId: string }>();
   const navigate = useNavigate();
   const [pallet, setPallet] = useState<PalletDetailType | null>(null);
@@ -138,9 +140,9 @@ export default function PalletDetail() {
     }
   };
 
-  if (loading) return <p className="p-6 text-gray-400 text-sm">Loading pallet...</p>;
+  if (loading) return <p className="p-6 text-gray-400 text-sm">{t("detail.loading")}</p>;
   if (error && !pallet) return <div className="p-6 text-red-600 text-sm">{error}</div>;
-  if (!pallet) return <div className="p-6 text-gray-400 text-sm">Pallet not found.</div>;
+  if (!pallet) return <div className="p-6 text-gray-400 text-sm">{t("detail.notFound")}</div>;
 
   const fillPct = Math.round((pallet.current_boxes / pallet.capacity_boxes) * 100);
 
@@ -150,7 +152,7 @@ export default function PalletDetail() {
       <PageHeader
         title={pallet.pallet_number}
         backTo="/pallets"
-        backLabel="All Pallets"
+        backLabel={t("detail.backLabel")}
         action={
           <div className="flex items-center gap-3">
             <StatusBadge status={pallet.status} className="text-sm px-3 py-1" />
@@ -160,14 +162,14 @@ export default function PalletDetail() {
                   onClick={() => { setEditing(true); setSuccess(null); }}
                   className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
                 >
-                  Edit
+                  {t("common:actions.edit")}
                 </button>
                 {pallet.current_boxes === 0 && (
                   <button
                     onClick={() => setConfirmDelete(true)}
                     className="border border-red-300 text-red-600 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
                   >
-                    Delete
+                    {t("common:actions.delete")}
                   </button>
                 )}
               </>
@@ -180,10 +182,10 @@ export default function PalletDetail() {
       {confirmDelete && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-800 font-medium mb-2">
-            Are you sure you want to delete pallet {pallet.pallet_number}?
+            {t("detail.deleteConfirm", { number: pallet.pallet_number })}
           </p>
           <p className="text-xs text-red-600 mb-3">
-            This will soft-delete the pallet. This action can be reversed by an admin.
+            {t("detail.deleteWarning")}
           </p>
           <div className="flex gap-2">
             <button
@@ -202,13 +204,13 @@ export default function PalletDetail() {
               disabled={deleting}
               className="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"
             >
-              {deleting ? "Deleting..." : "Yes, Delete"}
+              {deleting ? t("common:actions.deleting") : t("detail.yesDelete")}
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
               className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </div>
@@ -222,76 +224,76 @@ export default function PalletDetail() {
       )}
 
       {editing ? (
-        /* ── Edit form ───────────────────────────────────── */
+        /* -- Edit form -- */
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white border rounded-lg p-6 space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Pallet Type">
+            <Field label={t("detail.palletType")}>
               {palletTypes.length > 0 ? (
                 <select {...register("pallet_type_name")} className={inputClass}>
                   <option value="">Select</option>
                   {palletTypes.map((pt) => (
-                    <option key={pt.id} value={pt.name}>{pt.name} ({pt.capacity_boxes} boxes)</option>
+                    <option key={pt.id} value={pt.name}>{pt.name} ({pt.capacity_boxes} {t("common:units.boxes")})</option>
                   ))}
                 </select>
               ) : (
                 <input {...register("pallet_type_name")} className={inputClass} />
               )}
             </Field>
-            <Field label="Capacity (boxes)">
+            <Field label={t("detail.capacityBoxes")}>
               <input type="number" {...register("capacity_boxes", { valueAsNumber: true })} min={1} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Fruit Type">
-              <input {...register("fruit_type")} placeholder="e.g. Citrus, Mango" className={inputClass} />
+            <Field label={t("detail.fruitType")}>
+              <input {...register("fruit_type")} placeholder={t("detail.fruitTypePlaceholder")} className={inputClass} />
             </Field>
-            <Field label="Variety">
-              <input {...register("variety")} placeholder="e.g. Nadorcott, Kent" className={inputClass} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Grade">
-              <input {...register("grade")} placeholder="e.g. 1, 2, Class A" className={inputClass} />
-            </Field>
-            <Field label="Size">
-              <input {...register("size")} placeholder="e.g. Large, Medium" className={inputClass} />
+            <Field label={t("common:table.variety")}>
+              <input {...register("variety")} placeholder={t("detail.varietyPlaceholder")} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Box Type">
+            <Field label={t("common:table.grade")}>
+              <input {...register("grade")} placeholder={t("detail.gradePlaceholder")} className={inputClass} />
+            </Field>
+            <Field label={t("common:table.size")}>
+              <input {...register("size")} placeholder={t("detail.sizePlaceholder")} className={inputClass} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label={t("list.headers.boxType")}>
               {boxSizes.length > 0 ? (
                 <select {...register("box_size_id")} className={inputClass}>
-                  <option value="">None</option>
+                  <option value="">{t("detail.none")}</option>
                   {boxSizes.map((bs) => (
-                    <option key={bs.id} value={bs.id}>{bs.name} ({bs.weight_kg} kg)</option>
+                    <option key={bs.id} value={bs.id}>{bs.name} ({bs.weight_kg} {t("common:units.kg")})</option>
                   ))}
                 </select>
               ) : (
                 <input {...register("box_size_id")} placeholder="Box size ID" className={inputClass} />
               )}
             </Field>
-            <Field label="Target Market">
+            <Field label={t("detail.targetMarket")}>
               <input {...register("target_market")} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Notes">
+            <Field label={t("common:table.notes")}>
               <textarea {...register("notes")} rows={2} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Cold Store Room">
+            <Field label={t("detail.coldStoreRoom")}>
               <input {...register("cold_store_room")} className={inputClass} />
             </Field>
-            <Field label="Cold Store Position">
+            <Field label={t("detail.coldStorePosition")}>
               <input {...register("cold_store_position")} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Net Weight (kg)">
+            <Field label={t("detail.netWeightKg")}>
               <input type="number" step="0.1" {...register("net_weight_kg", { valueAsNumber: true })} className={inputClass} />
             </Field>
-            <Field label="Gross Weight (kg)">
+            <Field label={t("detail.grossWeightKg")}>
               <input type="number" step="0.1" {...register("gross_weight_kg", { valueAsNumber: true })} className={inputClass} />
             </Field>
           </div>
@@ -301,33 +303,33 @@ export default function PalletDetail() {
               disabled={isSubmitting}
               className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {isSubmitting ? "Saving..." : "Save Changes"}
+              {isSubmitting ? t("common:actions.saving") : t("common:actions.saveChanges")}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
               className="border text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </form>
       ) : (
-        /* ── Read-only detail ────────────────────────────── */
+        /* -- Read-only detail -- */
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card label="Boxes" value={`${pallet.current_boxes} / ${pallet.capacity_boxes}`} />
-            <Card label="Fill" value={`${fillPct}%`} />
-            <Card label="Weight" value={pallet.net_weight_kg ? `${pallet.net_weight_kg} kg` : "\u2014"} />
-            <Card label="Type" value={pallet.pallet_type_name || "\u2014"} />
+            <Card label={t("detail.boxes")} value={`${pallet.current_boxes} / ${pallet.capacity_boxes}`} />
+            <Card label={t("detail.fill")} value={`${fillPct}%`} />
+            <Card label={t("detail.weight")} value={pallet.net_weight_kg ? `${pallet.net_weight_kg} ${t("common:units.kg")}` : "\u2014"} />
+            <Card label={t("detail.type")} value={pallet.pallet_type_name || "\u2014"} />
           </div>
 
           {/* Capacity bar */}
           <div className="bg-white rounded-lg border p-4">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span>Capacity</span>
-              <span>{pallet.current_boxes} / {pallet.capacity_boxes} boxes</span>
+              <span>{t("detail.capacity")}</span>
+              <span>{pallet.current_boxes} / {pallet.capacity_boxes} {t("common:units.boxes")}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
@@ -341,24 +343,24 @@ export default function PalletDetail() {
 
           {/* Fruit info */}
           <div className="bg-white rounded-lg border p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Fruit Details</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("detail.fruitDetails")}</h3>
             <div className="grid grid-cols-2 gap-y-2 text-sm">
-              <Row label="Fruit" value={pallet.fruit_type || "\u2014"} />
-              <Row label="Variety" value={pallet.variety || "\u2014"} />
-              <Row label="Grade" value={pallet.grade || "\u2014"} />
-              <Row label="Size" value={pallet.size || "\u2014"} />
-              <Row label="Box Type" value={pallet.box_size_name || "\u2014"} />
-              <Row label="Target Market" value={pallet.target_market || "\u2014"} />
+              <Row label={t("common:table.fruit")} value={pallet.fruit_type || "\u2014"} />
+              <Row label={t("common:table.variety")} value={pallet.variety || "\u2014"} />
+              <Row label={t("common:table.grade")} value={pallet.grade || "\u2014"} />
+              <Row label={t("common:table.size")} value={pallet.size || "\u2014"} />
+              <Row label={t("list.headers.boxType")} value={pallet.box_size_name || "\u2014"} />
+              <Row label={t("detail.targetMarket")} value={pallet.target_market || "\u2014"} />
             </div>
           </div>
 
           {/* Cold storage */}
           {(pallet.cold_store_room || pallet.cold_store_position) && (
             <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Cold Storage</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("detail.coldStorage")}</h3>
               <div className="grid grid-cols-2 gap-y-2 text-sm">
-                <Row label="Room" value={pallet.cold_store_room || "\u2014"} />
-                <Row label="Position" value={pallet.cold_store_position || "\u2014"} />
+                <Row label={t("detail.room")} value={pallet.cold_store_room || "\u2014"} />
+                <Row label={t("detail.position")} value={pallet.cold_store_position || "\u2014"} />
               </div>
             </div>
           )}
@@ -366,7 +368,7 @@ export default function PalletDetail() {
           {/* Notes */}
           {pallet.notes && (
             <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">{t("common:table.notes")}</h3>
               <p className="text-sm text-gray-600">{pallet.notes}</p>
             </div>
           )}
@@ -376,17 +378,17 @@ export default function PalletDetail() {
       {/* Linked lots (always visible) */}
       <div className="bg-white rounded-lg border p-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Linked Lots ({pallet.pallet_lots.length})
+          {t("detail.linkedLots")} ({pallet.pallet_lots.length})
         </h3>
         {pallet.pallet_lots.length > 0 ? (
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">Lot Code</th>
-                <th className="text-left px-2 py-1.5 font-medium">Grade</th>
-                <th className="text-left px-2 py-1.5 font-medium">Size</th>
-                <th className="text-left px-2 py-1.5 font-medium">Box Type</th>
-                <th className="text-right px-2 py-1.5 font-medium">Boxes</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("detail.lotCode")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
+                <th className="text-left px-2 py-1.5 font-medium">{t("list.headers.boxType")}</th>
+                <th className="text-right px-2 py-1.5 font-medium">{t("list.headers.boxes")}</th>
                 {canModify && <th className="px-2 py-1.5 font-medium" />}
               </tr>
             </thead>
@@ -407,7 +409,7 @@ export default function PalletDetail() {
                         disabled={removingId === pl.id}
                         className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
                       >
-                        {removingId === pl.id ? "Removing..." : "Remove"}
+                        {removingId === pl.id ? t("detail.removing") : t("common:actions.remove")}
                       </button>
                     </td>
                   )}
@@ -416,13 +418,13 @@ export default function PalletDetail() {
             </tbody>
           </table>
         ) : (
-          <p className="text-gray-400 text-sm">No lots linked.</p>
+          <p className="text-gray-400 text-sm">{t("detail.noLots")}</p>
         )}
       </div>
 
       {/* QR Code */}
       <div className="bg-white rounded-lg border p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t("detail.qrCode")}</h3>
         <div className="flex flex-col items-center gap-2">
           <QRCodeSVG
             value={JSON.stringify({

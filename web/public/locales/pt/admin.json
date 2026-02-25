@@ -1,0 +1,150 @@
+{
+  "title": "Administração",
+  "tabs": {
+    "overview": "Visão Geral",
+    "users": "Utilizadores",
+    "activity": "Atividade",
+    "deletedItems": "Itens Excluídos"
+  },
+  "overview": {
+    "loading": "Carregando visão geral...",
+    "loadFailed": "Falha ao carregar dados de visão geral",
+    "stats": {
+      "batchesToday": "Lotes hoje",
+      "palletsToday": "Paletes hoje",
+      "containersToday": "Contentores hoje",
+      "unpalletizedBoxes": "Caixas não paletizadas",
+      "wasteToday": "Desperdício hoje",
+      "wasteWeek": "{{count}} kg esta semana"
+    },
+    "alerts": {
+      "openAlerts_one": "{{count}} alerta em aberto",
+      "openAlerts_other": "{{count}} alertas em aberto",
+      "critical_one": "{{count}} crítico",
+      "critical_other": "{{count}} críticos",
+      "viewReconciliation": "— ver reconciliação"
+    },
+    "pipeline": {
+      "title": "Pipeline de Processamento",
+      "batches": "Lotes",
+      "lots": "Sublotes",
+      "pallets": "Paletes",
+      "containers": "Contentores"
+    },
+    "staleItems": {
+      "title": "Itens Parados",
+      "empty": "Nenhum item parado detetado",
+      "stuck": "parado há {{age}}"
+    },
+    "recentActivity": {
+      "title": "Atividade Recente",
+      "empty": "Nenhuma atividade registada ainda"
+    },
+    "activeUsers_one": "{{count}} utilizador ativo",
+    "activeUsers_other": "{{count}} utilizadores ativos"
+  },
+  "users": {
+    "count_one": "{{count}} utilizador",
+    "count_other": "{{count}} utilizadores",
+    "newUser": "+ Novo Utilizador",
+    "loading": "Carregando utilizadores...",
+    "loadFailed": "Falha ao carregar utilizadores",
+    "saveFailed": "Falha ao salvar utilizador",
+    "statusFailed": "Falha ao atualizar estado do utilizador",
+    "headers": {
+      "name": "Nome",
+      "email": "Email",
+      "phone": "Telefone",
+      "role": "Função",
+      "status": "Estado"
+    },
+    "modal": {
+      "editTitle": "Editar Utilizador",
+      "newTitle": "Novo Utilizador",
+      "email": "Email *",
+      "fullName": "Nome Completo *",
+      "phone": "Telefone",
+      "password": "Senha",
+      "passwordHelp": "(opcional para utilizadores OTP)",
+      "role": "Função",
+      "roles": {
+        "administrator": "Administrador",
+        "supervisor": "Supervisor",
+        "operator": "Operador"
+      },
+      "assignedPackhouses": "Packhouses Atribuídas",
+      "packhouseHelp": "Deixe vazio para acesso a todas as packhouses",
+      "saveChanges": "Salvar Alterações",
+      "createUser": "Criar Utilizador"
+    },
+    "confirm": {
+      "deactivateTitle": "Desativar Utilizador?",
+      "reactivateTitle": "Reativar Utilizador?",
+      "deactivateText": "Isto irá desativar {{name}} e revogar imediatamente o seu acesso. A sessão será encerrada.",
+      "reactivateText": "Isto irá reativar {{name}}, permitindo que faça login novamente."
+    },
+    "toast": {
+      "updated": "{{name}} atualizado",
+      "created": "Utilizador {{name}} criado",
+      "deactivated": "{{name}} desativado",
+      "reactivated": "{{name}} reativado"
+    }
+  },
+  "activity": {
+    "allTypes": "Todos os tipos",
+    "allActions": "Todas as ações",
+    "totalEntries_one": "{{count}} entrada no total",
+    "totalEntries_other": "{{count}} entradas no total",
+    "entries_one": "{{count}} entrada",
+    "entries_other": "{{count}} entradas",
+    "loading": "Carregando registo de atividade...",
+    "loadFailed": "Falha ao carregar registo de atividade",
+    "empty": "Nenhuma entrada de atividade encontrada.",
+    "headers": {
+      "time": "Hora",
+      "user": "Utilizador",
+      "action": "Ação",
+      "type": "Tipo",
+      "code": "Código",
+      "summary": "Resumo"
+    }
+  },
+  "deleted": {
+    "count_one": "{{count}} item excluído em todos os tipos",
+    "count_other": "{{count}} itens excluídos em todos os tipos",
+    "tabs": {
+      "all": "Todos",
+      "batches": "Lotes",
+      "lots": "Sublotes",
+      "pallets": "Paletes",
+      "containers": "Contentores"
+    },
+    "searchPlaceholder": "Pesquisar por código ou descrição...",
+    "loading": "Carregando itens excluídos...",
+    "emptySearch": "Nenhum item corresponde à sua pesquisa.",
+    "empty": "Nenhum item excluído encontrado.",
+    "headers": {
+      "type": "Tipo",
+      "code": "Código",
+      "description": "Descrição",
+      "status": "Estado",
+      "deleted": "Excluído"
+    },
+    "restore": "Restaurar",
+    "purge": "Eliminar",
+    "purgeConfirm": {
+      "title": "Excluir Permanentemente?",
+      "text": "Isto irá remover permanentemente {{code}} e não pode ser desfeito.",
+      "batchWarning": "Todos os sublotes pertencentes a este lote também serão permanentemente excluídos.",
+      "deleteForever": "Excluir Permanentemente"
+    },
+    "toast": {
+      "restored": "{{code}} restaurado",
+      "restoredWithRelated": "{{code}} restaurado (+ {{count}} itens relacionados)",
+      "restoreFailed": "Falha ao restaurar",
+      "purged": "{{code}} permanentemente excluído",
+      "purgedWithRelated": "{{code}} permanentemente excluído (+ {{count}} itens relacionados)",
+      "purgeFailed": "Falha ao excluir permanentemente"
+    }
+  }
+}

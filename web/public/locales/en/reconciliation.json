@@ -1,0 +1,55 @@
+{
+  "title": "Reconciliation",
+  "runNow": "Run Now",
+  "kpi": {
+    "openAlerts": "Open Alerts",
+    "acknowledged": "Acknowledged",
+    "resolved30d": "Resolved (30d)"
+  },
+  "lastRun": {
+    "title": "Last Run",
+    "noRuns": "No runs yet"
+  },
+  "alertTypes": {
+    "grn_vs_payment": "GRN vs Payment",
+    "export_vs_invoice": "Export vs Invoice",
+    "labour_vs_cost": "Labour vs Cost",
+    "pallet_vs_container": "Pallet vs Container",
+    "lot_vs_batch": "Lot vs Batch",
+    "cold_storage_gap": "Cold Storage Gap"
+  },
+  "severity": {
+    "critical": "critical",
+    "high": "high",
+    "medium": "medium",
+    "low": "low"
+  },
+  "filters": {
+    "allTypes": "All types",
+    "allSeverities": "All severities",
+    "allStatuses": "All statuses"
+  },
+  "alertCount_one": "{{count}} alert",
+  "alertCount_other": "{{count}} alerts",
+  "headers": {
+    "type": "Type",
+    "title": "Title",
+    "variance": "Variance",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "empty": "No alerts found. Run a reconciliation check to scan for mismatches.",
+  "actions": {
+    "ack": "Ack",
+    "resolve": "Resolve",
+    "dismiss": "Dismiss",
+    "recordPayment": "Record Payment"
+  },
+  "toast": {
+    "runComplete": "Reconciliation complete: {{count}} alert(s) found",
+    "runFailed": "Run failed",
+    "alertUpdated": "Alert {{status}}",
+    "actionFailed": "Action failed"
+  },
+  "loadFailed": "Failed to load dashboard"
+}
