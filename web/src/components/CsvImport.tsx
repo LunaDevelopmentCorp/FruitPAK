@@ -23,7 +23,10 @@ export default function CsvImport({ entity, label, onSuccess }: Props) {
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file) return;
+    if (!file) {
+      showToast("warning", t("csv.selectFileFirst"));
+      return;
+    }
 
     setUploading(true);
     setResult(null);

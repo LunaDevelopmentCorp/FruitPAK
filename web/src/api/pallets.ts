@@ -1,4 +1,5 @@
 import api from "./client";
+import { fetchAllPages } from "./fetchAll";
 
 interface PaginatedResponse<T> {
   items: T[];
@@ -158,8 +159,8 @@ export async function deletePallet(id: string): Promise<void> {
 export async function listPallets(
   params?: Record<string, string>
 ): Promise<PalletSummary[]> {
-  const { data } = await api.get<PaginatedResponse<PalletSummary>>("/pallets/", { params });
-  return data.items;
+  const { items } = await fetchAllPages<PalletSummary>("/pallets/", params);
+  return items;
 }
 
 export async function getPallet(id: string): Promise<PalletDetailType> {

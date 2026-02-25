@@ -122,7 +122,8 @@
     "rowError": "Ligne {{row}} :",
     "importSuccess": "{{created}} nouveau(x) + {{updated}} mis a jour {{label}}",
     "importPartial": "{{succeeded}} reussi(s), {{failed}} echoue(s)",
-    "uploadFailed": "Echec de l'importation"
+    "uploadFailed": "Echec de l'importation",
+    "selectFileFirst": "Selectionnez d'abord un fichier CSV"
   },
   "pagination": {
     "showing": "Affichage {{start}}–{{end}} sur {{total}}",

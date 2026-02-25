@@ -1,4 +1,5 @@
 import api from "./client";
+import { fetchAllPages } from "./fetchAll";
 
 interface PaginatedResponse<T> {
   items: T[];
@@ -45,8 +46,8 @@ export async function listGrowerPayments(
   grower_id?: string
 ): Promise<GrowerPaymentOut[]> {
   const params = grower_id ? { grower_id } : {};
-  const { data } = await api.get<PaginatedResponse<GrowerPaymentOut>>("/payments/grower", { params });
-  return data.items;
+  const { items } = await fetchAllPages<GrowerPaymentOut>("/payments/grower", params);
+  return items;
 }
 
 // ── Harvest Teams (for payment forms) ────────────────────────
@@ -117,8 +118,8 @@ export async function listTeamPayments(
   harvest_team_id?: string
 ): Promise<TeamPaymentOut[]> {
   const params = harvest_team_id ? { harvest_team_id } : {};
-  const { data } = await api.get<PaginatedResponse<TeamPaymentOut>>("/payments/team", { params });
-  return data.items;
+  const { items } = await fetchAllPages<TeamPaymentOut>("/payments/team", params);
+  return items;
 }
 
 export async function getTeamSummary(): Promise<TeamSummary[]> {

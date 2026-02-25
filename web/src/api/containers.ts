@@ -1,4 +1,5 @@
 import api from "./client";
+import { fetchAllPages } from "./fetchAll";
 
 interface PaginatedResponse<T> {
   items: T[];
@@ -156,8 +157,8 @@ export async function updateContainer(
 export async function listContainers(
   params?: Record<string, string>
 ): Promise<ContainerSummary[]> {
-  const { data } = await api.get<PaginatedResponse<ContainerSummary>>("/containers/", { params });
-  return data.items;
+  const { items } = await fetchAllPages<ContainerSummary>("/containers/", params);
+  return items;
 }
 
 export async function getContainer(id: string): Promise<ContainerDetailType> {

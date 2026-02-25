@@ -4,11 +4,23 @@
   "growers": {
     "title": "Growers",
     "empty": "No growers yet. Upload a CSV to get started.",
+    "clickToEdit": "Click a row to edit grower details.",
+    "updated": "Grower updated.",
+    "updateFailed": "Failed to update grower.",
+    "searchPlaceholder": "Search name, code, region, GGN...",
+    "filterGgnAll": "All GGN status",
+    "filterGgnYes": "GGN Certified",
+    "filterGgnNo": "Not Certified",
+    "showing": "{{count}} of {{total}} growers",
+    "noMatch": "No growers match your filters.",
     "headers": {
       "code": "Code",
       "contact": "Contact",
       "region": "Region",
-      "hectares": "Hectares"
+      "hectares": "Hectares",
+      "volume": "Est. Volume (t)",
+      "ggn": "GGN",
+      "ggnNumber": "GGN Number"
     }
   },
   "teams": {

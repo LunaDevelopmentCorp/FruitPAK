@@ -20,12 +20,31 @@ class GrowerOut(BaseModel):
     id: str
     name: str
     grower_code: str | None
+    contact_person: str | None
     email: str | None
     phone: str | None
     region: str | None
     total_hectares: float | None
+    estimated_volume_tons: float | None
+    globalg_ap_certified: bool = False
+    globalg_ap_number: str | None
+    notes: str | None
 
     model_config = {"from_attributes": True}
+
+
+class GrowerUpdate(BaseModel):
+    name: str | None = None
+    grower_code: str | None = None
+    contact_person: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    region: str | None = None
+    total_hectares: float | None = None
+    estimated_volume_tons: float | None = None
+    globalg_ap_certified: bool | None = None
+    globalg_ap_number: str | None = None
+    notes: str | None = None
 
 
 # ── Routes ───────────────────────────────────────────────────
@@ -36,7 +55,7 @@ router = APIRouter()
 @router.get("/", response_model=PaginatedResponse[GrowerOut])
 @cached(ttl=300, prefix="growers")  # Cache for 5 minutes
 async def list_growers(
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("grower.read")),
@@ -78,4 +97,26 @@ async def get_grower(
     grower = result.scalar_one_or_none()
     if not grower:
         raise HTTPException(status_code=404, detail="Grower not found")
+    return GrowerOut.model_validate(grower)
+
+
+@router.patch("/{grower_id}", response_model=GrowerOut)
+async def update_grower(
+    grower_id: str,
+    body: GrowerUpdate,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("grower.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    result = await db.execute(select(Grower).where(Grower.id == grower_id))
+    grower = result.scalar_one_or_none()
+    if not grower:
+        raise HTTPException(status_code=404, detail="Grower not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(grower, key, value)
+
+    await db.flush()
+    await db.refresh(grower)
     return GrowerOut.model_validate(grower)

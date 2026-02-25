@@ -3,6 +3,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
+import CsvImport from "../../../components/CsvImport";
 
 interface GrowerForm {
   name: string;
@@ -67,6 +68,18 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
 
   return (
     <form className="space-y-6 max-w-2xl">
+      {/* CSV bulk import */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">{t("step4.csvImport")}</h3>
+        <CsvImport entity="growers" label="Growers" onSuccess={() => {}} />
+        <p className="text-xs text-gray-500 mt-1">{t("step4.csvHint")}</p>
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t" /></div>
+        <div className="relative flex justify-center"><span className="bg-gray-50 px-3 text-xs text-gray-500 uppercase">{t("step4.orManual")}</span></div>
+      </div>
+
       {/* Certification warning */}
       {hasUncertified && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">

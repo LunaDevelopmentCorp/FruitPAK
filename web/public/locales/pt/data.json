@@ -4,11 +4,23 @@
   "growers": {
     "title": "Produtores",
     "empty": "Nenhum produtor ainda. Carregue um CSV para começar.",
+    "clickToEdit": "Clique numa linha para editar os detalhes do produtor.",
+    "updated": "Produtor atualizado.",
+    "updateFailed": "Falha ao atualizar o produtor.",
+    "searchPlaceholder": "Pesquisar nome, codigo, regiao, GGN...",
+    "filterGgnAll": "Todos os estados GGN",
+    "filterGgnYes": "Certificado GGN",
+    "filterGgnNo": "Nao certificado",
+    "showing": "{{count}} de {{total}} produtores",
+    "noMatch": "Nenhum produtor corresponde aos filtros.",
     "headers": {
       "code": "Código",
       "contact": "Contato",
       "region": "Região",
-      "hectares": "Hectares"
+      "hectares": "Hectares",
+      "volume": "Vol. est. (t)",
+      "ggn": "GGN",
+      "ggnNumber": "Numero GGN"
     }
   },
   "teams": {

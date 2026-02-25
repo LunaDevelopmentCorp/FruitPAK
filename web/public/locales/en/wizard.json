@@ -89,6 +89,9 @@
     "ggnOptional": "GGN number",
     "ggnError": "GGN number is required for certified growers",
     "addGrower": "+ Add grower",
+    "csvImport": "Bulk Import from CSV",
+    "csvHint": "Upload a CSV to add growers in bulk. You can also add growers manually below.",
+    "orManual": "or add manually",
     "headers": {
       "name": "Name",
       "code": "Code",

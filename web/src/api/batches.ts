@@ -1,4 +1,5 @@
 import api from "./client";
+import { fetchAllPages } from "./fetchAll";
 
 interface PaginatedResponse<T> {
   items: T[];
@@ -169,8 +170,8 @@ export async function updateBatch(id: string, payload: BatchUpdatePayload): Prom
 }
 
 export async function listGrowers(): Promise<Grower[]> {
-  const { data } = await api.get<PaginatedResponse<Grower>>("/growers/");
-  return data.items;
+  const { items } = await fetchAllPages<Grower>("/growers/");
+  return items;
 }
 
 export async function listPackhouses(): Promise<Packhouse[]> {
@@ -252,10 +253,8 @@ export async function updateLot(
 export async function listLots(
   params?: Record<string, string>
 ): Promise<LotSummary[]> {
-  const { data } = await api.get<PaginatedResponse<LotSummary>>("/lots/", {
-    params,
-  });
-  return data.items;
+  const { items } = await fetchAllPages<LotSummary>("/lots/", params);
+  return items;
 }
 
 export async function closeProductionRun(batchId: string): Promise<BatchDetail> {

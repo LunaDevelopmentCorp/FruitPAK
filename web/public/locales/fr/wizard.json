@@ -89,6 +89,9 @@
     "ggnOptional": "Numero GGN",
     "ggnError": "Le numero GGN est requis pour les producteurs certifies",
     "addGrower": "+ Ajouter un producteur",
+    "csvImport": "Import en masse depuis CSV",
+    "csvHint": "Importez un CSV pour ajouter des producteurs en masse. Vous pouvez aussi en ajouter manuellement ci-dessous.",
+    "orManual": "ou ajouter manuellement",
     "headers": {
       "name": "Nom",
       "code": "Code",
