@@ -2,15 +2,15 @@
 
 TENANT MIGRATION — run via: python -m app.tenancy.migration_runner
 
-Revision ID: 0022
-Revises: 0021
+Revision ID: 0026
+Revises: 0025
 """
 
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0022"
-down_revision = "0021"
+revision = "0026"
+down_revision = "0025"
 
 
 def _column_exists(conn, table_name, column_name):
