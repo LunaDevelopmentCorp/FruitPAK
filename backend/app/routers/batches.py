@@ -143,15 +143,16 @@ async def list_batches(
     if cursor:
         try:
             cursor_dt = datetime.fromisoformat(cursor)
-            base_stmt = base_stmt.where(Batch.created_at < cursor_dt)
+            base_stmt = base_stmt.where(Batch.created_at > cursor_dt)
         except ValueError:
             pass
 
     # Fetch limit+1 to detect has_more without a second COUNT query
+    # Oldest first (FIFO) — packhouses process first-in first-out
     items_stmt = (
         base_stmt
-        .options(selectinload(Batch.grower))
-        .order_by(Batch.created_at.desc())
+        .options(selectinload(Batch.grower), selectinload(Batch.harvest_team))
+        .order_by(Batch.created_at.asc())
         .limit(limit + 1)
     )
     result = await db.execute(items_stmt)
@@ -373,6 +374,51 @@ async def close_production_run(
         entity_id=batch.id,
         entity_code=batch.batch_code,
         summary=f"Closed production run for {batch.batch_code}",
+    )
+
+    return BatchOut.model_validate(batch)
+
+
+# ── Reopen production run ─────────────────────────────────────
+
+@router.post("/{batch_id}/reopen", response_model=BatchOut)
+async def reopen_production_run(
+    batch_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    """Reopen a closed production run to allow further edits.
+
+    Only works on batches with status 'complete'. Finalized batches
+    cannot be reopened.
+    """
+    result = await db.execute(
+        select(Batch)
+        .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
+        .options(selectinload(Batch.grower))
+    )
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    if batch.status != "complete":
+        raise HTTPException(
+            status_code=400,
+            detail="Only closed (complete) batches can be reopened",
+        )
+
+    batch.status = "packing"
+    await db.flush()
+    await invalidate_cache("batches:*")
+
+    await log_activity(
+        db, _user,
+        action="status_changed",
+        entity_type="batch",
+        entity_id=batch.id,
+        entity_code=batch.batch_code,
+        summary=f"Reopened production run for {batch.batch_code}",
     )
 
     return BatchOut.model_validate(batch)

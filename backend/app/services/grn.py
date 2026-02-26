@@ -16,6 +16,7 @@ from app.models.tenant.batch import Batch
 from app.models.tenant.batch_history import BatchHistory
 from app.models.tenant.grower import Grower
 from app.models.tenant.grower_payment import GrowerPayment
+from app.models.tenant.harvest_team_payment import HarvestTeamPayment
 from app.models.tenant.packhouse import Packhouse
 from app.schemas.batch import GRNRequest
 from app.utils.numbering import generate_code
@@ -68,6 +69,7 @@ async def create_grn(
         batch_code=batch_code,
         grower_id=body.grower_id,
         harvest_team_id=body.harvest_team_id,
+        payment_routing=body.payment_routing,
         packhouse_id=body.packhouse_id,
         fruit_type=body.fruit_type,
         variety=body.variety,
@@ -81,6 +83,8 @@ async def create_grn(
         status="received",
         bin_count=body.bin_count,
         bin_type=body.bin_type,
+        field_code=body.field_code,
+        field_name=body.field_name,
         vehicle_reg=body.vehicle_reg,
         driver_name=body.driver_name,
         notes=body.delivery_notes,
@@ -114,26 +118,48 @@ async def create_grn(
     advance_linked = False
     advance_ref: str | None = None
 
-    advance = (
-        await db.execute(
-            select(GrowerPayment).where(
-                GrowerPayment.grower_id == body.grower_id,
-                GrowerPayment.status == "pending",
-                GrowerPayment.is_deleted == False,  # noqa: E712
+    if body.payment_routing == "harvest_team" and body.harvest_team_id:
+        # Link to harvest team advance payment
+        team_advance = (
+            await db.execute(
+                select(HarvestTeamPayment).where(
+                    HarvestTeamPayment.harvest_team_id == body.harvest_team_id,
+                    HarvestTeamPayment.status == "pending",
+                    HarvestTeamPayment.is_deleted == False,  # noqa: E712
+                )
+                .order_by(HarvestTeamPayment.created_at.desc())
+                .limit(1)
             )
-            .order_by(GrowerPayment.created_at.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+        ).scalar_one_or_none()
 
-    if advance:
-        # Append this batch to the payment's batch_ids
-        existing_ids = advance.batch_ids or []
-        advance.batch_ids = existing_ids + [batch.id]
-        if net_weight is not None:
-            advance.total_kg = (advance.total_kg or 0) + net_weight
-        advance_linked = True
-        advance_ref = advance.payment_ref
+        if team_advance:
+            existing_ids = team_advance.batch_ids or []
+            team_advance.batch_ids = existing_ids + [batch.id]
+            if net_weight is not None:
+                team_advance.total_kg = (team_advance.total_kg or 0) + net_weight
+            advance_linked = True
+            advance_ref = team_advance.payment_ref
+    else:
+        # Link to grower advance payment
+        advance = (
+            await db.execute(
+                select(GrowerPayment).where(
+                    GrowerPayment.grower_id == body.grower_id,
+                    GrowerPayment.status == "pending",
+                    GrowerPayment.is_deleted == False,  # noqa: E712
+                )
+                .order_by(GrowerPayment.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+        if advance:
+            existing_ids = advance.batch_ids or []
+            advance.batch_ids = existing_ids + [batch.id]
+            if net_weight is not None:
+                advance.total_kg = (advance.total_kg or 0) + net_weight
+            advance_linked = True
+            advance_ref = advance.payment_ref
 
     await db.flush()
 

@@ -26,9 +26,20 @@
   "teams": {
     "title": "Equipos de Cosecha",
     "empty": "No hay equipos de cosecha aún. Suba un CSV para comenzar.",
+    "clickToEdit": "Haga clic en una fila para editar los detalles del equipo.",
+    "updated": "Equipo de cosecha actualizado.",
+    "updateFailed": "Error al actualizar el equipo.",
+    "deleted": "Equipo de cosecha eliminado.",
+    "deleteFailed": "Error al eliminar el equipo.",
+    "confirmDelete": "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
+    "searchPlaceholder": "Buscar nombre, líder, notas...",
+    "showing": "{{count}} de {{total}} equipos",
+    "noMatch": "Ningun equipo coincide con su busqueda.",
     "headers": {
       "teamLeader": "Líder del Equipo",
-      "teamSize": "Tamaño del Equipo"
+      "teamSize": "Tamaño del Equipo",
+      "estVolume": "Vol. est. (kg)",
+      "fruitTypes": "Tipos de Fruta"
     }
   }
 }

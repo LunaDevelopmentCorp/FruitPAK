@@ -3,6 +3,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
+import CsvImport from "../../../components/CsvImport";
 
 interface TeamForm {
   name: string;
@@ -34,6 +35,18 @@ export default function Step5HarvestTeams({ onSave, saving, draftData }: StepPro
 
   return (
     <form className="space-y-6 max-w-2xl">
+      {/* CSV bulk import */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">{t("step5.csvImport")}</h3>
+        <CsvImport entity="harvest-teams" label="Harvest Teams" onSuccess={() => {}} />
+        <p className="text-xs text-gray-500 mt-1">{t("step5.csvHint")}</p>
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t" /></div>
+        <div className="relative flex justify-center"><span className="bg-gray-50 px-3 text-xs text-gray-500 uppercase">{t("step5.orManual")}</span></div>
+      </div>
+
       {fields.map((field, idx) => {
         const volumeKg = teams?.[idx]?.estimated_volume_kg;
         return (

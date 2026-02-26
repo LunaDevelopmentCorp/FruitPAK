@@ -24,7 +24,6 @@ interface Props extends BatchSectionProps {
 export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }: Props) {
   const { t } = useTranslation("batches");
   const lots = batch.lots || [];
-  if (lots.length === 0) return null;
 
   // Pallet creation state
   const [creatingPallet, setCreatingPallet] = useState(false);
@@ -47,12 +46,14 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
   const [selectedPalletId, setSelectedPalletId] = useState("");
   const [allocateSaving, setAllocateSaving] = useState(false);
 
+  if (lots.length === 0) return null;
+
   return (
     <div className="bg-white rounded-lg border p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700">{t("palletize.title")}</h3>
         {!creatingPallet && !allocatingToExisting && (
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <button
               onClick={() => {
                 setCreatingPallet(true);
@@ -61,7 +62,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
                 lots.forEach((l) => { init[l.id] = l.carton_count - (l.palletized_boxes ?? 0); });
                 setLotAssignments(init);
               }}
-              className="text-sm text-green-600 hover:text-green-700 font-medium"
+              className="text-sm text-green-600 hover:text-green-700 font-medium px-3 py-2 min-h-[44px] rounded-lg active:bg-green-50"
             >
               {t("palletize.createPallet")}
             </button>
@@ -73,7 +74,7 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
                 lots.forEach((l) => { init[l.id] = l.carton_count - (l.palletized_boxes ?? 0); });
                 setLotAssignments(init);
               }}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium px-3 py-2 min-h-[44px] rounded-lg active:bg-blue-50"
             >
               {t("palletize.addToExisting")}
             </button>
@@ -278,7 +279,9 @@ function CreatePalletForm({
   );
 
   // Summary calculations
+  const totalAvailable = filteredLots.reduce((sum, l) => sum + Math.max(0, l.carton_count - (l.palletized_boxes ?? 0)), 0);
   const totalAssigned = filteredLots.reduce((sum, l) => sum + (lotAssignments[l.id] ?? 0), 0);
+  const totalRemaining = totalAvailable - totalAssigned;
   const sizes = new Set(
     filteredLots.filter((l) => (lotAssignments[l.id] ?? 0) > 0).map((l) => l.size).filter(Boolean)
   );
@@ -288,6 +291,20 @@ function CreatePalletForm({
   );
   const mixedBoxTypes = boxTypeIds.size > 1;
   const boxTypeNames = [...boxTypeIds].map((id) => boxSizes.find((b) => b.id === id)?.name || id);
+
+  // Helper to update assignment and auto-resolve pallet capacity
+  const updateAssignment = (lotId: string, value: number, maxAvail: number) => {
+    const newAssignments = { ...lotAssignments, [lotId]: Math.max(0, Math.min(maxAvail, value)) };
+    setLotAssignments(newAssignments);
+    if (palletBoxCapacities && palletBoxCapacities.box_capacities.length > 0 && batch) {
+      const assignedLots = batch.lots.filter((l) => (newAssignments[l.id] ?? 0) > 0);
+      const bIds = [...new Set(assignedLots.map((l) => l.box_size_id).filter(Boolean))];
+      if (bIds.length === 1) {
+        const match = palletBoxCapacities.box_capacities.find((bc) => bc.box_size_id === bIds[0]);
+        if (match) setPalletCapacity(match.capacity);
+      }
+    }
+  };
 
   return (
     <div className="p-4 bg-gray-50 rounded-lg border space-y-4">
@@ -322,7 +339,7 @@ function CreatePalletForm({
                   setPalletBoxCapacities(null);
                 }
               }}
-              className="w-full border rounded px-2 py-1.5 text-sm"
+              className="w-full border rounded px-3 py-2.5 text-sm min-h-[44px]"
             >
               <option value="">{t("palletize.selectPalletType")}</option>
               {palletTypes.map((pt) => (
@@ -336,7 +353,7 @@ function CreatePalletForm({
               value={selectedPalletType}
               onChange={(e) => setSelectedPalletType(e.target.value)}
               placeholder="e.g. Standard 240"
-              className="w-full border rounded px-2 py-1.5 text-sm"
+              className="w-full border rounded px-3 py-2.5 text-sm min-h-[44px]"
             />
           )}
         </div>
@@ -347,7 +364,7 @@ function CreatePalletForm({
             value={palletCapacity || ""}
             onChange={(e) => setPalletCapacity(Number(e.target.value))}
             min={1}
-            className="w-full border rounded px-2 py-1.5 text-sm"
+            className="w-full border rounded px-3 py-2.5 text-sm min-h-[44px]"
           />
           {palletBoxCapacities && palletBoxCapacities.box_capacities.length > 0 && (
             <p className="text-xs text-blue-600 mt-1">
@@ -367,7 +384,7 @@ function CreatePalletForm({
             <select
               value={palletSize}
               onChange={(e) => setPalletSize(e.target.value)}
-              className="w-full border rounded px-2 py-1.5 text-sm"
+              className="w-full border rounded px-3 py-2.5 text-sm min-h-[44px]"
             >
               <option value="">{t("palletize.selectSize")}</option>
               {lotSizes.map((s) => (
@@ -375,7 +392,7 @@ function CreatePalletForm({
               ))}
             </select>
           ) : (
-            <p className="text-xs text-yellow-600">{t("palletize.noSizesWarning")}</p>
+            <p className="text-xs text-yellow-600 py-2">{t("palletize.noSizesWarning")}</p>
           )}
         </div>
         <div>
@@ -397,7 +414,7 @@ function CreatePalletForm({
                   }
                 }
               }}
-              className="w-full border rounded px-2 py-1.5 text-sm"
+              className="w-full border rounded px-3 py-2.5 text-sm min-h-[44px]"
             >
               <option value="">{t("palletize.selectBoxType")}</option>
               {boxTypeOptions.map((bs) => (
@@ -405,7 +422,7 @@ function CreatePalletForm({
               ))}
             </select>
           ) : (
-            <p className="text-xs text-yellow-600">{t("palletize.noBoxTypesWarning")}</p>
+            <p className="text-xs text-yellow-600 py-2">{t("palletize.noBoxTypesWarning")}</p>
           )}
         </div>
         <p className="col-span-2 text-xs text-gray-400">
@@ -420,46 +437,80 @@ function CreatePalletForm({
           <table className="w-full text-sm">
             <thead className="bg-gray-100 text-gray-600 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">{t("palletize.lot")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
-                <th className="text-right px-2 py-1.5 font-medium">{t("palletize.available")}</th>
-                <th className="text-right px-2 py-1.5 font-medium">{t("palletize.assign")}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t("palletize.lot")}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t("common:table.grade")}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t("common:table.size")}</th>
+                <th className="text-right px-3 py-2.5 font-medium">{t("palletize.available")}</th>
+                <th className="text-center px-3 py-2.5 font-medium">{t("palletize.assign")}</th>
+                <th className="text-right px-3 py-2.5 font-medium">{t("lots.unallocated")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {filteredLots.map((lot) => {
                 const assigned = lotAssignments[lot.id] ?? 0;
                 const available = lot.carton_count - (lot.palletized_boxes ?? 0);
+                const lotRemaining = available - assigned;
+                // How many pallet spaces remain after all OTHER lots' assignments
+                const othersAssigned = filteredLots
+                  .filter((l) => l.id !== lot.id)
+                  .reduce((s, l) => s + (lotAssignments[l.id] ?? 0), 0);
+                const palletSpacesLeft = Math.max(0, palletCapacity - othersAssigned);
+                const fillValue = Math.min(available, palletSpacesLeft);
                 return (
                   <tr key={lot.id}>
-                    <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
-                    <td className="px-2 py-1.5">{lot.grade || "—"}</td>
-                    <td className="px-2 py-1.5">{lot.size || "—"}</td>
-                    <td className="px-2 py-1.5 text-right text-gray-500">{available}</td>
-                    <td className="px-2 py-1.5 text-right">
-                      <input
-                        type="number"
-                        value={assigned || ""}
-                        onChange={(e) => {
-                          const newAssignments = {
-                            ...lotAssignments,
-                            [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
-                          };
-                          setLotAssignments(newAssignments);
-                          if (palletBoxCapacities && palletBoxCapacities.box_capacities.length > 0 && batch) {
-                            const assignedLots = batch.lots.filter((l) => (newAssignments[l.id] ?? 0) > 0);
-                            const bIds = [...new Set(assignedLots.map((l) => l.box_size_id).filter(Boolean))];
-                            if (bIds.length === 1) {
-                              const match = palletBoxCapacities.box_capacities.find((bc) => bc.box_size_id === bIds[0]);
-                              if (match) setPalletCapacity(match.capacity);
-                            }
-                          }
-                        }}
-                        min={0}
-                        max={available}
-                        className="w-20 border rounded px-2 py-1 text-sm text-right"
-                      />
+                    <td className="px-3 py-2.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                    <td className="px-3 py-2.5">{lot.grade || "—"}</td>
+                    <td className="px-3 py-2.5">{lot.size || "—"}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-500">{available}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => updateAssignment(lot.id, available, available)}
+                          className={`px-3 py-2 rounded text-xs font-semibold min-w-[44px] min-h-[44px] ${
+                            assigned === available
+                              ? "bg-green-600 text-white"
+                              : "bg-gray-200 text-gray-700 active:bg-gray-300"
+                          }`}
+                        >
+                          All
+                        </button>
+                        {fillValue !== available && fillValue > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => updateAssignment(lot.id, fillValue, available)}
+                            className={`px-3 py-2 rounded text-xs font-semibold min-w-[44px] min-h-[44px] ${
+                              assigned === fillValue
+                                ? "bg-blue-600 text-white"
+                                : "bg-blue-100 text-blue-700 active:bg-blue-200"
+                            }`}
+                          >
+                            Fill
+                          </button>
+                        )}
+                        <input
+                          type="number"
+                          value={assigned || ""}
+                          onChange={(e) => updateAssignment(lot.id, Number(e.target.value), available)}
+                          min={0}
+                          max={available}
+                          className="w-16 border rounded px-2 py-2 text-sm text-center min-h-[44px]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateAssignment(lot.id, 0, available)}
+                          className={`px-3 py-2 rounded text-xs font-semibold min-w-[44px] min-h-[44px] ${
+                            assigned === 0
+                              ? "bg-gray-400 text-white"
+                              : "bg-gray-200 text-gray-700 active:bg-gray-300"
+                          }`}
+                        >
+                          0
+                        </button>
+                      </div>
+                    </td>
+                    <td className={`px-3 py-2.5 text-right font-medium ${lotRemaining === 0 ? "text-green-600" : "text-yellow-600"}`}>
+                      {lotRemaining}
                     </td>
                   </tr>
                 );
@@ -479,6 +530,11 @@ function CreatePalletForm({
                 {t("palletize.overflow", { count: Math.ceil(totalAssigned / palletCapacity) })}
               </span>
             )}
+            {" · "}
+            <span className={`font-medium ${totalRemaining === 0 ? "text-green-600" : "text-yellow-600"}`}>
+              {totalRemaining}
+            </span>
+            {" "}{t("lots.unallocated")}
           </p>
           {mixedSizes && (
             <label className="flex items-center gap-2 text-xs text-yellow-600 font-medium">
@@ -506,17 +562,17 @@ function CreatePalletForm({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 pt-2 border-t">
+      <div className="flex gap-2 pt-3 border-t">
         <button
           onClick={onSave}
           disabled={palletSaving}
-          className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+          className="bg-green-600 text-white px-5 py-3 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 min-h-[44px]"
         >
           {palletSaving ? t("common:actions.creating") : t("palletize.createPallet")}
         </button>
         <button
           onClick={onCancel}
-          className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+          className="border text-gray-600 px-5 py-3 rounded-lg text-sm hover:bg-gray-50 min-h-[44px]"
         >
           {t("common:actions.cancel")}
         </button>
@@ -570,7 +626,9 @@ function AllocateToExistingForm({
   const filteredLots = lots.filter(
     (l) => (!palletFilterSize || l.size === palletFilterSize) && (!palletFilterBoxSizeId || l.box_size_id === palletFilterBoxSizeId)
   );
+  const totalAvailable = filteredLots.reduce((sum, l) => sum + Math.max(0, l.carton_count - (l.palletized_boxes ?? 0)), 0);
   const totalAssigned = filteredLots.reduce((sum, l) => sum + (lotAssignments[l.id] ?? 0), 0);
+  const totalRemaining = totalAvailable - totalAssigned;
   const remaining = selectedPallet ? selectedPallet.capacity_boxes - selectedPallet.current_boxes : 0;
 
   return (
@@ -596,7 +654,7 @@ function AllocateToExistingForm({
                   setLotAssignments(updated);
                 }
               }}
-              className="w-full border rounded px-2 py-1.5 text-sm"
+              className="w-full border rounded px-3 py-2.5 text-sm min-h-[44px]"
             >
               <option value="">{t("palletize.selectAPallet")}</option>
               {compatiblePallets.map((p) => (
@@ -629,35 +687,83 @@ function AllocateToExistingForm({
             <table className="w-full text-sm">
               <thead className="bg-gray-100 text-gray-600 text-xs">
                 <tr>
-                  <th className="text-left px-2 py-1.5 font-medium">{t("palletize.lot")}</th>
-                  <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
-                  <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
-                  <th className="text-right px-2 py-1.5 font-medium">{t("palletize.available")}</th>
-                  <th className="text-right px-2 py-1.5 font-medium">{t("palletize.assign")}</th>
+                  <th className="text-left px-3 py-2.5 font-medium">{t("palletize.lot")}</th>
+                  <th className="text-left px-3 py-2.5 font-medium">{t("common:table.grade")}</th>
+                  <th className="text-left px-3 py-2.5 font-medium">{t("common:table.size")}</th>
+                  <th className="text-right px-3 py-2.5 font-medium">{t("palletize.available")}</th>
+                  <th className="text-center px-3 py-2.5 font-medium">{t("palletize.assign")}</th>
+                  <th className="text-right px-3 py-2.5 font-medium">{t("lots.unallocated")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {filteredLots.map((lot) => {
                   const assigned = lotAssignments[lot.id] ?? 0;
                   const available = lot.carton_count - (lot.palletized_boxes ?? 0);
+                  const lotRemaining = available - assigned;
+                  // How many pallet spaces remain after all OTHER lots' assignments
+                  const othersAssigned = filteredLots
+                    .filter((l) => l.id !== lot.id)
+                    .reduce((s, l) => s + (lotAssignments[l.id] ?? 0), 0);
+                  const palletSpacesLeft = Math.max(0, remaining - othersAssigned);
+                  const fillValue = Math.min(available, palletSpacesLeft);
                   return (
                     <tr key={lot.id}>
-                      <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
-                      <td className="px-2 py-1.5">{lot.grade || "—"}</td>
-                      <td className="px-2 py-1.5">{lot.size || "—"}</td>
-                      <td className="px-2 py-1.5 text-right text-gray-500">{available}</td>
-                      <td className="px-2 py-1.5 text-right">
-                        <input
-                          type="number"
-                          value={assigned || ""}
-                          onChange={(e) => setLotAssignments({
-                            ...lotAssignments,
-                            [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
-                          })}
-                          min={0}
-                          max={available}
-                          className="w-20 border rounded px-2 py-1 text-sm text-right"
-                        />
+                      <td className="px-3 py-2.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
+                      <td className="px-3 py-2.5">{lot.grade || "—"}</td>
+                      <td className="px-3 py-2.5">{lot.size || "—"}</td>
+                      <td className="px-3 py-2.5 text-right text-gray-500">{available}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setLotAssignments({ ...lotAssignments, [lot.id]: available })}
+                            className={`px-3 py-2 rounded text-xs font-semibold min-w-[44px] min-h-[44px] ${
+                              assigned === available
+                                ? "bg-green-600 text-white"
+                                : "bg-gray-200 text-gray-700 active:bg-gray-300"
+                            }`}
+                          >
+                            All
+                          </button>
+                          {selectedPallet && fillValue !== available && fillValue > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setLotAssignments({ ...lotAssignments, [lot.id]: fillValue })}
+                              className={`px-3 py-2 rounded text-xs font-semibold min-w-[44px] min-h-[44px] ${
+                                assigned === fillValue
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-blue-100 text-blue-700 active:bg-blue-200"
+                              }`}
+                            >
+                              Fill
+                            </button>
+                          )}
+                          <input
+                            type="number"
+                            value={assigned || ""}
+                            onChange={(e) => setLotAssignments({
+                              ...lotAssignments,
+                              [lot.id]: Math.max(0, Math.min(available, Number(e.target.value))),
+                            })}
+                            min={0}
+                            max={available}
+                            className="w-16 border rounded px-2 py-2 text-sm text-center min-h-[44px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setLotAssignments({ ...lotAssignments, [lot.id]: 0 })}
+                            className={`px-3 py-2 rounded text-xs font-semibold min-w-[44px] min-h-[44px] ${
+                              assigned === 0
+                                ? "bg-gray-400 text-white"
+                                : "bg-gray-200 text-gray-700 active:bg-gray-300"
+                            }`}
+                          >
+                            0
+                          </button>
+                        </div>
+                      </td>
+                      <td className={`px-3 py-2.5 text-right font-medium ${lotRemaining === 0 ? "text-green-600" : "text-yellow-600"}`}>
+                        {lotRemaining}
                       </td>
                     </tr>
                   );
@@ -672,22 +778,27 @@ function AllocateToExistingForm({
               {selectedPallet && totalAssigned > remaining && (
                 <span className="text-yellow-600 ml-2">(exceeds remaining capacity)</span>
               )}
+              {" · "}
+              <span className={`font-medium ${totalRemaining === 0 ? "text-green-600" : "text-yellow-600"}`}>
+                {totalRemaining}
+              </span>
+              {" "}{t("lots.unallocated")}
             </p>
           </div>
         </div>
       )}
 
-      <div className="flex gap-2 pt-2 border-t">
+      <div className="flex gap-2 pt-3 border-t">
         <button
           onClick={onSave}
           disabled={allocateSaving}
-          className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-blue-600 text-white px-5 py-3 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 min-h-[44px]"
         >
           {allocateSaving ? t("palletize.allocating") : t("palletize.allocateToPallet")}
         </button>
         <button
           onClick={onCancel}
-          className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+          className="border text-gray-600 px-5 py-3 rounded-lg text-sm hover:bg-gray-50 min-h-[44px]"
         >
           {t("common:actions.cancel")}
         </button>

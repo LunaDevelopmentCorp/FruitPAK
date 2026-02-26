@@ -26,9 +26,20 @@
   "teams": {
     "title": "Equipas de Colheita",
     "empty": "Nenhuma equipa de colheita ainda. Carregue um CSV para começar.",
+    "clickToEdit": "Clique numa linha para editar os detalhes da equipa.",
+    "updated": "Equipa de colheita atualizada.",
+    "updateFailed": "Falha ao atualizar a equipa.",
+    "deleted": "Equipa de colheita eliminada.",
+    "deleteFailed": "Falha ao eliminar a equipa.",
+    "confirmDelete": "Eliminar \"{{name}}\"? Esta acao nao pode ser desfeita.",
+    "searchPlaceholder": "Pesquisar nome, lider, notas...",
+    "showing": "{{count}} de {{total}} equipas",
+    "noMatch": "Nenhuma equipa corresponde a sua pesquisa.",
     "headers": {
       "teamLeader": "Líder da Equipa",
-      "teamSize": "Tamanho da Equipa"
+      "teamSize": "Tamanho da Equipa",
+      "estVolume": "Vol. est. (kg)",
+      "fruitTypes": "Tipos de Fruta"
     }
   }
 }

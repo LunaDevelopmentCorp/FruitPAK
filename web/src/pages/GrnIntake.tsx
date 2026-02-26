@@ -13,6 +13,7 @@ import {
   BatchSummary,
   BatchUpdatePayload,
   Grower,
+  GrowerField,
   Packhouse,
 } from "../api/batches";
 import { getBinTypes, BinTypeConfig } from "../api/pallets";
@@ -72,6 +73,27 @@ export default function GrnIntake() {
   // Track selected fruit type for cascading dropdowns
   const selectedFruitType = watch("fruit_type");
 
+  // Track selected grower for field auto-fill
+  const selectedGrowerId = watch("grower_id");
+
+  const selectedGrowerFields = useMemo<GrowerField[]>(() => {
+    if (!selectedGrowerId) return [];
+    const grower = growers.find((g) => g.id === selectedGrowerId);
+    return grower?.fields?.filter((f) => f.code || f.name) ?? [];
+  }, [selectedGrowerId, growers]);
+
+  // Auto-fill field when grower has exactly one field
+  useEffect(() => {
+    if (selectedGrowerFields.length === 1) {
+      const f = selectedGrowerFields[0];
+      setValue("field_code", f.code || "");
+      setValue("field_name", f.name || "");
+    } else if (selectedGrowerFields.length === 0) {
+      setValue("field_code", "");
+      setValue("field_name", "");
+    }
+  }, [selectedGrowerFields, setValue]);
+
   useEffect(() => {
     Promise.all([
       listGrowers(),
@@ -81,11 +103,19 @@ export default function GrnIntake() {
       listHarvestTeams().catch(() => []),
     ])
       .then(([g, p, fc, bt, ht]) => {
-        setGrowers(g);
+        // Sort growers by grower_code (nulls last)
+        const sorted = [...g].sort((a, b) => {
+          const ca = a.grower_code || "";
+          const cb = b.grower_code || "";
+          return ca.localeCompare(cb, undefined, { numeric: true });
+        });
+        setGrowers(sorted);
         setPackhouses(p);
         setFruitConfigs(fc);
         setBinTypes(bt);
-        setHarvestTeams(ht);
+        setHarvestTeams(
+          [...ht].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        );
       })
       .catch(() => {
         setError(t("loadError"));
@@ -184,6 +214,9 @@ export default function GrnIntake() {
       tare_weight_kg: data.tare_weight_kg ? Number(data.tare_weight_kg) : undefined,
       bin_count: binNum || undefined,
       harvest_team_id: data.harvest_team_id || undefined,
+      payment_routing: data.payment_routing || "grower",
+      field_code: data.field_code || undefined,
+      field_name: data.field_name || undefined,
     };
 
     try {
@@ -328,7 +361,7 @@ export default function GrnIntake() {
               <option value="">{t("form.selectGrower")}</option>
               {growers.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.name}{g.grower_code ? ` (${g.grower_code})` : ""}
+                  {g.grower_code ? `${g.grower_code} — ` : ""}{g.name}
                 </option>
               ))}
             </select>
@@ -354,23 +387,81 @@ export default function GrnIntake() {
           </div>
         </div>
 
-        {/* Harvest Team */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t("form.harvestTeam")}
-          </label>
-          <select
-            {...register("harvest_team_id", { required: t("form.harvestTeamRequired") })}
-            className={errors.harvest_team_id || getFieldError("harvest_team_id") ? inputError : inputBase}
-          >
-              <option value="">{t("form.selectHarvestTeam")}</option>
-              {harvestTeams.map((ht) => (
-                <option key={ht.id} value={ht.id}>
-                  {ht.name}{ht.team_leader ? ` (${ht.team_leader})` : ""}
+        {/* Field / Block */}
+        {selectedGrowerFields.length > 1 ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("form.field")}
+            </label>
+            <select
+              className={inputBase}
+              value={watch("field_code") || ""}
+              onChange={(e) => {
+                const code = e.target.value;
+                if (!code) {
+                  setValue("field_code", "");
+                  setValue("field_name", "");
+                  return;
+                }
+                const f = selectedGrowerFields.find((f) => f.code === code);
+                setValue("field_code", f?.code || code);
+                setValue("field_name", f?.name || "");
+              }}
+            >
+              <option value="">{t("form.selectField")}</option>
+              {selectedGrowerFields.map((f, i) => (
+                <option key={i} value={f.code || f.name}>
+                  {f.code ? `${f.code}` : ""}{f.code && f.name ? ` — ${f.name}` : f.name || ""}
                 </option>
               ))}
             </select>
-          <FieldMsg error={errors.harvest_team_id?.message || getFieldError("harvest_team_id")} />
+          </div>
+        ) : selectedGrowerFields.length === 1 ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("form.field")}
+            </label>
+            <p className="px-3 py-2 text-sm bg-gray-50 border rounded text-gray-700">
+              {selectedGrowerFields[0].code || ""}{selectedGrowerFields[0].code && selectedGrowerFields[0].name ? ` — ${selectedGrowerFields[0].name}` : selectedGrowerFields[0].name || ""}
+            </p>
+            <input type="hidden" {...register("field_code")} />
+            <input type="hidden" {...register("field_name")} />
+          </div>
+        ) : null}
+
+        {/* Harvest Team + Payment Routing */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("form.harvestTeam")}
+            </label>
+            <select
+              {...register("harvest_team_id", { required: t("form.harvestTeamRequired") })}
+              className={errors.harvest_team_id || getFieldError("harvest_team_id") ? inputError : inputBase}
+            >
+                <option value="">{t("form.selectHarvestTeam")}</option>
+                {harvestTeams.map((ht) => (
+                  <option key={ht.id} value={ht.id}>
+                    {ht.name}{ht.team_leader ? ` (${ht.team_leader})` : ""}
+                  </option>
+                ))}
+              </select>
+            <FieldMsg error={errors.harvest_team_id?.message || getFieldError("harvest_team_id")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("form.payTo")}
+            </label>
+            <select
+              {...register("payment_routing")}
+              className={inputBase}
+            >
+              <option value="grower">{t("form.payToGrower")}</option>
+              <option value="harvest_team">{t("form.payToHarvestTeam")}</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">{t("form.payToHelp")}</p>
+          </div>
         </div>
 
         {/* Fruit type + Variety */}

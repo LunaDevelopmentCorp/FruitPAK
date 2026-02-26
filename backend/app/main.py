@@ -10,7 +10,7 @@ from app.middleware.security import (
     SecureCookieMiddleware,
 )
 from app.middleware.exceptions import register_exception_handlers
-from app.routers import admin, auth, batches, bulk_import, clients, config, containers, enterprises, growers, health, lots, packaging, packhouses, pallets, payments, platform, reconciliation, wizard
+from app.routers import admin, auth, batches, bulk_import, clients, config, containers, enterprises, growers, harvest_teams, health, lots, packaging, packhouses, pallets, payments, platform, reconciliation, wizard
 from app.services.scheduler import lifespan
 
 app = FastAPI(
@@ -63,6 +63,7 @@ app.include_router(enterprises.router, prefix="/api/enterprises", tags=["enterpr
 # Tenant-scoped (require tenant_schema in JWT)
 app.include_router(packhouses.router, prefix="/api/packhouses", tags=["packhouses"])
 app.include_router(growers.router, prefix="/api/growers", tags=["growers"])
+app.include_router(harvest_teams.router, prefix="/api/harvest-teams", tags=["harvest-teams"])
 app.include_router(wizard.router, prefix="/api/wizard", tags=["wizard"])
 app.include_router(batches.router, prefix="/api/batches", tags=["batches"])
 app.include_router(lots.router, prefix="/api/lots", tags=["lots"])

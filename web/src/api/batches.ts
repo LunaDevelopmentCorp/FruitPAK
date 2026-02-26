@@ -25,11 +25,14 @@ export interface GRNPayload {
   harvest_date?: string;
   quality_grade?: string;
   harvest_team_id: string;
+  payment_routing?: string;
   tare_weight_kg?: number;
   arrival_temp_c?: number;
   brix_reading?: number;
   bin_count?: number;
   bin_type?: string;
+  field_code?: string;
+  field_name?: string;
   vehicle_reg?: string;
   driver_name?: string;
   delivery_notes?: string;
@@ -40,6 +43,7 @@ export interface BatchOut {
   batch_code: string;
   grower_id: string;
   grower_name: string | null;
+  payment_routing: string;
   packhouse_id: string;
   fruit_type: string;
   variety: string | null;
@@ -61,6 +65,7 @@ export interface BatchSummary {
   grower_id: string;
   grower_name: string | null;
   harvest_team_id: string | null;
+  payment_routing: string;
   fruit_type: string;
   variety: string | null;
   gross_weight_kg: number | null;
@@ -68,6 +73,8 @@ export interface BatchSummary {
   net_weight_kg: number | null;
   bin_count: number | null;
   bin_type: string | null;
+  harvest_team_name: string | null;
+  harvest_team_leader: string | null;
   vehicle_reg: string | null;
   driver_name: string | null;
   harvest_date: string | null;
@@ -84,11 +91,19 @@ export interface GRNResponse {
   advance_payment_ref: string | null;
 }
 
+export interface GrowerField {
+  name: string;
+  code: string | null;
+  hectares: number | null;
+  fruit_type: string | null;
+}
+
 export interface Grower {
   id: string;
   name: string;
   grower_code: string;
   region: string | null;
+  fields: GrowerField[] | null;
 }
 
 export interface Packhouse {
@@ -149,6 +164,7 @@ export interface BatchUpdatePayload {
   waste_reason?: string;
   bin_count?: number;
   bin_type?: string;
+  payment_routing?: string;
   vehicle_reg?: string;
   driver_name?: string;
   notes?: string;
@@ -264,6 +280,11 @@ export async function closeProductionRun(batchId: string): Promise<BatchDetail> 
 
 export async function finalizeGRN(batchId: string): Promise<BatchDetail> {
   const { data } = await api.post<BatchDetail>(`/batches/${batchId}/finalize`);
+  return data;
+}
+
+export async function reopenProductionRun(batchId: string): Promise<BatchDetail> {
+  const { data } = await api.post<BatchDetail>(`/batches/${batchId}/reopen`);
   return data;
 }
 

@@ -17,6 +17,9 @@
       "variety": "Variety",
       "bins": "Bins",
       "netKg": "Net (kg)",
+      "teamLeader": "Team Leader",
+      "payTo": "Pay To",
+      "team": "Team",
       "status": "Status",
       "date": "Date"
     }
@@ -39,6 +42,9 @@
     "pending": "Pending",
     "growerPackhouse": "Grower & Packhouse",
     "packhouse": "Packhouse",
+    "paymentTo": "Payment To",
+    "payToGrower": "Grower",
+    "payToHarvestTeam": "Harvest Team",
     "harvestDate": "Harvest Date",
     "intakeDate": "Intake Date",
     "fruitDetails": "Fruit Details",
@@ -50,7 +56,11 @@
     "rejectionReason": "Rejection Reason",
     "delivery": "Delivery & Vehicle",
     "vehicleReg": "Vehicle Reg",
-    "driverName": "Driver"
+    "driverName": "Driver",
+    "editBatch": "Edit Batch Info",
+    "editTitle": "Edit Batch Info",
+    "updated": "Batch updated.",
+    "updateFailed": "Failed to update batch."
   },
   "lots": {
     "title": "Packing Lots",
@@ -79,6 +89,8 @@
     "showingLots": "Showing {{start}}–{{end}} of {{total}} lots",
     "noLots": "No lots yet. Click \"Create Lots\" to split this batch.",
     "gradeRequired": "Every row needs a grade selected before saving.",
+    "sizeRequired": "Every row needs a size selected before saving.",
+    "boxTypeRequired": "Every carton row needs a box type selected before saving.",
     "atLeastOneLot": "At least one lot with a grade is required.",
     "lotsCreated_one": "{{count}} lot created.",
     "lotsCreated_other": "{{count}} lots created.",
@@ -86,7 +98,8 @@
     "lotUpdateFailed": "Failed to update lot.",
     "lotReturned": "marked as returned to grower.",
     "lotReturnFailed": "Failed to update lot status.",
-    "lotCreateFailed": "Failed to create lots."
+    "lotCreateFailed": "Failed to create lots.",
+    "totals": "Totals"
   },
   "massBalance": {
     "title": "Mass Balance",
@@ -161,12 +174,20 @@
     "closing": "Closing...",
     "closedSuccess": "Production run closed.",
     "closeFailed": "Failed to close run.",
+    "closedLabel": "Closed",
+    "closedHelp": "Production run is closed. Reopen to make edits.",
+    "reopenButton": "Reopen",
+    "reopening": "Reopening...",
+    "reopenedSuccess": "Production run reopened.",
+    "reopenFailed": "Failed to reopen run.",
     "finalizeTitle": "Finalize GRN",
     "finalizeHelp": "Production run is closed. Finalize the GRN to mark it as completed.",
     "unaccountedWeight": "Unaccounted weight: {{weight}} kg — this will be auto-adjusted as batch waste on finalization.",
     "finalizeButton": "Finalize GRN",
     "finalizing": "Finalizing...",
     "finalizedSuccess": "GRN finalized — status set to completed.",
-    "finalizeFailed": "Failed to finalize GRN."
+    "finalizeFailed": "Failed to finalize GRN.",
+    "finalizedLabel": "Finalized",
+    "finalizedHelp": "This GRN has been finalized. No further changes can be made."
   }
 }

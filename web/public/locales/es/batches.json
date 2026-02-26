@@ -17,6 +17,9 @@
       "variety": "Variedad",
       "bins": "Bins",
       "netKg": "Neto (kg)",
+      "teamLeader": "Jefe de equipo",
+      "payTo": "Pagar a",
+      "team": "Equipo",
       "status": "Estado",
       "date": "Fecha"
     }
@@ -39,6 +42,9 @@
     "pending": "Pendiente",
     "growerPackhouse": "Productor y Empacadora",
     "packhouse": "Empacadora",
+    "paymentTo": "Pago a",
+    "payToGrower": "Productor",
+    "payToHarvestTeam": "Equipo de Cosecha",
     "harvestDate": "Fecha de Cosecha",
     "intakeDate": "Fecha de Recepción",
     "fruitDetails": "Detalles de Fruta",
@@ -50,7 +56,11 @@
     "rejectionReason": "Motivo de Rechazo",
     "delivery": "Entrega y Vehículo",
     "vehicleReg": "Matrícula",
-    "driverName": "Conductor"
+    "driverName": "Conductor",
+    "editBatch": "Editar Info del Lote",
+    "editTitle": "Editar Info del Lote",
+    "updated": "Lote actualizado.",
+    "updateFailed": "Error al actualizar el lote."
   },
   "lots": {
     "title": "Sublotes de Empaque",
@@ -79,6 +89,8 @@
     "showingLots": "Mostrando {{start}}–{{end}} de {{total}} sublotes",
     "noLots": "No hay sublotes aún. Haga clic en \"Crear Sublotes\" para dividir este lote.",
     "gradeRequired": "Cada fila necesita un grado seleccionado antes de guardar.",
+    "sizeRequired": "Cada fila necesita un tamaño seleccionado antes de guardar.",
+    "boxTypeRequired": "Cada fila de cartones necesita un tipo de caja seleccionado antes de guardar.",
     "atLeastOneLot": "Se requiere al menos un sublote con un grado.",
     "lotsCreated_one": "{{count}} sublote creado.",
     "lotsCreated_other": "{{count}} sublotes creados.",
@@ -86,7 +98,8 @@
     "lotUpdateFailed": "Error al actualizar el sublote.",
     "lotReturned": "marcado como devuelto al productor.",
     "lotReturnFailed": "Error al actualizar el estado del sublote.",
-    "lotCreateFailed": "Error al crear sublotes."
+    "lotCreateFailed": "Error al crear sublotes.",
+    "totals": "Totales"
   },
   "massBalance": {
     "title": "Balance de Masa",
@@ -161,12 +174,20 @@
     "closing": "Cerrando...",
     "closedSuccess": "Ciclo de producción cerrado.",
     "closeFailed": "Error al cerrar el ciclo.",
+    "closedLabel": "Cerrado",
+    "closedHelp": "El ciclo de producción está cerrado. Reabrir para editar.",
+    "reopenButton": "Reabrir",
+    "reopening": "Reabriendo...",
+    "reopenedSuccess": "Ciclo de producción reabierto.",
+    "reopenFailed": "Error al reabrir el ciclo.",
     "finalizeTitle": "Finalizar GRN",
     "finalizeHelp": "El ciclo de producción está cerrado. Finalice el GRN para marcarlo como completado.",
     "unaccountedWeight": "Peso no contabilizado: {{weight}} kg — se ajustará automáticamente como merma del lote al finalizar.",
     "finalizeButton": "Finalizar GRN",
     "finalizing": "Finalizando...",
     "finalizedSuccess": "GRN finalizado — estado establecido como completado.",
-    "finalizeFailed": "Error al finalizar el GRN."
+    "finalizeFailed": "Error al finalizar el GRN.",
+    "finalizedLabel": "Finalizado",
+    "finalizedHelp": "Este GRN ha sido finalizado. No se pueden realizar más cambios."
   }
 }

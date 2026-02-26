@@ -27,12 +27,15 @@ class GRNRequest(BaseModel):
     variety: str | None = None
     quality_grade: str | None = None
     harvest_team_id: str
+    payment_routing: str = "grower"  # "grower" or "harvest_team"
     tare_weight_kg: float = 0.0
     arrival_temp_c: float | None = None
     brix_reading: float | None = None
     quality_assessment: dict | None = None
     bin_count: int | None = Field(None, ge=1)
     bin_type: str | None = None
+    field_code: str | None = None
+    field_name: str | None = None
     vehicle_reg: str | None = None
     driver_name: str | None = None
     delivery_notes: str | None = None
@@ -93,6 +96,7 @@ class BatchUpdate(BaseModel):
     waste_reason: str | None = None
     bin_count: int | None = None
     bin_type: str | None = None
+    payment_routing: str | None = None
     vehicle_reg: str | None = None
     driver_name: str | None = None
     notes: str | None = None
@@ -106,6 +110,7 @@ class BatchOut(BaseModel):
     grower_id: str
     grower_name: str | None = None
     harvest_team_id: str | None
+    payment_routing: str = "grower"
     packhouse_id: str
     fruit_type: str
     variety: str | None
@@ -123,6 +128,8 @@ class BatchOut(BaseModel):
     waste_reason: str | None = None
     bin_count: int | None
     bin_type: str | None
+    field_code: str | None = None
+    field_name: str | None = None
     vehicle_reg: str | None = None
     driver_name: str | None = None
     notes: str | None
@@ -148,6 +155,9 @@ class BatchSummary(BaseModel):
     grower_id: str
     grower_name: str | None = None
     harvest_team_id: str | None = None
+    harvest_team_name: str | None = None
+    harvest_team_leader: str | None = None
+    payment_routing: str = "grower"
     fruit_type: str
     variety: str | None
     gross_weight_kg: float | None
@@ -155,6 +165,8 @@ class BatchSummary(BaseModel):
     net_weight_kg: float | None
     bin_count: int | None = None
     bin_type: str | None = None
+    field_code: str | None = None
+    field_name: str | None = None
     vehicle_reg: str | None = None
     driver_name: str | None = None
     harvest_date: date | None = None
@@ -167,9 +179,12 @@ class BatchSummary(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _extract_grower_name(cls, data):
+    def _extract_related_names(cls, data):
         if hasattr(data, "grower") and data.grower:
             data.__dict__["grower_name"] = data.grower.name
+        if hasattr(data, "harvest_team") and data.harvest_team:
+            data.__dict__["harvest_team_name"] = data.harvest_team.name
+            data.__dict__["harvest_team_leader"] = data.harvest_team.team_leader
         return data
 
 

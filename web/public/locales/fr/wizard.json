@@ -101,6 +101,9 @@
     }
   },
   "step5": {
+    "csvImport": "Importation en masse depuis CSV",
+    "csvHint": "Telechargez un CSV pour ajouter des equipes de recolte en masse. Vous pouvez aussi les ajouter manuellement ci-dessous.",
+    "orManual": "ou ajouter manuellement",
     "team": "Equipe {{index}}",
     "teamName": "Nom de l'equipe",
     "teamLeader": "Chef d'equipe",
@@ -112,7 +115,7 @@
     "products": "Produits / Types de fruits",
     "product": "Produit {{index}}",
     "fruitType": "Type de fruit",
-    "variety": "Variete",
+    "variety": "Varietes (separees par des virgules)",
     "grades": "Calibres (separes par des virgules)",
     "sizes": "Tailles (separees par des virgules)",
     "addProduct": "+ Ajouter un produit",

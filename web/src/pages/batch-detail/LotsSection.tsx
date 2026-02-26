@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  getBatch,
-  updateBatch,
   updateLot,
   createLotsFromBatch,
   LotFromBatchItem,
@@ -25,7 +23,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
   const { boxSizes, binTypes, fruitConfigs } = configs;
 
   const [creatingLots, setCreatingLots] = useState(false);
-  const [lotRows, setLotRows] = useState<LotRowForm[]>([{ grade: "", carton_count: 0, unit: "cartons" }]);
+  const emptyRow = (): LotRowForm => ({ grade: "", carton_count: 0, unit: "cartons" as const });
+  const [lotRows, setLotRows] = useState<LotRowForm[]>(() => Array.from({ length: 7 }, emptyRow));
   const [lotSaving, setLotSaving] = useState(false);
   const [lotValidationError, setLotValidationError] = useState(false);
 
@@ -33,6 +32,9 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
   const [editingLotId, setEditingLotId] = useState<string | null>(null);
   const [editLotForm, setEditLotForm] = useState<LotUpdatePayload>({});
   const [lotUpdateSaving, setLotUpdateSaving] = useState(false);
+  // Bin editing (class 2 lots) — local only, used for weight calculation
+  const [editBinTypeId, setEditBinTypeId] = useState<string>("");
+  const [editBinCount, setEditBinCount] = useState<number>(0);
 
   // Pagination
   const [lotsPage, setLotsPage] = useState(0);
@@ -49,7 +51,13 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
     const config = fruitConfigs.find(
       (fc) => fc.fruit_type.toLowerCase() === batch.fruit_type.toLowerCase(),
     );
-    return config?.sizes ?? [];
+    const sizes = config?.sizes ?? [];
+    return [...sizes].sort((a, b) => {
+      const na = parseFloat(a);
+      const nb = parseFloat(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
   }, [fruitConfigs, batch.fruit_type]);
 
   // Memoized auto-waste calculation
@@ -78,14 +86,23 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
     const hasAnyData = lotRows.some(
       (r) => r.grade || (r.carton_count ?? 0) > 0 || (r.bin_count && r.bin_count > 0) || r.box_size_id || r.size
     );
-    const missingGrade = lotRows.some(
-      (r) => !r.grade && ((r.carton_count ?? 0) > 0 || (r.bin_count && r.bin_count > 0) || r.box_size_id || r.size)
+    const filledRows = lotRows.filter(
+      (r) => r.grade || (r.carton_count ?? 0) > 0 || (r.bin_count && r.bin_count > 0) || r.box_size_id || r.size
     );
-    if (missingGrade || !hasAnyData) {
+    const missingGrade = filledRows.some((r) => !r.grade);
+    const missingSize = filledRows.some((r) => !r.size);
+    const missingBoxType = filledRows.some((r) => r.unit === "cartons" && !r.box_size_id);
+    if (!hasAnyData) {
       setLotValidationError(true);
-      globalToast("error", missingGrade
-        ? t("lots.gradeRequired")
-        : t("lots.atLeastOneLot"));
+      globalToast("error", t("lots.atLeastOneLot"));
+      return;
+    }
+    if (missingGrade || missingSize || missingBoxType) {
+      setLotValidationError(true);
+      globalToast("error",
+        missingGrade ? t("lots.gradeRequired")
+        : missingSize ? t("lots.sizeRequired")
+        : t("lots.boxTypeRequired"));
       return;
     }
     setLotValidationError(false);
@@ -103,16 +120,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
       await createLotsFromBatch(batchId, apiLots);
       globalToast("success", t("lots.lotsCreated", { count: apiLots.length }));
       setCreatingLots(false);
-      setLotRows([{ grade: "", carton_count: 0, unit: "cartons" as const }]);
-      // Refresh and auto-calculate waste
-      const refreshed = await getBatch(batchId);
-      const incomingNet = refreshed.net_weight_kg ?? 0;
-      if (incomingNet > 0) {
-        const allLotWeight = (refreshed.lots || []).reduce((s, l) => s + (l.weight_kg ?? 0), 0);
-        const allLotWaste = (refreshed.lots || []).reduce((s, l) => s + (l.waste_kg ?? 0), 0);
-        const autoWaste = Math.max(0, incomingNet - allLotWeight - allLotWaste);
-        await updateBatch(batchId, { waste_kg: autoWaste, waste_reason: "Auto-calculated balance" });
-      }
+      setLotRows(Array.from({ length: 7 }, emptyRow));
+      // Backend auto-recalculates batch waste — just refresh UI
       await onRefresh();
     } catch {
       globalToast("error", t("lots.lotCreateFailed"));
@@ -127,7 +136,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
         <h3 className="text-sm font-semibold text-gray-700">
           {t("lots.title")} {lots.length > 0 && `(${lots.length})`}
         </h3>
-        {!creatingLots && (
+        {!creatingLots && batch.status !== "complete" && batch.status !== "completed" && (
           <button
             onClick={() => {
               setCreatingLots(true);
@@ -193,10 +202,11 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                       const updated = [...lotRows];
                       updated[idx] = { ...updated[idx], size: e.target.value || undefined };
                       setLotRows(updated);
+                      if (e.target.value) setLotValidationError(false);
                     }}
-                    className="w-full border rounded px-2 py-1.5 text-sm"
+                    className={`w-full border rounded px-2 py-1.5 text-sm ${lotValidationError && !row.size && row.grade ? "border-red-400 bg-red-50" : ""}`}
                   >
-                    <option value="">{t("lots.selectGrade")}</option>
+                    <option value="">{t("lots.selectSize")}</option>
                     {availableSizes.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -232,8 +242,9 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                         const updated = [...lotRows];
                         updated[idx] = { ...updated[idx], box_size_id: e.target.value || undefined };
                         setLotRows(updated);
+                        if (e.target.value) setLotValidationError(false);
                       }}
-                      className="w-full border rounded px-2 py-1.5 text-sm"
+                      className={`w-full border rounded px-2 py-1.5 text-sm ${lotValidationError && !row.box_size_id && row.grade ? "border-red-400 bg-red-50" : ""}`}
                     >
                       <option value="">{t("lots.selectBox")}</option>
                       {boxSizes.map((bs) => (
@@ -332,7 +343,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
               {lotSaving ? t("lots.creating") : t("lots.create")}
             </button>
             <button
-              onClick={() => { setCreatingLots(false); setLotRows([{ grade: "", carton_count: 0, unit: "cartons" as const }]); }}
+              onClick={() => { setCreatingLots(false); setLotRows(Array.from({ length: 7 }, emptyRow)); }}
               className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
             >
               {t("common:actions.cancel")}
@@ -362,18 +373,120 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
               {paginatedLots.map((lot) => {
                 const unallocated = lot.carton_count - (lot.palletized_boxes ?? 0);
                 const isEditing = editingLotId === lot.id;
+                const isBinGrade = /^2$|class\s*2|industrial/i.test((isEditing ? editLotForm.grade : lot.grade) || "");
+                const isEditingBins = isEditing && isBinGrade && !editLotForm.box_size_id;
+                const editBoxSize = isEditing && !isEditingBins ? boxSizes.find((bs) => bs.id === editLotForm.box_size_id) : null;
+                const editBinType = isEditingBins ? binTypes.find((bt) => bt.id === editBinTypeId) : null;
+                const editWeight = isEditing
+                  ? isEditingBins && editBinType && editBinCount > 0
+                    ? editBinCount * (editBinType.default_weight_kg - editBinType.tare_weight_kg)
+                    : editLotForm.carton_count && editBoxSize
+                      ? editLotForm.carton_count * editBoxSize.weight_kg
+                      : null
+                  : null;
                 return (
                   <React.Fragment key={lot.id}>
-                    <tr className="hover:bg-gray-50">
+                    <tr className={isEditing ? "bg-green-50/50" : "hover:bg-gray-50"}>
                       <td className="px-2 py-1.5 font-mono text-xs text-green-700">{lot.lot_code}</td>
-                      <td className="px-2 py-1.5">{lot.grade || "—"}</td>
-                      <td className="px-2 py-1.5">{lot.size || "—"}</td>
-                      <td className="px-2 py-1.5 text-xs text-gray-600">
-                        {boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || "—"}
+                      <td className="px-2 py-1.5">
+                        {isEditing ? (
+                          <select
+                            value={editLotForm.grade || ""}
+                            onChange={(e) => setEditLotForm({ ...editLotForm, grade: e.target.value || undefined })}
+                            className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                          >
+                            <option value="">—</option>
+                            {availableGrades.map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        ) : (lot.grade || "—")}
                       </td>
-                      <td className="px-2 py-1.5 text-right">{lot.carton_count}</td>
+                      <td className="px-2 py-1.5">
+                        {isEditing ? (
+                          <select
+                            value={editLotForm.size || ""}
+                            onChange={(e) => setEditLotForm({ ...editLotForm, size: e.target.value || undefined })}
+                            className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                          >
+                            <option value="">—</option>
+                            {availableSizes.map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        ) : (lot.size || "—")}
+                      </td>
+                      <td className="px-2 py-1.5 text-xs text-gray-600">
+                        {isEditing ? (
+                          isEditingBins ? (
+                            <select
+                              value={editBinTypeId}
+                              onChange={(e) => setEditBinTypeId(e.target.value)}
+                              className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                            >
+                              <option value="">{t("lots.selectBin")}</option>
+                              {binTypes.map((bt) => (
+                                <option key={bt.id} value={bt.id}>
+                                  {bt.name} ({(bt.default_weight_kg - bt.tare_weight_kg).toFixed(0)} kg net)
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={editLotForm.box_size_id || ""}
+                              onChange={(e) => setEditLotForm({ ...editLotForm, box_size_id: e.target.value || undefined })}
+                              className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                            >
+                              <option value="">—</option>
+                              {boxSizes.map((bs) => (
+                                <option key={bs.id} value={bs.id}>
+                                  {bs.name} ({bs.weight_kg} kg)
+                                </option>
+                              ))}
+                            </select>
+                          )
+                        ) : (boxSizes.find((bs) => bs.id === lot.box_size_id)?.name || (isBinGrade ? t("lots.bins") : "—"))}
+                      </td>
                       <td className="px-2 py-1.5 text-right">
-                        {lot.weight_kg != null ? `${lot.weight_kg.toLocaleString()} kg` : "—"}
+                        {isEditing ? (
+                          isEditingBins ? (
+                            <input
+                              type="number"
+                              min={0}
+                              value={editBinCount || ""}
+                              onChange={(e) => setEditBinCount(e.target.value ? Number(e.target.value) : 0)}
+                              className="w-20 border rounded px-1.5 py-1 text-sm text-right bg-white"
+                              placeholder={t("lots.bins")}
+                            />
+                          ) : (
+                            <input
+                              type="number"
+                              min={0}
+                              value={editLotForm.carton_count ?? ""}
+                              onChange={(e) => setEditLotForm({ ...editLotForm, carton_count: e.target.value ? Number(e.target.value) : undefined })}
+                              className="w-20 border rounded px-1.5 py-1 text-sm text-right bg-white"
+                            />
+                          )
+                        ) : lot.carton_count}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {isEditing ? (
+                          editWeight != null ? (
+                            <span className="text-xs text-gray-500">
+                              {editWeight.toLocaleString()} kg
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              step="0.1"
+                              min={0}
+                              value={editLotForm.weight_kg ?? ""}
+                              onChange={(e) => setEditLotForm({ ...editLotForm, weight_kg: e.target.value ? Number(e.target.value) : undefined })}
+                              className="w-24 border rounded px-1.5 py-1 text-sm text-right bg-white"
+                              placeholder="kg"
+                            />
+                          )
+                        ) : (lot.weight_kg != null ? `${lot.weight_kg.toLocaleString()} kg` : "—")}
                       </td>
                       <td className="px-2 py-1.5 text-right">
                         {unallocated > 0 ? (
@@ -386,10 +499,11 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                         <StatusBadge status={lot.status} />
                       </td>
                       <td className="px-2 py-1.5 text-right">
-                        {!isEditing && (
+                        {!isEditing && batch.status !== "complete" && batch.status !== "completed" ? (
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => {
+                                const isBinLot = /^2$|class\s*2|industrial/i.test(lot.grade || "") && !lot.box_size_id;
                                 setEditingLotId(lot.id);
                                 setEditLotForm({
                                   grade: lot.grade || undefined,
@@ -401,6 +515,15 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                                   waste_reason: lot.waste_reason || undefined,
                                   notes: lot.notes || undefined,
                                 });
+                                // Init bin state for class 2 lots
+                                if (isBinLot) {
+                                  const batchBin = binTypes.find((bt) => bt.name === batch?.bin_type);
+                                  setEditBinTypeId(batchBin?.id || "");
+                                  setEditBinCount(0);
+                                } else {
+                                  setEditBinTypeId("");
+                                  setEditBinCount(0);
+                                }
                               }}
                               className="text-xs text-green-600 hover:text-green-700 font-medium"
                             >
@@ -428,143 +551,107 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               </button>
                             )}
                           </div>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                     {isEditing && (
                       <tr>
-                        <td colSpan={9} className="px-2 py-3 bg-gray-50 border-t-0">
-                          <div className="grid grid-cols-4 gap-3">
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">{t("common:table.grade")}</label>
-                              <select
-                                value={editLotForm.grade || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, grade: e.target.value || undefined })}
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              >
-                                <option value="">{t("lots.selectGrade")}</option>
-                                {availableGrades.map((g) => (
-                                  <option key={g} value={g}>{g}</option>
-                                ))}
-                              </select>
+                        <td colSpan={9} className="px-2 py-2 bg-green-50 border-t-0 border-l-2 border-l-green-400">
+                          <div className="flex items-end gap-3">
+                            <div className="flex-1 grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">{t("waste.wasteWeight")}</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min={0}
+                                  value={editLotForm.waste_kg ?? ""}
+                                  onChange={(e) => setEditLotForm({ ...editLotForm, waste_kg: e.target.value ? Number(e.target.value) : 0 })}
+                                  className="w-full border rounded px-2 py-1.5 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">{t("waste.reason")}</label>
+                                <input
+                                  value={editLotForm.waste_reason || ""}
+                                  onChange={(e) => setEditLotForm({ ...editLotForm, waste_reason: e.target.value || undefined })}
+                                  placeholder="e.g. Sorting rejects"
+                                  className="w-full border rounded px-2 py-1.5 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">{t("common:table.notes")}</label>
+                                <input
+                                  value={editLotForm.notes || ""}
+                                  onChange={(e) => setEditLotForm({ ...editLotForm, notes: e.target.value || undefined })}
+                                  className="w-full border rounded px-2 py-1.5 text-sm"
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">{t("common:table.size")}</label>
-                              <select
-                                value={editLotForm.size || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, size: e.target.value || undefined })}
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              >
-                                <option value="">{t("lots.selectGrade")}</option>
-                                {availableSizes.map((s) => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">{t("palletize.boxType")}</label>
-                              <select
-                                value={editLotForm.box_size_id || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, box_size_id: e.target.value || undefined })}
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              >
-                                <option value="">{t("lots.selectGrade")}</option>
-                                {boxSizes.map((bs) => (
-                                  <option key={bs.id} value={bs.id}>
-                                    {bs.name} ({bs.weight_kg} kg)
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">{t("lots.cartons")}</label>
-                              <input
-                                type="number"
-                                min={0}
-                                value={editLotForm.carton_count || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, carton_count: Number(e.target.value) })}
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-4 gap-3 mt-3">
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">{t("waste.wasteWeight")}</label>
-                              <input
-                                type="number"
-                                step="0.1"
-                                min={0}
-                                value={editLotForm.waste_kg || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, waste_kg: Number(e.target.value) })}
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">{t("waste.reason")}</label>
-                              <input
-                                value={editLotForm.waste_reason || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, waste_reason: e.target.value || undefined })}
-                                placeholder="e.g. Sorting rejects"
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-xs text-gray-500 mb-1">{t("common:table.notes")}</label>
-                              <input
-                                value={editLotForm.notes || ""}
-                                onChange={(e) => setEditLotForm({ ...editLotForm, notes: e.target.value || undefined })}
-                                className="w-full border rounded px-2 py-1.5 text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              disabled={lotUpdateSaving}
-                              onClick={async () => {
-                                setLotUpdateSaving(true);
-                                try {
-                                  await updateLot(lot.id, editLotForm);
-                                  await onRefresh();
-                                  setEditingLotId(null);
-                                  globalToast("success", t("lots.lotUpdated"));
-                                } catch {
-                                  globalToast("error", t("lots.lotUpdateFailed"));
-                                } finally {
-                                  setLotUpdateSaving(false);
-                                }
-                              }}
-                              className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-                            >
-                              {lotUpdateSaving ? t("common:actions.saving") : t("common:actions.save")}
-                            </button>
-                            <button
-                              onClick={() => setEditingLotId(null)}
-                              className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
-                            >
-                              {t("common:actions.cancel")}
-                            </button>
-                            {/^2$|class\s*2|industrial/i.test(lot.grade || "") && lot.status !== "returned" && (
+                            <div className="flex gap-2 shrink-0">
                               <button
                                 disabled={lotUpdateSaving}
                                 onClick={async () => {
-                                  if (!confirm(`Return lot ${lot.lot_code} to grower?`)) return;
                                   setLotUpdateSaving(true);
                                   try {
-                                    await updateLot(lot.id, { status: "returned", notes: "Returned to grower" });
+                                    const payload = { ...editLotForm };
+                                    // Calculate weight: bins × net-per-bin OR cartons × box weight
+                                    const binLot = /^2$|class\s*2|industrial/i.test(payload.grade || "") && !payload.box_size_id;
+                                    if (binLot && editBinTypeId && editBinCount > 0) {
+                                      const bt = binTypes.find((b) => b.id === editBinTypeId);
+                                      if (bt) {
+                                        payload.weight_kg = editBinCount * (bt.default_weight_kg - bt.tare_weight_kg);
+                                      }
+                                    } else {
+                                      const bs = boxSizes.find((b) => b.id === payload.box_size_id);
+                                      if (bs && payload.carton_count != null) {
+                                        payload.weight_kg = payload.carton_count * bs.weight_kg;
+                                      }
+                                    }
+                                    await updateLot(lot.id, payload);
+                                    // Backend auto-recalculates batch waste — just refresh UI
                                     await onRefresh();
                                     setEditingLotId(null);
-                                    globalToast("success", `${lot.lot_code} ${t("lots.lotReturned")}`);
+                                    globalToast("success", t("lots.lotUpdated"));
                                   } catch {
-                                    globalToast("error", t("lots.lotReturnFailed"));
+                                    globalToast("error", t("lots.lotUpdateFailed"));
                                   } finally {
                                     setLotUpdateSaving(false);
                                   }
                                 }}
-                                className="ml-auto bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                                className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                               >
-                                {t("lots.returnToGrower")}
+                                {lotUpdateSaving ? t("common:actions.saving") : t("common:actions.save")}
                               </button>
-                            )}
+                              <button
+                                onClick={() => setEditingLotId(null)}
+                                className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                              >
+                                {t("common:actions.cancel")}
+                              </button>
+                              {/^2$|class\s*2|industrial/i.test(lot.grade || "") && lot.status !== "returned" && (
+                                <button
+                                  disabled={lotUpdateSaving}
+                                  onClick={async () => {
+                                    if (!confirm(`Return lot ${lot.lot_code} to grower?`)) return;
+                                    setLotUpdateSaving(true);
+                                    try {
+                                      await updateLot(lot.id, { status: "returned", notes: "Returned to grower" });
+                                      await onRefresh();
+                                      setEditingLotId(null);
+                                      globalToast("success", `${lot.lot_code} ${t("lots.lotReturned")}`);
+                                    } catch {
+                                      globalToast("error", t("lots.lotReturnFailed"));
+                                    } finally {
+                                      setLotUpdateSaving(false);
+                                    }
+                                  }}
+                                  className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                  {t("lots.returnToGrower")}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -573,6 +660,19 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                 );
               })}
             </tbody>
+            <tfoot className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-sm">
+              <tr>
+                <td className="px-2 py-2" colSpan={4}>{t("lots.totals")}</td>
+                <td className="px-2 py-2 text-right">{lots.reduce((s, l) => s + l.carton_count, 0).toLocaleString()}</td>
+                <td className="px-2 py-2 text-right">
+                  {lots.reduce((s, l) => s + (l.weight_kg ?? 0), 0).toLocaleString()} kg
+                </td>
+                <td className="px-2 py-2 text-right">
+                  {lots.reduce((s, l) => s + l.carton_count - (l.palletized_boxes ?? 0), 0).toLocaleString()}
+                </td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
           </table>
 
           {/* Pagination controls */}

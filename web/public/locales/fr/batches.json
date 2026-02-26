@@ -17,6 +17,9 @@
       "variety": "Variete",
       "bins": "Bacs",
       "netKg": "Net (kg)",
+      "teamLeader": "Chef d'équipe",
+      "payTo": "Payer a",
+      "team": "Equipe",
       "status": "Statut",
       "date": "Date"
     }
@@ -39,6 +42,9 @@
     "pending": "En attente",
     "growerPackhouse": "Producteur et station",
     "packhouse": "Station de conditionnement",
+    "paymentTo": "Paiement a",
+    "payToGrower": "Producteur",
+    "payToHarvestTeam": "Equipe de recolte",
     "harvestDate": "Date de recolte",
     "intakeDate": "Date de reception",
     "fruitDetails": "Details du fruit",
@@ -50,7 +56,11 @@
     "rejectionReason": "Motif du rejet",
     "delivery": "Livraison et vehicule",
     "vehicleReg": "Immatriculation",
-    "driverName": "Chauffeur"
+    "driverName": "Chauffeur",
+    "editBatch": "Modifier les infos du lot",
+    "editTitle": "Modifier les infos du lot",
+    "updated": "Lot mis a jour.",
+    "updateFailed": "Echec de la mise a jour du lot."
   },
   "lots": {
     "title": "Sous-lots de conditionnement",
@@ -79,6 +89,8 @@
     "showingLots": "Affichage {{start}}–{{end}} sur {{total}} sous-lots",
     "noLots": "Aucun sous-lot. Cliquez sur \"Creer des sous-lots\" pour diviser ce lot.",
     "gradeRequired": "Chaque ligne doit avoir un calibre selectionne avant l'enregistrement.",
+    "sizeRequired": "Chaque ligne doit avoir une taille selectionnee avant l'enregistrement.",
+    "boxTypeRequired": "Chaque ligne de cartons doit avoir un type de boite selectionne avant l'enregistrement.",
     "atLeastOneLot": "Au moins un sous-lot avec un calibre est requis.",
     "lotsCreated_one": "{{count}} sous-lot cree.",
     "lotsCreated_other": "{{count}} sous-lots crees.",
@@ -86,7 +98,8 @@
     "lotUpdateFailed": "Echec de la mise a jour du sous-lot.",
     "lotReturned": "marque comme retourne au producteur.",
     "lotReturnFailed": "Echec de la mise a jour du statut du sous-lot.",
-    "lotCreateFailed": "Echec de la creation des sous-lots."
+    "lotCreateFailed": "Echec de la creation des sous-lots.",
+    "totals": "Totaux"
   },
   "massBalance": {
     "title": "Bilan de masse",
@@ -161,12 +174,20 @@
     "closing": "Cloture...",
     "closedSuccess": "Production cloturee.",
     "closeFailed": "Echec de la cloture de la production.",
+    "closedLabel": "Cloture",
+    "closedHelp": "La production est cloturee. Rouvrir pour modifier.",
+    "reopenButton": "Rouvrir",
+    "reopening": "Reouverture...",
+    "reopenedSuccess": "Production rouverte.",
+    "reopenFailed": "Echec de la reouverture.",
     "finalizeTitle": "Finaliser le GRN",
     "finalizeHelp": "La production est cloturee. Finalisez le GRN pour le marquer comme termine.",
     "unaccountedWeight": "Poids non comptabilise : {{weight}} kg — il sera automatiquement ajuste comme perte du lot lors de la finalisation.",
     "finalizeButton": "Finaliser le GRN",
     "finalizing": "Finalisation...",
     "finalizedSuccess": "GRN finalise — statut mis a jour vers termine.",
-    "finalizeFailed": "Echec de la finalisation du GRN."
+    "finalizeFailed": "Echec de la finalisation du GRN.",
+    "finalizedLabel": "Finalise",
+    "finalizedHelp": "Ce GRN a ete finalise. Aucune modification possible."
   }
 }

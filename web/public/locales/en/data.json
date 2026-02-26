@@ -26,9 +26,20 @@
   "teams": {
     "title": "Harvest Teams",
     "empty": "No harvest teams yet. Upload a CSV to get started.",
+    "clickToEdit": "Click a row to edit team details.",
+    "updated": "Harvest team updated.",
+    "updateFailed": "Failed to update harvest team.",
+    "deleted": "Harvest team deleted.",
+    "deleteFailed": "Failed to delete harvest team.",
+    "confirmDelete": "Delete \"{{name}}\"? This cannot be undone.",
+    "searchPlaceholder": "Search name, leader, notes...",
+    "showing": "{{count}} of {{total}} teams",
+    "noMatch": "No teams match your search.",
     "headers": {
       "teamLeader": "Team Leader",
-      "teamSize": "Team Size"
+      "teamSize": "Team Size",
+      "estVolume": "Est. Volume (kg)",
+      "fruitTypes": "Fruit Types"
     }
   }
 }

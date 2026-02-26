@@ -8,6 +8,7 @@ import functools
 import hashlib
 import json
 import logging
+from datetime import date, datetime
 from typing import Any, Callable, Optional
 
 import redis.asyncio as redis
@@ -88,11 +89,14 @@ def cached(
             else:
                 # Filter kwargs to only include simple types for cache key
                 # Exclude dependency-injected objects (User, AsyncSession, etc.)
-                cache_kwargs = {
-                    k: v for k, v in kwargs.items()
-                    if isinstance(v, (int, str, bool, float, type(None)))
-                    and not k.startswith("_")  # Skip _onboarded, _user, etc.
-                }
+                cache_kwargs = {}
+                for k, v in kwargs.items():
+                    if k.startswith("_"):
+                        continue
+                    if isinstance(v, (int, str, bool, float, type(None))):
+                        cache_kwargs[k] = v
+                    elif isinstance(v, (date, datetime)):
+                        cache_kwargs[k] = v.isoformat()
                 # Skip all args (they're usually injected dependencies)
                 key_hash = cache_key(**cache_kwargs)
                 if tenant:

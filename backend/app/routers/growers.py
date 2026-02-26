@@ -9,7 +9,7 @@ from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.grower import Grower
 from app.schemas.common import PaginatedResponse
-from app.utils.cache import cached
+from app.utils.cache import cached, invalidate_cache
 
 from pydantic import BaseModel
 
@@ -28,6 +28,7 @@ class GrowerOut(BaseModel):
     estimated_volume_tons: float | None
     globalg_ap_certified: bool = False
     globalg_ap_number: str | None
+    fields: list[dict] | None = None
     notes: str | None
 
     model_config = {"from_attributes": True}
@@ -44,6 +45,7 @@ class GrowerUpdate(BaseModel):
     estimated_volume_tons: float | None = None
     globalg_ap_certified: bool | None = None
     globalg_ap_number: str | None = None
+    fields: list[dict] | None = None
     notes: str | None = None
 
 
@@ -119,4 +121,21 @@ async def update_grower(
 
     await db.flush()
     await db.refresh(grower)
+    await invalidate_cache("growers:*")
     return GrowerOut.model_validate(grower)
+
+
+@router.delete("/{grower_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_grower(
+    grower_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("grower.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    result = await db.execute(select(Grower).where(Grower.id == grower_id))
+    grower = result.scalar_one_or_none()
+    if not grower:
+        raise HTTPException(status_code=404, detail="Grower not found")
+    await db.delete(grower)
+    await db.flush()
+    await invalidate_cache("growers:*")

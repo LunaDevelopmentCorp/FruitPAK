@@ -101,6 +101,9 @@
     }
   },
   "step5": {
+    "csvImport": "Importacao em massa via CSV",
+    "csvHint": "Carregue um CSV para adicionar equipas de colheita em massa. Tambem pode adicionar manualmente abaixo.",
+    "orManual": "ou adicionar manualmente",
     "team": "Equipa {{index}}",
     "teamName": "Nome da equipa",
     "teamLeader": "Líder da equipa",
@@ -112,7 +115,7 @@
     "products": "Produtos / Tipos de fruta",
     "product": "Produto {{index}}",
     "fruitType": "Tipo de fruta",
-    "variety": "Variedade",
+    "variety": "Variedades (separadas por virgula)",
     "grades": "Graus (separados por vírgula)",
     "sizes": "Tamanhos (separados por vírgula)",
     "addProduct": "+ Adicionar produto",

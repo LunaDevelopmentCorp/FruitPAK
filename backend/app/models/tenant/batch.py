@@ -38,6 +38,8 @@ class Batch(TenantBase):
     harvest_team_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("harvest_teams.id"), index=True
     )
+    # Who receives fruit payment: "grower" or "harvest_team"
+    payment_routing: Mapped[str] = mapped_column(String(20), default="grower")
     packhouse_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("packhouses.id"), nullable=False
     )
@@ -72,6 +74,10 @@ class Batch(TenantBase):
     # ── Bin / container tracking ─────────────────────────────
     bin_count: Mapped[int | None] = mapped_column(Integer)
     bin_type: Mapped[str | None] = mapped_column(String(50))
+
+    # ── Field / block traceability ────────────────────────────
+    field_code: Mapped[str | None] = mapped_column(String(50))
+    field_name: Mapped[str | None] = mapped_column(String(200))
 
     # ── Vehicle identification ─────────────────────────────
     vehicle_reg: Mapped[str | None] = mapped_column(String(30))

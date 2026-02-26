@@ -18,11 +18,14 @@ from sqlalchemy import func, select, and_, case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant.batch import Batch
+from app.models.tenant.grower import Grower
 from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import Pallet
 from app.models.tenant.container import Container
 from app.models.tenant.export import Export
 from app.models.tenant.grower_payment import GrowerPayment
+from app.models.tenant.harvest_team import HarvestTeam
+from app.models.tenant.harvest_team_payment import HarvestTeamPayment
 from app.models.tenant.client_invoice import ClientInvoice
 from app.models.tenant.labour_cost import LabourCost
 from app.models.tenant.reconciliation_alert import ReconciliationAlert
@@ -136,7 +139,7 @@ async def check_grn_vs_payment(db: AsyncSession, run_id: str) -> list[Reconcilia
     received kg against total payment kg.  Uses GrowerPayment.total_kg
     which should reconcile against sum of Batch net weights."""
 
-    # Total received per grower (from completed batches)
+    # Total received per grower (from grower-routed batches only)
     batch_totals = (
         select(
             Batch.grower_id,
@@ -151,6 +154,7 @@ async def check_grn_vs_payment(db: AsyncSession, run_id: str) -> list[Reconcilia
         .where(
             Batch.is_deleted == False,  # noqa: E712
             Batch.status != "rejected",
+            Batch.payment_routing == "grower",
         )
         .group_by(Batch.grower_id)
         .subquery()
@@ -175,6 +179,7 @@ async def check_grn_vs_payment(db: AsyncSession, run_id: str) -> list[Reconcilia
     stmt = (
         select(
             batch_totals.c.grower_id,
+            Grower.name.label("grower_name"),
             batch_totals.c.received_kg,
             batch_totals.c.batch_count,
             payment_totals.c.paid_kg,
@@ -184,6 +189,10 @@ async def check_grn_vs_payment(db: AsyncSession, run_id: str) -> list[Reconcilia
         .outerjoin(
             payment_totals,
             batch_totals.c.grower_id == payment_totals.c.grower_id,
+        )
+        .outerjoin(
+            Grower,
+            batch_totals.c.grower_id == Grower.id,
         )
     )
 
@@ -203,12 +212,13 @@ async def check_grn_vs_payment(db: AsyncSession, run_id: str) -> list[Reconcilia
         if pct <= WEIGHT_TOLERANCE_PCT:
             continue
 
+        grower_label = row.grower_name or row.grower_id
         alerts.append(ReconciliationAlert(
             alert_type="grn_vs_payment",
             severity=_severity(pct),
-            title=f"Grower {row.grower_id}: payment kg ≠ received kg",
+            title=f"{grower_label}: payment kg ≠ received kg",
             description=(
-                f"Grower received {received:.1f} kg across {row.batch_count} batches "
+                f"{grower_label} received {received:.1f} kg across {row.batch_count} batches "
                 f"but payments cover {paid:.1f} kg across {row.payment_count or 0} payments "
                 f"(variance {variance:+.1f} kg / {pct:.1f}%). "
                 f"Total paid: {row.paid_amount or 0:,.2f}."
@@ -220,6 +230,117 @@ async def check_grn_vs_payment(db: AsyncSession, run_id: str) -> list[Reconcilia
             unit="kg",
             entity_refs={
                 "grower_id": row.grower_id,
+            },
+            run_id=run_id,
+        ))
+
+    return alerts
+
+
+# ─────────────────────────────────────────────────────────────
+# CHECK 2b:  Harvest-team-routed batch volume  ≠  team payment quantity
+# ─────────────────────────────────────────────────────────────
+
+async def check_harvest_team_vs_payment(db: AsyncSession, run_id: str) -> list[ReconciliationAlert]:
+    """For each harvest team with team-routed batches and payments, compare
+    total received kg against total payment kg."""
+
+    # Total received per harvest team (from harvest-team-routed batches)
+    batch_totals = (
+        select(
+            Batch.harvest_team_id,
+            func.coalesce(func.sum(
+                case(
+                    (Batch.net_weight_kg != None, Batch.net_weight_kg),  # noqa: E711
+                    else_=Batch.gross_weight_kg,
+                )
+            ), 0).label("received_kg"),
+            func.count(Batch.id).label("batch_count"),
+        )
+        .where(
+            Batch.is_deleted == False,  # noqa: E712
+            Batch.status != "rejected",
+            Batch.payment_routing == "harvest_team",
+            Batch.harvest_team_id != None,  # noqa: E711
+        )
+        .group_by(Batch.harvest_team_id)
+        .subquery()
+    )
+
+    # Total paid per harvest team
+    payment_totals = (
+        select(
+            HarvestTeamPayment.harvest_team_id,
+            func.coalesce(func.sum(HarvestTeamPayment.total_kg), 0).label("paid_kg"),
+            func.coalesce(func.sum(HarvestTeamPayment.net_amount), 0).label("paid_amount"),
+            func.count(HarvestTeamPayment.id).label("payment_count"),
+        )
+        .where(
+            HarvestTeamPayment.is_deleted == False,  # noqa: E712
+            HarvestTeamPayment.status != "cancelled",
+        )
+        .group_by(HarvestTeamPayment.harvest_team_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            batch_totals.c.harvest_team_id,
+            HarvestTeam.name.label("team_name"),
+            HarvestTeam.team_leader.label("team_leader"),
+            batch_totals.c.received_kg,
+            batch_totals.c.batch_count,
+            payment_totals.c.paid_kg,
+            payment_totals.c.paid_amount,
+            payment_totals.c.payment_count,
+        )
+        .outerjoin(
+            payment_totals,
+            batch_totals.c.harvest_team_id == payment_totals.c.harvest_team_id,
+        )
+        .outerjoin(
+            HarvestTeam,
+            batch_totals.c.harvest_team_id == HarvestTeam.id,
+        )
+    )
+
+    result = await db.execute(stmt)
+    alerts = []
+
+    for row in result.all():
+        received = float(row.received_kg or 0)
+        paid = float(row.paid_kg or 0)
+
+        if not received and not paid:
+            continue
+
+        variance = paid - received
+        pct = _safe_pct(received, paid)
+
+        if pct <= WEIGHT_TOLERANCE_PCT:
+            continue
+
+        team_label = row.team_name or row.harvest_team_id
+        if row.team_leader:
+            team_label = f"{team_label} ({row.team_leader})"
+
+        alerts.append(ReconciliationAlert(
+            alert_type="team_vs_payment",
+            severity=_severity(pct),
+            title=f"{team_label}: payment kg ≠ received kg",
+            description=(
+                f"Team {team_label} received {received:.1f} kg across {row.batch_count} batches "
+                f"but payments cover {paid:.1f} kg across {row.payment_count or 0} payments "
+                f"(variance {variance:+.1f} kg / {pct:.1f}%). "
+                f"Total paid: {row.paid_amount or 0:,.2f}."
+            ),
+            expected_value=received,
+            actual_value=paid,
+            variance=variance,
+            variance_pct=pct,
+            unit="kg",
+            entity_refs={
+                "harvest_team_id": row.harvest_team_id,
             },
             run_id=run_id,
         ))
@@ -562,7 +683,7 @@ async def check_unpaid_batches(db: AsyncSession, run_id: str) -> list[Reconcilia
     we use a simpler approach: check growers with batches but zero payments.
     """
 
-    # Growers with completed batches
+    # Growers with completed grower-routed batches
     batch_growers = (
         select(
             Batch.grower_id,
@@ -577,6 +698,7 @@ async def check_unpaid_batches(db: AsyncSession, run_id: str) -> list[Reconcilia
         .where(
             Batch.is_deleted == False,  # noqa: E712
             Batch.status == "complete",
+            Batch.payment_routing == "grower",
         )
         .group_by(Batch.grower_id)
         .subquery()
@@ -665,6 +787,7 @@ async def run_full_reconciliation(db: AsyncSession) -> dict:
     checks = [
         check_batch_vs_lots,
         check_grn_vs_payment,
+        check_harvest_team_vs_payment,
         check_export_vs_invoice,
         check_container_vs_pallets,
         check_labour_consistency,

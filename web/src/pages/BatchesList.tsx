@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { listBatches, listGrowers, Grower } from "../api/batches";
+import { listBatches, listGrowers, Grower, BatchSummary } from "../api/batches";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
@@ -198,6 +198,7 @@ export default function BatchesList() {
                   <th className="text-right px-4 py-2 font-medium">
                     {t("list.headers.netKg")}
                   </th>
+                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.payTo")}</th>
                   <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
                   <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
                 </tr>
@@ -218,6 +219,11 @@ export default function BatchesList() {
                     <td className="px-4 py-2 text-right">{b.bin_count ?? "\u2014"}</td>
                     <td className="px-4 py-2 text-right">
                       {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {b.payment_routing === "harvest_team"
+                        ? <span className="text-purple-700">{b.harvest_team_leader || b.harvest_team_name || t("list.headers.team")}</span>
+                        : <span className="text-gray-600">{b.grower_name || t("list.headers.grower")}</span>}
                     </td>
                     <td className="px-4 py-2">
                       <StatusBadge status={b.status} />

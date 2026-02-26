@@ -23,6 +23,7 @@ from app.models.tenant.grower import Grower
 from app.models.tenant.harvest_team import HarvestTeam
 from app.models.tenant.supplier import Supplier
 from app.utils.activity import log_activity
+from app.utils.cache import invalidate_cache
 from app.utils.csv_import import (
     FieldDef,
     coerce_bool,
@@ -30,6 +31,7 @@ from app.utils.csv_import import (
     coerce_int,
     coerce_json_list,
     generate_template_csv,
+    generate_template_csv_multi,
     parse_csv,
 )
 
@@ -66,9 +68,13 @@ GROWER_FIELDS = [
     FieldDef(column="globalg_ap_certified", db_field="globalg_ap_certified", coerce=coerce_bool),
     FieldDef(column="globalg_ap_number", db_field="globalg_ap_number"),
     FieldDef(column="notes", db_field="notes"),
+    FieldDef(column="field_name", db_field="field_name"),
+    FieldDef(column="field_code", db_field="field_code"),
+    FieldDef(column="field_hectares", db_field="field_hectares", coerce=coerce_float),
+    FieldDef(column="field_fruit_type", db_field="field_fruit_type"),
 ]
 
-GROWER_SAMPLE = {
+GROWER_SAMPLE_ROW1 = {
     "name": "Example Farm",
     "grower_code": "GRW-001",
     "contact_person": "John Smith",
@@ -80,6 +86,18 @@ GROWER_SAMPLE = {
     "globalg_ap_certified": "yes",
     "globalg_ap_number": "GGN-123456",
     "notes": "Citrus specialist",
+    "field_name": "Block A",
+    "field_code": "F001",
+    "field_hectares": "50.5",
+    "field_fruit_type": "citrus",
+}
+
+GROWER_SAMPLE_ROW2 = {
+    "name": "Example Farm",
+    "field_name": "Block B",
+    "field_code": "F002",
+    "field_hectares": "100",
+    "field_fruit_type": "grapes",
 }
 
 HARVEST_TEAM_FIELDS = [
@@ -180,6 +198,115 @@ async def _upsert_by_name(
     return created, updated
 
 
+# ── Grower-specific import (no-overwrite, merge fields) ─────
+
+
+# Grower-level columns (everything except field_* columns)
+_GROWER_LEVEL_KEYS = {
+    "name", "grower_code", "contact_person", "phone", "email",
+    "region", "total_hectares", "estimated_volume_tons",
+    "globalg_ap_certified", "globalg_ap_number", "notes",
+}
+
+
+async def _upsert_growers(
+    db: AsyncSession,
+    rows: list[dict],
+) -> tuple[int, int]:
+    """Import growers with field merging and no-overwrite on existing growers.
+
+    - Groups CSV rows by (name, globalg_ap_number) to identify the same grower.
+    - Collects field entries from all rows in a group.
+    - Existing growers: only merges new fields (no overwrite of grower data).
+    - New growers: creates with all data + fields.
+    """
+    from collections import defaultdict
+
+    # Group rows by grower identity: (name_lower, globalg_ap_number or "")
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for row in rows:
+        name = (row.get("name") or "").strip()
+        if not name:
+            continue
+        ggn = (row.get("globalg_ap_number") or "").strip()
+        groups[(name.lower(), ggn.lower())].append(row)
+
+    # Load existing growers
+    result = await db.execute(select(Grower))
+    existing: dict[tuple[str, str], Grower] = {}
+    for g in result.scalars().all():
+        key = ((g.name or "").lower(), (g.globalg_ap_number or "").lower())
+        existing[key] = g
+
+    created = 0
+    updated = 0
+
+    for (name_lower, ggn_lower), group_rows in groups.items():
+        # Extract field entries from all rows in this group
+        new_fields = []
+        for row in group_rows:
+            field_name = row.get("field_name")
+            field_code = row.get("field_code")
+            # Accept a field if either name or code is provided
+            if field_name or field_code:
+                new_fields.append({
+                    "name": field_name or field_code,  # use code as name if name is empty
+                    "code": field_code or None,
+                    "hectares": row.get("field_hectares"),
+                    "fruit_type": row.get("field_fruit_type") or None,
+                })
+
+        if (name_lower, ggn_lower) in existing:
+            # Existing grower — DO NOT overwrite grower data, only merge fields
+            grower = existing[(name_lower, ggn_lower)]
+            if not new_fields:
+                continue
+            current_fields = list(grower.fields or [])  # copy for mutation detection
+
+            # Build set of existing field identifiers for dedup
+            existing_ids = set()
+            for f in current_fields:
+                if f.get("code"):
+                    existing_ids.add(("code", f["code"]))
+                elif f.get("name"):
+                    existing_ids.add(("name", f["name"]))
+
+            # Append only truly new fields
+            added = False
+            for nf in new_fields:
+                if nf.get("code") and ("code", nf["code"]) in existing_ids:
+                    continue
+                if ("name", nf["name"]) in existing_ids:
+                    continue
+                current_fields.append(nf)
+                existing_ids.add(
+                    ("code", nf["code"]) if nf.get("code") else ("name", nf["name"])
+                )
+                added = True
+
+            if added:
+                # Assign new list so SQLAlchemy detects the JSON change
+                grower.fields = current_fields
+                updated += 1
+        else:
+            # New grower — take grower-level data from first row
+            first = group_rows[0]
+            grower_data: dict = {"id": first.get("id")}
+            for key in _GROWER_LEVEL_KEYS:
+                val = first.get(key)
+                if val is not None:
+                    grower_data[key] = val
+            grower_data["fields"] = new_fields if new_fields else []
+
+            grower = Grower(**grower_data)
+            db.add(grower)
+            existing[(name_lower, ggn_lower)] = grower
+            created += 1
+
+    await db.flush()
+    return created, updated
+
+
 # ══════════════════════════════════════════════════════════════
 # GROWERS
 # ══════════════════════════════════════════════════════════════
@@ -190,7 +317,9 @@ async def grower_template(
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
 ):
-    csv_text = generate_template_csv(GROWER_FIELDS, GROWER_SAMPLE)
+    csv_text = generate_template_csv_multi(
+        GROWER_FIELDS, [GROWER_SAMPLE_ROW1, GROWER_SAMPLE_ROW2]
+    )
     return _csv_response(csv_text, "growers_template.csv")
 
 
@@ -202,7 +331,7 @@ async def upload_growers(
     _onboarded: User = Depends(require_onboarded),
 ):
     parsed = await parse_csv(file, GROWER_FIELDS)
-    created, updated = await _upsert_by_name(db, Grower, parsed.rows)
+    created, updated = await _upsert_growers(db, parsed.rows)
 
     await log_activity(
         db, user,
@@ -210,6 +339,7 @@ async def upload_growers(
         entity_type="grower",
         summary=f"CSV import: {created} created, {updated} updated, {len(parsed.errors)} failed",
     )
+    await invalidate_cache("growers:*")
 
     return BulkImportResult(
         total_rows=parsed.total_rows,

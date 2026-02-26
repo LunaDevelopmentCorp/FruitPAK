@@ -26,9 +26,20 @@
   "teams": {
     "title": "Equipes de recolte",
     "empty": "Aucune equipe de recolte pour le moment. Importez un CSV pour commencer.",
+    "clickToEdit": "Cliquez sur une ligne pour modifier les details de l'equipe.",
+    "updated": "Equipe de recolte mise a jour.",
+    "updateFailed": "Echec de la mise a jour de l'equipe.",
+    "deleted": "Equipe de recolte supprimee.",
+    "deleteFailed": "Echec de la suppression de l'equipe.",
+    "confirmDelete": "Supprimer \"{{name}}\" ? Cette action est irreversible.",
+    "searchPlaceholder": "Rechercher nom, chef, notes...",
+    "showing": "{{count}} sur {{total}} equipes",
+    "noMatch": "Aucune equipe ne correspond a votre recherche.",
     "headers": {
       "teamLeader": "Chef d'equipe",
-      "teamSize": "Taille de l'equipe"
+      "teamSize": "Taille de l'equipe",
+      "estVolume": "Vol. est. (kg)",
+      "fruitTypes": "Types de fruits"
     }
   }
 }

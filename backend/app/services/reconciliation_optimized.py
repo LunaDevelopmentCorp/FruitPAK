@@ -15,6 +15,7 @@ from sqlalchemy import func, select, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant.batch import Batch
+from app.models.tenant.grower import Grower
 from app.models.tenant.lot import Lot
 from app.models.tenant.grower_payment import GrowerPayment
 from app.models.tenant.labour_cost import LabourCost
@@ -39,7 +40,7 @@ async def run_optimized_grn_vs_payment_check(
     Performance: O(n) instead of O(n+m) with reduced memory usage
     """
 
-    # CTE: Aggregate batches by grower
+    # CTE: Aggregate grower-routed batches by grower
     batch_agg = (
         select(
             Batch.grower_id,
@@ -57,6 +58,7 @@ async def run_optimized_grn_vs_payment_check(
         .where(
             Batch.is_deleted == False,
             Batch.status != "rejected",
+            Batch.payment_routing == "grower",
         )
         .group_by(Batch.grower_id)
         .cte("batch_totals")
@@ -82,6 +84,7 @@ async def run_optimized_grn_vs_payment_check(
     stmt = (
         select(
             batch_agg.c.grower_id,
+            Grower.name.label("grower_name"),
             batch_agg.c.received_kg,
             batch_agg.c.batch_count,
             payment_agg.c.paid_kg,
@@ -90,6 +93,7 @@ async def run_optimized_grn_vs_payment_check(
         )
         .select_from(batch_agg)
         .outerjoin(payment_agg, batch_agg.c.grower_id == payment_agg.c.grower_id)
+        .outerjoin(Grower, batch_agg.c.grower_id == Grower.id)
         # Filter in database instead of Python
         .where(
             func.abs(
@@ -117,13 +121,14 @@ async def run_optimized_grn_vs_payment_check(
             else "low"
         )
 
+        grower_label = row.grower_name or row.grower_id
         alerts.append(
             ReconciliationAlert(
                 alert_type="grn_vs_payment",
                 severity=severity,
-                title=f"Grower payment mismatch: {pct:.1f}%",
+                title=f"{grower_label}: payment kg ≠ received kg",
                 description=(
-                    f"Grower received {received:.1f} kg but payments cover {paid:.1f} kg "
+                    f"{grower_label} received {received:.1f} kg but payments cover {paid:.1f} kg "
                     f"(variance {variance:+.1f} kg / {pct:.1f}%)"
                 ),
                 expected_value=received,

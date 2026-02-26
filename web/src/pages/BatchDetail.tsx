@@ -140,7 +140,7 @@ export default function BatchDetail() {
       )}
 
       <div className="space-y-6">
-        <BatchInfo batch={batch} />
+        <BatchInfo batch={batch} onRefresh={handleRefresh} />
 
         <LotsSection
           batch={batch}

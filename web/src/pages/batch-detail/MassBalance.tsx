@@ -5,7 +5,6 @@ import { BatchDetail as BatchDetailType } from "../../api/batches";
 export default React.memo(function MassBalance({ batch }: { batch: BatchDetailType }) {
   const { t } = useTranslation("batches");
   const lots = batch.lots || [];
-  if (lots.length === 0) return null;
 
   const { incomingNet, totalLotWeight, waste, diff, balanced } = useMemo(() => {
     const incomingNet = batch.net_weight_kg ?? 0;
@@ -17,6 +16,8 @@ export default React.memo(function MassBalance({ batch }: { batch: BatchDetailTy
     const balanced = Math.abs(diff) < 0.5;
     return { incomingNet, totalLotWeight, waste, diff, balanced };
   }, [batch.net_weight_kg, batch.waste_kg, lots]);
+
+  if (lots.length === 0) return null;
 
   return (
     <div className={`rounded-lg border p-4 ${balanced ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}`}>

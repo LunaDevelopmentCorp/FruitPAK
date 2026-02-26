@@ -17,6 +17,9 @@
       "variety": "Variedade",
       "bins": "Contentores",
       "netKg": "Líquido (kg)",
+      "teamLeader": "Líder de equipa",
+      "payTo": "Pagar a",
+      "team": "Equipa",
       "status": "Estado",
       "date": "Data"
     }
@@ -39,6 +42,9 @@
     "pending": "Pendente",
     "growerPackhouse": "Produtor e Packhouse",
     "packhouse": "Packhouse",
+    "paymentTo": "Pagamento a",
+    "payToGrower": "Produtor",
+    "payToHarvestTeam": "Equipa de Colheita",
     "harvestDate": "Data de Colheita",
     "intakeDate": "Data de Receção",
     "fruitDetails": "Detalhes da Fruta",
@@ -50,7 +56,11 @@
     "rejectionReason": "Motivo da Rejeição",
     "delivery": "Entrega e Veículo",
     "vehicleReg": "Matrícula",
-    "driverName": "Motorista"
+    "driverName": "Motorista",
+    "editBatch": "Editar Info do Lote",
+    "editTitle": "Editar Info do Lote",
+    "updated": "Lote atualizado.",
+    "updateFailed": "Falha ao atualizar o lote."
   },
   "lots": {
     "title": "Sublotes de Embalagem",
@@ -79,6 +89,8 @@
     "showingLots": "Mostrando {{start}}–{{end}} de {{total}} sublotes",
     "noLots": "Nenhum sublote ainda. Clique em \"Criar Sublotes\" para dividir este lote.",
     "gradeRequired": "Cada linha precisa de um grau selecionado antes de salvar.",
+    "sizeRequired": "Cada linha precisa de um tamanho selecionado antes de salvar.",
+    "boxTypeRequired": "Cada linha de caixas precisa de um tipo de caixa selecionado antes de salvar.",
     "atLeastOneLot": "Pelo menos um sublote com um grau é necessário.",
     "lotsCreated_one": "{{count}} sublote criado.",
     "lotsCreated_other": "{{count}} sublotes criados.",
@@ -86,7 +98,8 @@
     "lotUpdateFailed": "Falha ao atualizar sublote.",
     "lotReturned": "marcado como devolvido ao produtor.",
     "lotReturnFailed": "Falha ao atualizar estado do sublote.",
-    "lotCreateFailed": "Falha ao criar sublotes."
+    "lotCreateFailed": "Falha ao criar sublotes.",
+    "totals": "Totais"
   },
   "massBalance": {
     "title": "Balanço de Massa",
@@ -161,12 +174,20 @@
     "closing": "Fechando...",
     "closedSuccess": "Corrida de produção fechada.",
     "closeFailed": "Falha ao fechar corrida.",
+    "closedLabel": "Fechado",
+    "closedHelp": "A corrida de produção está fechada. Reabrir para editar.",
+    "reopenButton": "Reabrir",
+    "reopening": "Reabrindo...",
+    "reopenedSuccess": "Corrida de produção reaberta.",
+    "reopenFailed": "Falha ao reabrir corrida.",
     "finalizeTitle": "Finalizar GRN",
     "finalizeHelp": "A corrida de produção está fechada. Finalize o GRN para marcá-lo como concluído.",
     "unaccountedWeight": "Peso não contabilizado: {{weight}} kg — será ajustado automaticamente como desperdício do lote na finalização.",
     "finalizeButton": "Finalizar GRN",
     "finalizing": "Finalizando...",
     "finalizedSuccess": "GRN finalizado — estado definido como concluído.",
-    "finalizeFailed": "Falha ao finalizar GRN."
+    "finalizeFailed": "Falha ao finalizar GRN.",
+    "finalizedLabel": "Finalizado",
+    "finalizedHelp": "Este GRN foi finalizado. Nenhuma alteração pode ser feita."
   }
 }

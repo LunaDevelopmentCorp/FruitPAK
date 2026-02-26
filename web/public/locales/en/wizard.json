@@ -101,6 +101,9 @@
     }
   },
   "step5": {
+    "csvImport": "Bulk Import from CSV",
+    "csvHint": "Upload a CSV to add harvest teams in bulk. You can also add teams manually below.",
+    "orManual": "or add manually",
     "team": "Team {{index}}",
     "teamName": "Team name",
     "teamLeader": "Team leader",
@@ -112,7 +115,7 @@
     "products": "Products / Fruit types",
     "product": "Product {{index}}",
     "fruitType": "Fruit type",
-    "variety": "Variety",
+    "variety": "Varieties (comma separated)",
     "grades": "Grades (comma separated)",
     "sizes": "Sizes (comma separated)",
     "addProduct": "+ Add product",

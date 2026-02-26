@@ -107,11 +107,18 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
   const transform = (data: FormData) => ({
     products: data.products
       .filter((p) => p.fruit_type?.trim())
-      .map((p) => ({
-        ...p,
-        grades: Array.isArray(p.grades) ? p.grades : p.grades ? p.grades.split(",").map((s) => s.trim()) : [],
-        sizes: Array.isArray(p.sizes) ? p.sizes : p.sizes ? p.sizes.split(",").map((s) => s.trim()) : [],
-      })),
+      .flatMap((p) => {
+        const grades = Array.isArray(p.grades) ? p.grades : p.grades ? p.grades.split(",").map((s) => s.trim()).filter(Boolean) : [];
+        const sizes = Array.isArray(p.sizes) ? p.sizes : p.sizes ? p.sizes.split(",").map((s) => s.trim()).filter(Boolean) : [];
+        // Split comma-separated varieties into separate product entries
+        const varieties = p.variety ? p.variety.split(",").map((s) => s.trim()).filter(Boolean) : [""];
+        return varieties.map((v) => ({
+          fruit_type: p.fruit_type,
+          variety: v,
+          grades,
+          sizes,
+        }));
+      }),
     pack_specs: data.pack_specs.filter((s) => s.name?.trim()),
     box_sizes: data.box_sizes.filter((b) => b.name?.trim()),
     pallet_types: data.pallet_types
@@ -131,7 +138,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
   const boxSizeNames = (currentBoxSizes || []).map((b) => b.name).filter((n) => n?.trim());
 
   return (
-    <form className="space-y-8 max-w-2xl">
+    <form className="space-y-8 max-w-4xl">
       {/* Products */}
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-gray-700">{t("step6.products")}</h3>
@@ -304,7 +311,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                       <input
                         {...register(`box_sizes.${idx}.name`)}
                         placeholder={t("step6.boxNamePlaceholder")}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
+                        className="min-w-[140px] w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -313,14 +320,14 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         type="number"
                         step="0.1"
                         min={0.1}
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                        className="min-w-[80px] w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
                     <td className="px-3 py-2">
                       <input
                         {...register(`box_sizes.${idx}.dimensions`)}
                         placeholder={t("step6.dimPlaceholder")}
-                        className="w-full border rounded px-2 py-1.5 text-sm"
+                        className="min-w-[120px] w-full border rounded px-2 py-1.5 text-sm"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -330,7 +337,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         step="0.01"
                         min={0}
                         placeholder="0"
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                        className="min-w-[80px] w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -340,7 +347,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         step="0.1"
                         min={0}
                         placeholder="--"
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                        className="min-w-[80px] w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -350,7 +357,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         step="0.1"
                         min={0}
                         placeholder="--"
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                        className="min-w-[80px] w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -360,7 +367,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                         step="0.1"
                         min={0}
                         placeholder="--"
-                        className="w-full border rounded px-2 py-1.5 text-sm text-right"
+                        className="min-w-[80px] w-full border rounded px-2 py-1.5 text-sm text-right"
                       />
                     </td>
                     <td className="px-3 py-2 text-center">

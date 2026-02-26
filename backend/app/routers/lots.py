@@ -157,6 +157,22 @@ async def create_lots_from_batch(
             )
     await db.flush()
 
+    # Auto-recalculate batch waste
+    if batch.net_weight_kg and batch.net_weight_kg > 0:
+        sibling_result = await db.execute(
+            select(
+                func.coalesce(func.sum(Lot.weight_kg), 0),
+                func.coalesce(func.sum(Lot.waste_kg), 0),
+            )
+            .where(Lot.batch_id == batch.id, Lot.is_deleted == False)  # noqa: E712
+        )
+        row = sibling_result.one()
+        total_lot_weight = float(row[0])
+        total_lot_waste = float(row[1])
+        batch.waste_kg = max(0.0, batch.net_weight_kg - total_lot_weight - total_lot_waste)
+        batch.waste_reason = "Auto-calculated balance"
+        await db.flush()
+
     # Re-query with relationships for response
     lot_ids = [lot.id for lot in created_lots]
     result = await db.execute(
@@ -325,4 +341,24 @@ async def update_lot(
             )
 
     await db.flush()
+
+    # Auto-recalculate batch waste when lot weight/waste changes
+    if any(k in updates for k in ("carton_count", "box_size_id", "weight_kg", "waste_kg")):
+        batch = lot.batch
+        if batch and batch.net_weight_kg and batch.net_weight_kg > 0:
+            # Sum all sibling lots (including this one, already updated)
+            sibling_result = await db.execute(
+                select(
+                    func.coalesce(func.sum(Lot.weight_kg), 0),
+                    func.coalesce(func.sum(Lot.waste_kg), 0),
+                )
+                .where(Lot.batch_id == batch.id, Lot.is_deleted == False)  # noqa: E712
+            )
+            row = sibling_result.one()
+            total_lot_weight = float(row[0])
+            total_lot_waste = float(row[1])
+            batch.waste_kg = max(0.0, batch.net_weight_kg - total_lot_weight - total_lot_waste)
+            batch.waste_reason = "Auto-calculated balance"
+            await db.flush()
+
     return LotOut.from_orm_with_names(lot)

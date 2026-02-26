@@ -124,3 +124,17 @@ def generate_template_csv(
     if sample_row:
         writer.writerow([sample_row.get(h, "") for h in headers])
     return output.getvalue()
+
+
+def generate_template_csv_multi(
+    field_defs: list[FieldDef],
+    sample_rows: list[dict[str, str]],
+) -> str:
+    """Generate CSV template with multiple sample rows."""
+    output = io.StringIO()
+    headers = [fd.column for fd in field_defs]
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for row in sample_rows:
+        writer.writerow([row.get(h, "") for h in headers])
+    return output.getvalue()

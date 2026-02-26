@@ -128,13 +128,14 @@ async def create_pallets_from_lots(
 
     If total boxes exceed pallet capacity, overflow creates additional pallets.
     """
-    # Load all referenced lots in a single query
+    # Load all referenced lots with row-level lock to prevent concurrent over-allocation
     lot_ids = list({a.lot_id for a in body.lot_assignments})
     lot_result = await db.execute(
         select(Lot).where(
             Lot.id.in_(lot_ids),
             Lot.is_deleted == False,  # noqa: E712
         ).options(selectinload(Lot.box_size))
+        .with_for_update()
     )
     lot_map: dict[str, Lot] = {lot.id: lot for lot in lot_result.scalars().all()}
 
@@ -594,13 +595,14 @@ async def allocate_boxes_to_pallet(
         body.allow_mixed_box_types, tenant_rules.get("allow_mixed_box_types", False)
     )
 
-    # Load all referenced lots in a single query
+    # Load all referenced lots with row-level lock to prevent concurrent over-allocation
     alloc_lot_ids = list({a.lot_id for a in body.lot_assignments})
     lot_result_all = await db.execute(
         select(Lot).where(
             Lot.id.in_(alloc_lot_ids),
             Lot.is_deleted == False,  # noqa: E712
         ).options(selectinload(Lot.box_size))
+        .with_for_update()
     )
     alloc_lot_map: dict[str, Lot] = {lot.id: lot for lot in lot_result_all.scalars().all()}
 
