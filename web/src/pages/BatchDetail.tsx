@@ -81,7 +81,7 @@ export default function BatchDetail() {
     <div className="max-w-4xl mx-auto px-6 py-8">
       <PageHeader
         title={batch.batch_code}
-        subtitle={t("detail.intake", { date: batch.intake_date ? new Date(batch.intake_date).toLocaleString() : "—" })}
+        subtitle={t("detail.intake", { date: new Date(batch.created_at).toLocaleString() })}
         backTo="/batches"
         backLabel={t("detail.backToBatches")}
         action={

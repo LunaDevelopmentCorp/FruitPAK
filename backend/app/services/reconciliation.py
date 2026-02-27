@@ -272,7 +272,7 @@ async def check_harvest_team_vs_payment(db: AsyncSession, run_id: str) -> list[R
         select(
             HarvestTeamPayment.harvest_team_id,
             func.coalesce(func.sum(HarvestTeamPayment.total_kg), 0).label("paid_kg"),
-            func.coalesce(func.sum(HarvestTeamPayment.net_amount), 0).label("paid_amount"),
+            func.coalesce(func.sum(HarvestTeamPayment.amount), 0).label("paid_amount"),
             func.count(HarvestTeamPayment.id).label("payment_count"),
         )
         .where(

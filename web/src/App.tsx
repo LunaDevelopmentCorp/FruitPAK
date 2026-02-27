@@ -15,6 +15,7 @@ import PalletsList from "./pages/PalletsList";
 import PalletDetail from "./pages/PalletDetail";
 import ContainersList from "./pages/ContainersList";
 import ContainerDetail from "./pages/ContainerDetail";
+import ShippingSchedules from "./pages/ShippingSchedules";
 import PackagingStock from "./pages/PackagingStock";
 import ClientManagement from "./pages/ClientManagement";
 import DataManagement from "./pages/DataManagement";
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="/pallets/:palletId" element={<PalletDetail />} />
             <Route path="/containers" element={<ContainersList />} />
             <Route path="/containers/:containerId" element={<ContainerDetail />} />
+            <Route path="/shipping-schedules" element={<ShippingSchedules />} />
             <Route path="/packaging" element={<PackagingStock />} />
             <Route path="/clients" element={<ClientManagement />} />
             <Route path="/data" element={<DataManagement />} />

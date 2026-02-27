@@ -39,6 +39,7 @@
       "teamLeader": "Team Leader",
       "teamSize": "Team Size",
       "estVolume": "Est. Volume (kg)",
+      "ratePerKg": "Rate/kg (Class 1)",
       "fruitTypes": "Fruit Types"
     }
   }

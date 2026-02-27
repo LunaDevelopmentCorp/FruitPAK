@@ -10,6 +10,7 @@
     "pallets": "Palettes",
     "containers": "Conteneurs",
     "packagingStock": "Stock d'emballages",
+    "shippingSchedules": "Horaires maritimes",
     "peopleData": "Personnel et donnees",
     "growersTeams": "Producteurs et equipes",
     "clients": "Clients",
@@ -79,7 +80,11 @@
     "active": "Actif",
     "inactive": "Inactif",
     "low": "Bas",
-    "ok": "OK"
+    "ok": "OK",
+    "scheduled": "Programme",
+    "departed": "Parti",
+    "arrived": "Arrive",
+    "cancelled": "Annule"
   },
   "errors": {
     "serverError": "Erreur serveur — veuillez reessayer plus tard.",

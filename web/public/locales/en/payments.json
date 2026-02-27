@@ -89,8 +89,13 @@
         "bins": "Bins",
         "advances": "Advances",
         "finals": "Finals",
-        "totalPaid": "Total Paid"
+        "totalPaid": "Total Paid",
+        "class1Kg": "Class 1 kg",
+        "ratePerKg": "Rate/kg",
+        "owed": "Owed",
+        "balance": "Balance"
       },
+      "noRate": "No rate",
       "totals": "Totals"
     }
   }

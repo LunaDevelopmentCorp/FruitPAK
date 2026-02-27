@@ -9,6 +9,7 @@
     "batches": "Lotes",
     "pallets": "Paletes",
     "containers": "Contentores",
+    "shippingSchedules": "Horarios de Embarque",
     "packagingStock": "Stock de Embalagens",
     "peopleData": "Pessoas e Dados",
     "growersTeams": "Produtores e Equipas",
@@ -79,7 +80,11 @@
     "active": "Ativo",
     "inactive": "Inativo",
     "low": "Baixo",
-    "ok": "OK"
+    "ok": "OK",
+    "scheduled": "Programado",
+    "departed": "Partido",
+    "arrived": "Chegado",
+    "cancelled": "Cancelado"
   },
   "errors": {
     "serverError": "Erro no servidor — por favor, tente novamente mais tarde.",

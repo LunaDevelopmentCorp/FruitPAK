@@ -29,6 +29,11 @@ const COLOR_MAP: Record<string, string> = {
   // Client
   active: "bg-green-50 text-green-700",
   inactive: "bg-gray-100 text-gray-600",
+  // Shipping schedule
+  scheduled: "bg-blue-50 text-blue-700",
+  departed: "bg-orange-50 text-orange-700",
+  arrived: "bg-green-50 text-green-700",
+  cancelled: "bg-red-50 text-red-700",
 };
 
 interface Props {

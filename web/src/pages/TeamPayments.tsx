@@ -458,15 +458,20 @@ export default function TeamPayments() {
                   <th className="text-right px-2 py-1.5 font-medium">
                     {t("team.summary.headers.totalKg")}
                   </th>
-                  <th className="text-right px-2 py-1.5 font-medium">{t("team.summary.headers.bins")}</th>
                   <th className="text-right px-2 py-1.5 font-medium">
-                    {t("team.summary.headers.advances")}
+                    {t("team.summary.headers.class1Kg")}
                   </th>
                   <th className="text-right px-2 py-1.5 font-medium">
-                    {t("team.summary.headers.finals")}
+                    {t("team.summary.headers.ratePerKg")}
+                  </th>
+                  <th className="text-right px-2 py-1.5 font-medium">
+                    {t("team.summary.headers.owed")}
                   </th>
                   <th className="text-right px-2 py-1.5 font-medium">
                     {t("team.summary.headers.totalPaid")}
+                  </th>
+                  <th className="text-right px-2 py-1.5 font-medium">
+                    {t("team.summary.headers.balance")}
                   </th>
                 </tr>
               </thead>
@@ -481,19 +486,28 @@ export default function TeamPayments() {
                     <td className="px-2 py-1.5 text-right">
                       {s.total_kg.toLocaleString()}
                     </td>
-                    <td className="px-2 py-1.5 text-right">{s.total_bins}</td>
-                    <td className="px-2 py-1.5 text-right text-yellow-700">
-                      {s.total_advances > 0
-                        ? `${getCurrencySymbol(baseCurrency)} ${s.total_advances.toLocaleString()}`
+                    <td className="px-2 py-1.5 text-right font-medium">
+                      {s.class1_kg.toLocaleString()}
+                    </td>
+                    <td className="px-2 py-1.5 text-right text-gray-500">
+                      {s.rate_per_kg != null
+                        ? `${getCurrencySymbol(baseCurrency)} ${s.rate_per_kg}`
+                        : t("team.summary.noRate")}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-medium">
+                      {s.amount_owed > 0
+                        ? `${getCurrencySymbol(baseCurrency)} ${s.amount_owed.toLocaleString()}`
                         : "\u2014"}
                     </td>
-                    <td className="px-2 py-1.5 text-right text-green-700">
-                      {s.total_finals > 0
-                        ? `${getCurrencySymbol(baseCurrency)} ${s.total_finals.toLocaleString()}`
-                        : "\u2014"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-semibold">
+                    <td className="px-2 py-1.5 text-right">
                       {getCurrencySymbol(baseCurrency)} {s.total_paid.toLocaleString()}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-semibold ${
+                      s.balance > 0 ? "text-red-600" : s.balance < 0 ? "text-green-700" : "text-gray-500"
+                    }`}>
+                      {s.amount_owed > 0
+                        ? `${getCurrencySymbol(baseCurrency)} ${s.balance.toLocaleString()}`
+                        : "\u2014"}
                     </td>
                   </tr>
                 ))}
@@ -512,24 +526,27 @@ export default function TeamPayments() {
                       .toLocaleString()}
                   </td>
                   <td className="px-2 py-2 text-right">
-                    {summaries.reduce((s, t) => s + t.total_bins, 0)}
-                  </td>
-                  <td className="px-2 py-2 text-right text-yellow-700">
-                    {getCurrencySymbol(baseCurrency)}{" "}
                     {summaries
-                      .reduce((s, t) => s + t.total_advances, 0)
+                      .reduce((s, t) => s + t.class1_kg, 0)
                       .toLocaleString()}
                   </td>
-                  <td className="px-2 py-2 text-right text-green-700">
+                  <td className="px-2 py-2" />
+                  <td className="px-2 py-2 text-right">
                     {getCurrencySymbol(baseCurrency)}{" "}
                     {summaries
-                      .reduce((s, t) => s + t.total_finals, 0)
+                      .reduce((s, t) => s + t.amount_owed, 0)
                       .toLocaleString()}
                   </td>
                   <td className="px-2 py-2 text-right">
                     {getCurrencySymbol(baseCurrency)}{" "}
                     {summaries
                       .reduce((s, t) => s + t.total_paid, 0)
+                      .toLocaleString()}
+                  </td>
+                  <td className="px-2 py-2 text-right">
+                    {getCurrencySymbol(baseCurrency)}{" "}
+                    {summaries
+                      .reduce((s, t) => s + t.balance, 0)
                       .toLocaleString()}
                   </td>
                 </tr>

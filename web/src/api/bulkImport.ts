@@ -13,7 +13,7 @@ export interface BulkImportResult {
   errors: RowError[];
 }
 
-export type EntityType = "growers" | "harvest-teams" | "clients";
+export type EntityType = "growers" | "harvest-teams" | "clients" | "shipping-schedules";
 
 export function downloadTemplate(entity: EntityType): void {
   api

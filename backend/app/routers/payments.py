@@ -20,6 +20,7 @@ from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.grower import Grower
+from app.models.tenant.lot import Lot
 from app.models.tenant.grower_payment import GrowerPayment
 from app.models.tenant.harvest_team import HarvestTeam
 from app.models.tenant.harvest_team_payment import HarvestTeamPayment
@@ -434,11 +435,28 @@ async def team_payment_summary(
             )
         )
         batches = batch_result.scalars().all()
+        batch_ids = [b.id for b in batches]
         total_kg = sum(
             (b.net_weight_kg if b.net_weight_kg is not None else b.gross_weight_kg) or 0
             for b in batches
         )
         total_bins = sum(b.bin_count or 0 for b in batches)
+
+        # Class 1 packed-out kg (from lots linked to this team's batches)
+        class1_kg = 0.0
+        if batch_ids:
+            c1_result = await db.execute(
+                select(func.coalesce(func.sum(Lot.weight_kg), 0)).where(
+                    Lot.batch_id.in_(batch_ids),
+                    Lot.is_deleted == False,  # noqa: E712
+                    Lot.grade == "Class 1",
+                )
+            )
+            class1_kg = float(c1_result.scalar() or 0)
+
+        # Compute amount owed
+        rate = team.rate_per_kg
+        amount_owed = round(class1_kg * rate, 2) if rate else 0.0
 
         # Payments for this team
         pay_result = await db.execute(
@@ -454,6 +472,8 @@ async def team_payment_summary(
         total_finals = sum(p.amount for p in payments if p.payment_type == "final")
         total_paid = total_advances + total_finals
 
+        balance = round(amount_owed - total_paid, 2)
+
         summaries.append(TeamSummary(
             harvest_team_id=team.id,
             team_name=team.name,
@@ -461,10 +481,13 @@ async def team_payment_summary(
             total_batches=len(batches),
             total_kg=round(total_kg, 2),
             total_bins=total_bins,
+            class1_kg=round(class1_kg, 2),
+            rate_per_kg=rate,
+            amount_owed=amount_owed,
             total_advances=round(total_advances, 2),
             total_finals=round(total_finals, 2),
             total_paid=round(total_paid, 2),
-            balance=round(total_paid, 2),  # No "expected" amount yet — just shows total paid
+            balance=balance,
         ))
 
     return summaries

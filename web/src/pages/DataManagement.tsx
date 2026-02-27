@@ -36,6 +36,7 @@ interface HarvestTeamSummary {
   team_leader: string | null;
   team_size: number | null;
   estimated_volume_kg: number | null;
+  rate_per_kg: number | null;
   fruit_types: string[] | null;
   assigned_fields: string[] | null;
   notes: string | null;
@@ -46,6 +47,7 @@ interface TeamFormData {
   team_leader: string;
   team_size: string;
   estimated_volume_kg: string;
+  rate_per_kg: string;
   notes: string;
 }
 
@@ -332,6 +334,7 @@ function TeamEditPanel({
       team_leader: team.team_leader || "",
       team_size: team.team_size?.toString() || "",
       estimated_volume_kg: team.estimated_volume_kg?.toString() || "",
+      rate_per_kg: team.rate_per_kg?.toString() || "",
       notes: team.notes || "",
     },
   });
@@ -343,6 +346,7 @@ function TeamEditPanel({
         team_leader: data.team_leader || null,
         team_size: data.team_size ? parseInt(data.team_size) : null,
         estimated_volume_kg: data.estimated_volume_kg ? parseFloat(data.estimated_volume_kg) : null,
+        rate_per_kg: data.rate_per_kg ? parseFloat(data.rate_per_kg) : null,
         notes: data.notes || null,
       };
       const res = await api.patch<HarvestTeamSummary>(`/harvest-teams/${team.id}`, payload);
@@ -357,7 +361,7 @@ function TeamEditPanel({
     <tr>
       <td colSpan={6} className="px-4 py-4 bg-green-50/30 border-t border-b border-green-200">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 {t("common:table.name")} *
@@ -381,6 +385,12 @@ function TeamEditPanel({
                 {t("teams.headers.estVolume")}
               </label>
               <input {...register("estimated_volume_kg")} type="number" step="0.1" className={inputBase} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t("teams.headers.ratePerKg")}
+              </label>
+              <input {...register("rate_per_kg")} type="number" step="0.01" className={inputBase} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">

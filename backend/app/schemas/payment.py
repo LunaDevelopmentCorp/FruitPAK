@@ -101,9 +101,12 @@ class TeamSummary(BaseModel):
     team_name: str
     team_leader: str | None
     total_batches: int
-    total_kg: float
+    total_kg: float          # raw intake kg
     total_bins: int
+    class1_kg: float         # Class 1 packed-out kg (from lots)
+    rate_per_kg: float | None  # team's contracted rate per kg
+    amount_owed: float       # class1_kg × rate_per_kg (0 if no rate)
     total_advances: float
     total_finals: float
     total_paid: float
-    balance: float  # positive = overpaid, negative = still owed
+    balance: float           # amount_owed - total_paid (negative = still owed)

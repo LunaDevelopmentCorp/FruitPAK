@@ -34,6 +34,9 @@ class HarvestTeam(TenantBase):
 
     # Planning & estimates
     estimated_volume_kg: Mapped[float | None] = mapped_column(Float)
+    # Rate per kg of Class 1 packed-out fruit (for payment reconciliation)
+    rate_per_kg: Mapped[float | None] = mapped_column(Float)
+    rate_currency: Mapped[str] = mapped_column(String(3), default="ZAR")
     # Fruit types this team handles: ["citrus", "grapes"]
     fruit_types: Mapped[list | None] = mapped_column(JSON, default=list)
     # Assigned fields/blocks from the grower: ["Block A", "Block B"]

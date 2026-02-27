@@ -10,7 +10,7 @@ from app.middleware.security import (
     SecureCookieMiddleware,
 )
 from app.middleware.exceptions import register_exception_handlers
-from app.routers import admin, auth, batches, bulk_import, clients, config, containers, enterprises, growers, harvest_teams, health, lots, packaging, packhouses, pallets, payments, platform, reconciliation, wizard
+from app.routers import admin, auth, batches, bulk_import, clients, config, containers, enterprises, growers, harvest_teams, health, lots, packaging, packhouses, pallets, payments, platform, reconciliation, shipping_schedules, wizard
 from app.services.scheduler import lifespan
 
 app = FastAPI(
@@ -71,6 +71,7 @@ app.include_router(pallets.router, prefix="/api/pallets", tags=["pallets"])
 app.include_router(packaging.router, prefix="/api/packaging", tags=["packaging"])
 app.include_router(clients.router, prefix="/api/clients", tags=["clients"])
 app.include_router(containers.router, prefix="/api/containers", tags=["containers"])
+app.include_router(shipping_schedules.router, prefix="/api/shipping-schedules", tags=["shipping-schedules"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])

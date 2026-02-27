@@ -101,6 +101,9 @@ export interface TeamSummary {
   total_batches: number;
   total_kg: number;
   total_bins: number;
+  class1_kg: number;
+  rate_per_kg: number | null;
+  amount_owed: number;
   total_advances: number;
   total_finals: number;
   total_paid: number;

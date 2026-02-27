@@ -109,6 +109,7 @@
     "teamLeader": "Team leader",
     "teamSize": "Team size",
     "estVolume": "Est. volume (kg)",
+    "ratePerKg": "Rate/kg (Class 1)",
     "addTeam": "+ Add team"
   },
   "step6": {

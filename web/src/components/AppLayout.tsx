@@ -48,7 +48,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     headingKey: "nav.system",
-    items: [{ to: "/setup", labelKey: "nav.setupWizard" }],
+    items: [
+      { to: "/shipping-schedules", labelKey: "nav.shippingSchedules" },
+      { to: "/setup", labelKey: "nav.setupWizard" },
+    ],
   },
 ];
 

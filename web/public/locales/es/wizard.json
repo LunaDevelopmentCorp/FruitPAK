@@ -109,6 +109,7 @@
     "teamLeader": "Líder del equipo",
     "teamSize": "Tamaño del equipo",
     "estVolume": "Vol. estimado (kg)",
+    "ratePerKg": "Tarifa/kg (Clase 1)",
     "addTeam": "+ Agregar equipo"
   },
   "step6": {

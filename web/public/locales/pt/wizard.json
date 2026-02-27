@@ -109,6 +109,7 @@
     "teamLeader": "Líder da equipa",
     "teamSize": "Tamanho da equipa",
     "estVolume": "Volume est. (kg)",
+    "ratePerKg": "Taxa/kg (Classe 1)",
     "addTeam": "+ Adicionar equipa"
   },
   "step6": {

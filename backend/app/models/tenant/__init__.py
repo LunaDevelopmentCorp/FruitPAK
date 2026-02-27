@@ -23,6 +23,7 @@ from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import Pallet, PalletLot
 from app.models.tenant.container import Container
 from app.models.tenant.export import Export
+from app.models.tenant.shipping_schedule import ShippingSchedule
 
 # ── Financial models ─────────────────────────────────────────
 from app.models.tenant.grower_payment import GrowerPayment
@@ -44,6 +45,7 @@ __all__ = [
     "TransportConfig", "FinancialConfig",
     # Core operational
     "Batch", "BatchHistory", "Lot", "Pallet", "PalletLot", "Container", "Export",
+    "ShippingSchedule",
     # Financial
     "GrowerPayment", "LabourCost", "ClientInvoice", "Credit",
     # Reconciliation

@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, DateTime, Date, Float, ForeignKey,
+    Boolean, Date, DateTime, Float, ForeignKey,
     Integer, JSON, String, Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -45,6 +45,11 @@ class Export(TenantBase):
     eta: Mapped[datetime | None] = mapped_column(Date)  # estimated arrival
     actual_departure: Mapped[datetime | None] = mapped_column(Date)
     actual_arrival: Mapped[datetime | None] = mapped_column(Date)
+
+    # ── Link to shipping schedule ─────────────────────────────
+    shipping_schedule_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("shipping_schedules.id")
+    )
 
     # ── Totals ───────────────────────────────────────────────
     container_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -81,3 +86,4 @@ class Export(TenantBase):
     # ── Relationships ────────────────────────────────────────
     containers = relationship("Container", back_populates="export", lazy="selectin")
     invoices = relationship("ClientInvoice", back_populates="export", lazy="selectin")
+    shipping_schedule = relationship("ShippingSchedule", back_populates="exports", lazy="selectin")

@@ -89,8 +89,13 @@
         "bins": "Bins",
         "advances": "Anticipos",
         "finals": "Finales",
-        "totalPaid": "Total Pagado"
+        "totalPaid": "Total Pagado",
+        "class1Kg": "Clase 1 kg",
+        "ratePerKg": "Tarifa/kg",
+        "owed": "Adeudado",
+        "balance": "Saldo"
       },
+      "noRate": "Sin tarifa",
       "totals": "Totales"
     }
   }

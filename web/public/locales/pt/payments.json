@@ -89,8 +89,13 @@
         "bins": "Contentores",
         "advances": "Adiantamentos",
         "finals": "Finais",
-        "totalPaid": "Total Pago"
+        "totalPaid": "Total Pago",
+        "class1Kg": "Classe 1 kg",
+        "ratePerKg": "Taxa/kg",
+        "owed": "Devido",
+        "balance": "Saldo"
       },
+      "noRate": "Sem taxa",
       "totals": "Totais"
     }
   }

@@ -10,6 +10,7 @@
     "pallets": "Pallets",
     "containers": "Containers",
     "packagingStock": "Packaging Stock",
+    "shippingSchedules": "Shipping Schedules",
     "peopleData": "People & Data",
     "growersTeams": "Growers & Teams",
     "clients": "Clients",
@@ -79,7 +80,11 @@
     "active": "Active",
     "inactive": "Inactive",
     "low": "Low",
-    "ok": "OK"
+    "ok": "OK",
+    "scheduled": "Scheduled",
+    "departed": "Departed",
+    "arrived": "Arrived",
+    "cancelled": "Cancelled"
   },
   "errors": {
     "serverError": "Server error — please try again later.",

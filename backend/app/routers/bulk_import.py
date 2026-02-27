@@ -21,6 +21,7 @@ from app.models.public.user import User
 from app.models.tenant.client import Client
 from app.models.tenant.grower import Grower
 from app.models.tenant.harvest_team import HarvestTeam
+from app.models.tenant.shipping_schedule import ShippingSchedule
 from app.models.tenant.supplier import Supplier
 from app.utils.activity import log_activity
 from app.utils.cache import invalidate_cache
@@ -150,6 +151,34 @@ CLIENT_SAMPLE = {
     "currency": "GBP",
     "credit_limit": "50000",
     "notes": "Premium buyer",
+}
+
+SHIPPING_SCHEDULE_FIELDS = [
+    FieldDef(column="shipping_line", db_field="shipping_line", required=True),
+    FieldDef(column="vessel_name", db_field="vessel_name", required=True),
+    FieldDef(column="voyage_number", db_field="voyage_number", required=True),
+    FieldDef(column="port_of_loading", db_field="port_of_loading", required=True),
+    FieldDef(column="port_of_discharge", db_field="port_of_discharge", required=True),
+    FieldDef(column="etd", db_field="etd", required=True),
+    FieldDef(column="eta", db_field="eta", required=True),
+    FieldDef(column="booking_cutoff", db_field="booking_cutoff"),
+    FieldDef(column="cargo_cutoff", db_field="cargo_cutoff"),
+    FieldDef(column="status", db_field="status"),
+    FieldDef(column="notes", db_field="notes"),
+]
+
+SHIPPING_SCHEDULE_SAMPLE = {
+    "shipping_line": "MSC",
+    "vessel_name": "MSC AURORA",
+    "voyage_number": "FE409A",
+    "port_of_loading": "Cape Town",
+    "port_of_discharge": "Rotterdam",
+    "etd": "2026-04-15",
+    "eta": "2026-05-10",
+    "booking_cutoff": "2026-04-10",
+    "cargo_cutoff": "2026-04-12",
+    "status": "scheduled",
+    "notes": "",
 }
 
 
@@ -430,6 +459,95 @@ async def upload_clients(
         entity_type="client",
         summary=f"CSV import: {created} created, {updated} updated, {len(parsed.errors)} failed",
     )
+
+    return BulkImportResult(
+        total_rows=parsed.total_rows,
+        created=created,
+        updated=updated,
+        failed=len(parsed.errors),
+        errors=[RowErrorOut(row=e.row, errors=e.errors) for e in parsed.errors],
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# SHIPPING SCHEDULES
+# ══════════════════════════════════════════════════════════════
+
+
+async def _upsert_shipping_schedules(
+    db: AsyncSession,
+    rows: list[dict],
+) -> tuple[int, int]:
+    """Upsert by (vessel_name, voyage_number). Returns (created, updated)."""
+    from datetime import date as date_type
+
+    result = await db.execute(select(ShippingSchedule).where(ShippingSchedule.is_deleted == False))  # noqa: E712
+    existing: dict[tuple[str, str], ShippingSchedule] = {}
+    for s in result.scalars().all():
+        existing[(s.vessel_name.lower(), s.voyage_number.lower())] = s
+
+    created = 0
+    updated = 0
+
+    for row_data in rows:
+        vessel = (row_data.get("vessel_name") or "").strip()
+        voyage = (row_data.get("voyage_number") or "").strip()
+        if not vessel or not voyage:
+            continue
+
+        # Parse date strings to date objects
+        for date_field in ("etd", "eta", "booking_cutoff", "cargo_cutoff"):
+            val = row_data.get(date_field)
+            if val and isinstance(val, str):
+                try:
+                    row_data[date_field] = date_type.fromisoformat(val)
+                except ValueError:
+                    row_data[date_field] = None
+
+        key = (vessel.lower(), voyage.lower())
+        if key in existing:
+            record = existing[key]
+            for k, v in row_data.items():
+                if k != "id" and v is not None:
+                    setattr(record, k, v)
+            updated += 1
+        else:
+            row_data["source"] = "manual"
+            record = ShippingSchedule(**row_data)
+            db.add(record)
+            existing[key] = record
+            created += 1
+
+    await db.flush()
+    return created, updated
+
+
+@router.get("/shipping-schedules/template")
+async def shipping_schedule_template(
+    _user: User = Depends(require_permission("export.read")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    csv_text = generate_template_csv(SHIPPING_SCHEDULE_FIELDS, SHIPPING_SCHEDULE_SAMPLE)
+    return _csv_response(csv_text, "shipping_schedules_template.csv")
+
+
+@router.post("/shipping-schedules/upload", response_model=BulkImportResult)
+async def upload_shipping_schedules(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("export.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    parsed = await parse_csv(file, SHIPPING_SCHEDULE_FIELDS)
+    created, updated = await _upsert_shipping_schedules(db, parsed.rows)
+
+    await log_activity(
+        db, user,
+        action="bulk_import",
+        entity_type="shipping_schedule",
+        summary=f"CSV import: {created} created, {updated} updated, {len(parsed.errors)} failed",
+    )
+    await invalidate_cache("shipping_schedules:*")
 
     return BulkImportResult(
         total_rows=parsed.total_rows,

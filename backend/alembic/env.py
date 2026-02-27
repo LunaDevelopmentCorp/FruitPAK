@@ -79,6 +79,7 @@ def run_migrations_online() -> None:
                         ), {"v": pub_ver})
                 except Exception:
                     pass
+            connection.commit()
 
         context.configure(
             connection=connection,

@@ -10,6 +10,7 @@ interface TeamForm {
   team_leader: string;
   team_size: number | null;
   estimated_volume_kg: number | null;
+  rate_per_kg: number | null;
 }
 
 interface FormData {
@@ -20,7 +21,7 @@ export default function Step5HarvestTeams({ onSave, saving, draftData }: StepPro
   const { t } = useTranslation("wizard");
   const { register, control, watch, getValues } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
-      harvest_teams: [{ name: "", team_leader: "", team_size: null, estimated_volume_kg: null }],
+      harvest_teams: [{ name: "", team_leader: "", team_size: null, estimated_volume_kg: null, rate_per_kg: null }],
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "harvest_teams" });
@@ -59,7 +60,7 @@ export default function Step5HarvestTeams({ onSave, saving, draftData }: StepPro
               <input {...register(`harvest_teams.${idx}.name`)} placeholder={t("step5.teamName")} className="border rounded px-3 py-2 text-sm" />
               <input {...register(`harvest_teams.${idx}.team_leader`)} placeholder={t("step5.teamLeader")} className="border rounded px-3 py-2 text-sm" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <input {...register(`harvest_teams.${idx}.team_size`, { valueAsNumber: true })} placeholder={t("step5.teamSize")} type="number" className="border rounded px-3 py-2 text-sm" />
               <div>
                 <input {...register(`harvest_teams.${idx}.estimated_volume_kg`, { valueAsNumber: true })} placeholder={t("step5.estVolume")} type="number" className="w-full border rounded px-3 py-2 text-sm" />
@@ -69,11 +70,12 @@ export default function Step5HarvestTeams({ onSave, saving, draftData }: StepPro
                   </span>
                 )}
               </div>
+              <input {...register(`harvest_teams.${idx}.rate_per_kg`, { valueAsNumber: true })} placeholder={t("step5.ratePerKg")} type="number" step="0.01" className="border rounded px-3 py-2 text-sm" />
             </div>
           </fieldset>
         );
       })}
-      <button type="button" onClick={() => append({ name: "", team_leader: "", team_size: null, estimated_volume_kg: null })} className="text-sm text-green-600">{t("step5.addTeam")}</button>
+      <button type="button" onClick={() => append({ name: "", team_leader: "", team_size: null, estimated_volume_kg: null, rate_per_kg: null })} className="text-sm text-green-600">{t("step5.addTeam")}</button>
       <div className="flex gap-3 pt-4 border-t">
         <button type="button" onClick={saveDraft} disabled={saving} className="px-4 py-2 border rounded text-sm">
           {saving && <Spinner />} {t("saveDraft")}

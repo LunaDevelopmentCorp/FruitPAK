@@ -142,6 +142,8 @@ class HarvestTeamInput(BaseModel):
     grower_id: str | None = None
     supplier_id: str | None = None
     estimated_volume_kg: float | None = None
+    rate_per_kg: float | None = None
+    rate_currency: str | None = None
     fruit_types: list[str] | None = None
     assigned_fields: list[str] | None = None
     notes: str | None = None
