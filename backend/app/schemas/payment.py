@@ -168,6 +168,7 @@ class TeamSummary(BaseModel):
     total_finals: float
     total_paid: float
     balance: float           # amount_owed - total_paid (negative = still owed)
+    batch_codes: list[str] = []  # batch codes for client-side search
 
 
 # ── Team Reconciliation Detail ───────────────────────────────

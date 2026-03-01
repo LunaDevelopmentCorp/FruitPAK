@@ -158,7 +158,8 @@ export default function TeamPayments() {
       rows = rows.filter(
         (s) =>
           s.team_name.toLowerCase().includes(q) ||
-          (s.team_leader || "").toLowerCase().includes(q)
+          (s.team_leader || "").toLowerCase().includes(q) ||
+          s.batch_codes.some((c) => c.toLowerCase().includes(q))
       );
     }
     if (sortCol) {
@@ -239,9 +240,12 @@ export default function TeamPayments() {
 
   // ── Team management helpers ───────────────────────────────
   const filteredTeams = useMemo(() => {
-    if (!teamSearch) return teams;
+    const sorted = [...teams].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })
+    );
+    if (!teamSearch) return sorted;
     const q = teamSearch.toLowerCase();
-    return teams.filter(
+    return sorted.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         (t.team_leader || "").toLowerCase().includes(q)

@@ -174,7 +174,7 @@
       "allTeams": "All Teams",
       "selectPlaceholder": "Choose a team...",
       "filterName": "Search",
-      "filterNamePlaceholder": "Team name or leader...",
+      "filterNamePlaceholder": "Team name, leader, or GRN code...",
       "filterBatch": "Search",
       "filterBatchPlaceholder": "Batch code...",
       "dateFrom": "From",

@@ -9,6 +9,7 @@ import {
 import { getBoxSizes, BoxSizeConfig, BinTypeConfig } from "../../api/pallets";
 import { FruitTypeConfig } from "../../api/config";
 import StatusBadge from "../../components/StatusBadge";
+import { LockBanner } from "../../components/LockIndicator";
 import { showToast as globalToast } from "../../store/toastStore";
 import { BatchSectionProps, BatchConfigs, LotRowForm } from "./types";
 import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
@@ -404,7 +405,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                           <select
                             value={editLotForm.grade || ""}
                             onChange={(e) => setEditLotForm({ ...editLotForm, grade: e.target.value || undefined })}
-                            className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                            disabled={(lot.palletized_boxes ?? 0) > 0}
+                            className="w-full border rounded px-1.5 py-1 text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                           >
                             <option value="">—</option>
                             {availableGrades.map((g) => (
@@ -418,7 +420,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                           <select
                             value={editLotForm.size || ""}
                             onChange={(e) => setEditLotForm({ ...editLotForm, size: e.target.value || undefined })}
-                            className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                            disabled={(lot.palletized_boxes ?? 0) > 0}
+                            className="w-full border rounded px-1.5 py-1 text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                           >
                             <option value="">—</option>
                             {availableSizes.map((s) => (
@@ -433,7 +436,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                             <select
                               value={editBinTypeId}
                               onChange={(e) => setEditBinTypeId(e.target.value)}
-                              className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                              disabled={(lot.palletized_boxes ?? 0) > 0}
+                              className="w-full border rounded px-1.5 py-1 text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                             >
                               <option value="">{t("lots.selectBin")}</option>
                               {binTypes.map((bt) => (
@@ -446,7 +450,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                             <select
                               value={editLotForm.box_size_id || ""}
                               onChange={(e) => setEditLotForm({ ...editLotForm, box_size_id: e.target.value || undefined })}
-                              className="w-full border rounded px-1.5 py-1 text-sm bg-white"
+                              disabled={(lot.palletized_boxes ?? 0) > 0}
+                              className="w-full border rounded px-1.5 py-1 text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                             >
                               <option value="">—</option>
                               {boxSizes.map((bs) => (
@@ -466,7 +471,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               min={0}
                               value={editBinCount || ""}
                               onChange={(e) => setEditBinCount(e.target.value ? Number(e.target.value) : 0)}
-                              className="w-20 border rounded px-1.5 py-1 text-sm text-right bg-white"
+                              disabled={(lot.palletized_boxes ?? 0) > 0}
+                              className="w-20 border rounded px-1.5 py-1 text-sm text-right bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                               placeholder={t("lots.bins")}
                             />
                           ) : (
@@ -475,7 +481,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               min={0}
                               value={editLotForm.carton_count ?? ""}
                               onChange={(e) => setEditLotForm({ ...editLotForm, carton_count: e.target.value ? Number(e.target.value) : undefined })}
-                              className="w-20 border rounded px-1.5 py-1 text-sm text-right bg-white"
+                              disabled={(lot.palletized_boxes ?? 0) > 0}
+                              className="w-20 border rounded px-1.5 py-1 text-sm text-right bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                             />
                           )
                         ) : lot.carton_count}
@@ -493,7 +500,8 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                               min={0}
                               value={editLotForm.weight_kg ?? ""}
                               onChange={(e) => setEditLotForm({ ...editLotForm, weight_kg: e.target.value ? Number(e.target.value) : undefined })}
-                              className="w-24 border rounded px-1.5 py-1 text-sm text-right bg-white"
+                              disabled={(lot.palletized_boxes ?? 0) > 0}
+                              className="w-24 border rounded px-1.5 py-1 text-sm text-right bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                               placeholder="kg"
                             />
                           )
@@ -568,6 +576,9 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                     {isEditing && (
                       <tr>
                         <td colSpan={9} className="px-2 py-2 bg-green-50 border-t-0 border-l-2 border-l-green-400">
+                          {(lot.palletized_boxes ?? 0) > 0 && (
+                            <LockBanner message={t("common:locks.lotPalletized")} />
+                          )}
                           <div className="flex items-end gap-3">
                             <div className="flex-1 grid grid-cols-3 gap-3">
                               <div>
@@ -624,8 +635,9 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                                     await onRefresh();
                                     setEditingLotId(null);
                                     globalToast("success", t("lots.lotUpdated"));
-                                  } catch {
-                                    globalToast("error", t("lots.lotUpdateFailed"));
+                                  } catch (err: any) {
+                                    const msg = err?.response?.data?.detail || t("lots.lotUpdateFailed");
+                                    globalToast("error", msg);
                                   } finally {
                                     setLotUpdateSaving(false);
                                   }

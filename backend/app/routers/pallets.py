@@ -48,6 +48,7 @@ from app.schemas.pallet import (
 )
 from app.utils.activity import log_activity
 from app.utils.cache import cached
+from app.utils.locks import get_pallet_locks
 from app.utils.numbering import generate_code, generate_codes
 
 router = APIRouter()
@@ -406,6 +407,11 @@ async def get_pallet(
             pl_out.box_size_name = (
                 pl_orm.lot.box_size.name if pl_orm.lot.box_size else None
             )
+
+    # Add downstream lock info
+    lock_info = await get_pallet_locks(db, pallet)
+    detail.locked_fields = lock_info.locked_field_names()
+
     return detail
 
 
@@ -437,6 +443,17 @@ async def update_pallet(
             status_code=400,
             detail=f"Cannot edit a '{pallet.status}' pallet",
         )
+
+    # ── Downstream lock check ─────────────────────────────────
+    lock_info = await get_pallet_locks(db, pallet)
+    if lock_info.is_locked:
+        updating = set(body.model_dump(exclude_unset=True).keys())
+        conflict = lock_info.check_update(updating)
+        if conflict:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"{conflict.reason}. {conflict.unlock_hint}",
+            )
 
     updates = body.model_dump(exclude_unset=True)
     if "capacity_boxes" in updates and updates["capacity_boxes"] < pallet.current_boxes:
@@ -576,6 +593,11 @@ async def allocate_boxes_to_pallet(
         raise HTTPException(
             status_code=400,
             detail=f"Pallet is '{pallet.status}', must be 'open' to allocate",
+        )
+    if pallet.container_id:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Cannot allocate boxes: pallet is loaded in a container. Unload pallet first.",
         )
 
     total_new_boxes = sum(a.box_count for a in body.lot_assignments)

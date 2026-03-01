@@ -23,6 +23,7 @@ from app.models.tenant.packaging_stock import PackagingMovement, PackagingStock
 from app.models.tenant.pallet import PalletLot
 from app.models.tenant.product_config import BoxSize
 from app.schemas.common import PaginatedResponse
+from app.utils.locks import get_lot_locks, LOT_QUANTITY_FIELDS
 from app.schemas.lot import (
     LotFromBatchItem,
     LotOut,
@@ -248,6 +249,8 @@ async def list_lots(
     summaries = [LotSummary.model_validate(lot) for lot in items]
     for s in summaries:
         s.palletized_boxes = palletized_map.get(s.id, 0)
+        if s.palletized_boxes > 0:
+            s.locked_fields = LOT_QUANTITY_FIELDS
 
     return PaginatedResponse(
         items=summaries,
@@ -278,7 +281,10 @@ async def get_lot(
     lot = result.scalar_one_or_none()
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
-    return LotOut.from_orm_with_names(lot)
+    out = LotOut.from_orm_with_names(lot)
+    lock_info = await get_lot_locks(db, lot)
+    out.locked_fields = lock_info.locked_field_names()
+    return out
 
 
 # ── Update lot ───────────────────────────────────────────────
@@ -303,6 +309,17 @@ async def update_lot(
     lot = result.scalar_one_or_none()
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
+
+    # ── Downstream lock check ─────────────────────────────────
+    lock_info = await get_lot_locks(db, lot)
+    if lock_info.is_locked:
+        updating = set(body.model_dump(exclude_unset=True).keys())
+        conflict = lock_info.check_update(updating)
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{conflict.reason}. {conflict.unlock_hint}",
+            )
 
     # Capture old values for packaging stock adjustment
     old_carton_count = lot.carton_count

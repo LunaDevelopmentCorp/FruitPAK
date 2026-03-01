@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 
 import segno
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +42,7 @@ from app.schemas.container import (
     TracePallet,
 )
 from app.utils.activity import log_activity
+from app.utils.locks import get_container_locks
 from app.utils.numbering import generate_code
 
 router = APIRouter()
@@ -214,6 +215,13 @@ async def load_pallets_into_container(
             detail=f"Cannot load pallets — container is {container.status}",
         )
 
+    lock_info = await get_container_locks(db, container)
+    if lock_info.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot load pallets: container is in a dispatched export. Remove from export first.",
+        )
+
     # Validate pallets
     pallet_result = await db.execute(
         select(Pallet)
@@ -292,6 +300,17 @@ async def update_container(
     container = result.scalar_one_or_none()
     if not container:
         raise HTTPException(status_code=404, detail="Container not found")
+
+    # ── Downstream lock check ─────────────────────────────────
+    lock_info = await get_container_locks(db, container)
+    if lock_info.is_locked:
+        updating = set(body.model_dump(exclude_unset=True).keys())
+        conflict = lock_info.check_update(updating)
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{conflict.reason}. {conflict.unlock_hint}",
+            )
 
     updates = body.model_dump(exclude_unset=True)
 
@@ -417,6 +436,10 @@ async def get_container(
         trace_pallets.append(tp)
 
     detail.traceability = trace_pallets
+
+    lock_info = await get_container_locks(db, container)
+    detail.locked_fields = lock_info.locked_field_names()
+
     return detail
 
 

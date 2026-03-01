@@ -43,6 +43,7 @@ from app.schemas.payment import (
 )
 from app.services.reconciliation import run_full_reconciliation
 from app.utils.activity import log_activity
+from app.utils.locks import get_payment_locks
 
 router = APIRouter()
 
@@ -253,6 +254,17 @@ async def update_grower_payment(
     payment = result.scalar_one_or_none()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
+
+    # ── Downstream lock check ─────────────────────────────────
+    lock_info = get_payment_locks(payment)
+    if lock_info.is_locked:
+        updating = set(body.model_dump(exclude_unset=True).keys())
+        conflict = lock_info.check_update(updating)
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{conflict.reason}. {conflict.unlock_hint}",
+            )
 
     updates = body.model_dump(exclude_unset=True)
     if "amount" in updates:
@@ -610,6 +622,17 @@ async def update_team_payment(
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
+    # ── Downstream lock check ─────────────────────────────────
+    lock_info = get_payment_locks(payment)
+    if lock_info.is_locked:
+        updating = set(body.model_dump(exclude_unset=True).keys())
+        conflict = lock_info.check_update(updating)
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{conflict.reason}. {conflict.unlock_hint}",
+            )
+
     updates = body.model_dump(exclude_unset=True)
     if "amount" in updates:
         payment.amount = updates["amount"]
@@ -738,6 +761,7 @@ async def team_payment_summary(
             total_finals=round(total_finals, 2),
             total_paid=round(total_paid, 2),
             balance=balance,
+            batch_codes=[b.batch_code for b in batches if b.batch_code],
         ))
 
     return summaries

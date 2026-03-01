@@ -174,7 +174,7 @@
       "allTeams": "Todas as Equipas",
       "selectPlaceholder": "Escolher uma equipa...",
       "filterName": "Pesquisar",
-      "filterNamePlaceholder": "Nome ou lider...",
+      "filterNamePlaceholder": "Nome, lider ou codigo GRN...",
       "filterBatch": "Pesquisar",
       "filterBatchPlaceholder": "Codigo do lote...",
       "dateFrom": "De",

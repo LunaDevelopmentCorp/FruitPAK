@@ -147,5 +147,12 @@
     "days": "days",
     "boxes": "boxes",
     "pallets": "pallets"
+  },
+  "locks": {
+    "fieldLocked": "This field is locked because it is referenced downstream",
+    "lotPalletized": "Some fields are locked because boxes are allocated to pallets. Remove allocations to edit.",
+    "batchPayment": "Some fields are locked because paid payments reference this batch. Cancel payments to edit.",
+    "palletLoaded": "Some fields are locked because this pallet is loaded in a container. Unload to edit.",
+    "containerExport": "Some fields are locked because this container is in a dispatched export."
   }
 }

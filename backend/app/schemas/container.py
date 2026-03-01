@@ -112,6 +112,7 @@ class ContainerSummary(BaseModel):
     destination: str | None
     shipping_container_number: str | None = None
     status: str
+    locked_fields: list[str] = []
     created_at: datetime
 
     model_config = {"from_attributes": True}

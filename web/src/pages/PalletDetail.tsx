@@ -19,6 +19,7 @@ import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
+import { LockBanner } from "../components/LockIndicator";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 export default function PalletDetail() {
@@ -228,21 +229,24 @@ export default function PalletDetail() {
       {editing ? (
         /* -- Edit form -- */
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white border rounded-lg p-6 space-y-5">
+          {(pallet.locked_fields?.length ?? 0) > 0 && (
+            <LockBanner message={t("common:locks.palletLoaded")} />
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Field label={t("detail.palletType")}>
               {palletTypes.length > 0 ? (
-                <select {...register("pallet_type_name")} className={inputClass}>
+                <select {...register("pallet_type_name")} disabled={pallet.locked_fields?.includes("pallet_type_name")} className={inputClass}>
                   <option value="">Select</option>
                   {palletTypes.map((pt) => (
                     <option key={pt.id} value={pt.name}>{pt.name} ({pt.capacity_boxes} {t("common:units.boxes")})</option>
                   ))}
                 </select>
               ) : (
-                <input {...register("pallet_type_name")} className={inputClass} />
+                <input {...register("pallet_type_name")} disabled={pallet.locked_fields?.includes("pallet_type_name")} className={inputClass} />
               )}
             </Field>
             <Field label={t("detail.capacityBoxes")}>
-              <input type="number" {...register("capacity_boxes", { valueAsNumber: true })} min={1} className={inputClass} />
+              <input type="number" {...register("capacity_boxes", { valueAsNumber: true })} min={1} disabled={pallet.locked_fields?.includes("capacity_boxes")} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -255,23 +259,23 @@ export default function PalletDetail() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label={t("common:table.grade")}>
-              <input {...register("grade")} placeholder={t("detail.gradePlaceholder")} className={inputClass} />
+              <input {...register("grade")} placeholder={t("detail.gradePlaceholder")} disabled={pallet.locked_fields?.includes("grade")} className={inputClass} />
             </Field>
             <Field label={t("common:table.size")}>
-              <input {...register("size")} placeholder={t("detail.sizePlaceholder")} className={inputClass} />
+              <input {...register("size")} placeholder={t("detail.sizePlaceholder")} disabled={pallet.locked_fields?.includes("size")} className={inputClass} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label={t("list.headers.boxType")}>
               {boxSizes.length > 0 ? (
-                <select {...register("box_size_id")} className={inputClass}>
+                <select {...register("box_size_id")} disabled={pallet.locked_fields?.includes("box_size_id")} className={inputClass}>
                   <option value="">{t("detail.none")}</option>
                   {boxSizes.map((bs) => (
                     <option key={bs.id} value={bs.id}>{bs.name} ({bs.weight_kg} {t("common:units.kg")})</option>
                   ))}
                 </select>
               ) : (
-                <input {...register("box_size_id")} placeholder="Box size ID" className={inputClass} />
+                <input {...register("box_size_id")} placeholder="Box size ID" disabled={pallet.locked_fields?.includes("box_size_id")} className={inputClass} />
               )}
             </Field>
             <Field label={t("detail.targetMarket")}>
@@ -461,7 +465,7 @@ export default function PalletDetail() {
 }
 
 const inputClass =
-  "w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:cursor-not-allowed";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

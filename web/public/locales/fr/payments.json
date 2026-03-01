@@ -174,7 +174,7 @@
       "allTeams": "Toutes les equipes",
       "selectPlaceholder": "Choisir une equipe...",
       "filterName": "Rechercher",
-      "filterNamePlaceholder": "Nom ou chef d'equipe...",
+      "filterNamePlaceholder": "Nom, chef d'equipe ou code GRN...",
       "filterBatch": "Rechercher",
       "filterBatchPlaceholder": "Code lot...",
       "dateFrom": "Du",

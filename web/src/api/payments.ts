@@ -132,6 +132,7 @@ export interface TeamSummary {
   total_finals: number;
   total_paid: number;
   balance: number;
+  batch_codes: string[];
 }
 
 export async function submitTeamPayment(

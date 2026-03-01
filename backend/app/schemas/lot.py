@@ -101,6 +101,8 @@ class LotOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    locked_fields: list[str] = []
+
     # Resolved names
     batch_code: str | None = None
     grower_name: str | None = None
@@ -137,6 +139,7 @@ class LotSummary(BaseModel):
     waste_reason: str | None = None
     notes: str | None = None
     palletized_boxes: int = 0
+    locked_fields: list[str] = []
     status: str
     pack_date: date | None
     created_at: datetime

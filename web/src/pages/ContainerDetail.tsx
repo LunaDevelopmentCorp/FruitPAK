@@ -14,6 +14,7 @@ import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
+import { LockBanner } from "../components/LockIndicator";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 const CONTAINER_TYPES = [
@@ -213,13 +214,17 @@ export default function ContainerDetail() {
 
         {editing ? (
           <div className="space-y-3">
+            {(container.locked_fields?.length ?? 0) > 0 && (
+              <LockBanner message={t("common:locks.containerExport")} />
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">{t("detail.containerType")}</label>
                 <select
                   value={editForm.container_type}
                   onChange={(e) => setEditForm((f) => ({ ...f, container_type: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={container.locked_fields?.includes("container_type")}
+                  className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   {CONTAINER_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -233,7 +238,8 @@ export default function ContainerDetail() {
                   min={1}
                   value={editForm.capacity_pallets}
                   onChange={(e) => setEditForm((f) => ({ ...f, capacity_pallets: Number(e.target.value) || 1 }))}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={container.locked_fields?.includes("capacity_pallets")}
+                  className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -243,7 +249,8 @@ export default function ContainerDetail() {
                 <input
                   value={editForm.shipping_container_number}
                   onChange={(e) => setEditForm((f) => ({ ...f, shipping_container_number: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={container.locked_fields?.includes("shipping_container_number")}
+                  className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -251,7 +258,8 @@ export default function ContainerDetail() {
                 <input
                   value={editForm.customer_name}
                   onChange={(e) => setEditForm((f) => ({ ...f, customer_name: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={container.locked_fields?.includes("customer_name")}
+                  className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -261,7 +269,8 @@ export default function ContainerDetail() {
                 <input
                   value={editForm.destination}
                   onChange={(e) => setEditForm((f) => ({ ...f, destination: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={container.locked_fields?.includes("destination")}
+                  className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -270,7 +279,8 @@ export default function ContainerDetail() {
                   type="date"
                   value={editForm.export_date}
                   onChange={(e) => setEditForm((f) => ({ ...f, export_date: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={container.locked_fields?.includes("export_date")}
+                  className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -279,7 +289,8 @@ export default function ContainerDetail() {
               <input
                 value={editForm.seal_number}
                 onChange={(e) => setEditForm((f) => ({ ...f, seal_number: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm"
+                disabled={container.locked_fields?.includes("seal_number")}
+                className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -326,7 +337,7 @@ export default function ContainerDetail() {
           <h3 className="text-sm font-semibold text-gray-700">
             {t("detail.pallets")} ({container.pallets.length})
           </h3>
-          {canLoadPallets && (
+          {canLoadPallets && !(container.locked_fields?.length) && (
             <button
               onClick={handleOpenLoadModal}
               className="px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"

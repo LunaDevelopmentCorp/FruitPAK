@@ -8,6 +8,7 @@ import {
 } from "../../api/batches";
 import { getBinTypes, BinTypeConfig } from "../../api/pallets";
 import { showToast as globalToast } from "../../store/toastStore";
+import { LockBanner } from "../../components/LockIndicator";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -187,6 +188,10 @@ export default React.memo(function BatchInfo({
           </div>
         </div>
 
+        {batch.locked_fields && batch.locked_fields.length > 0 && (
+          <LockBanner message={t("common:locks.batchPayment")} />
+        )}
+
         {/* Weights */}
         <div>
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -215,7 +220,8 @@ export default React.memo(function BatchInfo({
                 type="number"
                 step="0.1"
                 {...register("gross_weight_kg")}
-                className={inputCls}
+                disabled={batch.locked_fields?.includes("gross_weight_kg")}
+                className={`${inputCls} disabled:bg-gray-100 disabled:cursor-not-allowed`}
               />
             </div>
             <div>
@@ -224,7 +230,8 @@ export default React.memo(function BatchInfo({
                 type="number"
                 step="0.1"
                 {...register("tare_weight_kg")}
-                className={inputCls}
+                disabled={batch.locked_fields?.includes("tare_weight_kg")}
+                className={`${inputCls} disabled:bg-gray-100 disabled:cursor-not-allowed`}
               />
             </div>
           </div>
@@ -296,7 +303,11 @@ export default React.memo(function BatchInfo({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t("info.paymentTo")}</label>
-              <select {...register("payment_routing")} className={inputCls}>
+              <select
+                {...register("payment_routing")}
+                disabled={batch.locked_fields?.includes("payment_routing")}
+                className={`${inputCls} disabled:bg-gray-100 disabled:cursor-not-allowed`}
+              >
                 <option value="grower">{t("info.payToGrower")}</option>
                 <option value="harvest_team">{t("info.payToHarvestTeam")}</option>
               </select>
@@ -307,7 +318,8 @@ export default React.memo(function BatchInfo({
                 type="number"
                 step="0.01"
                 {...register("harvest_rate_per_kg")}
-                className={inputCls}
+                disabled={batch.locked_fields?.includes("harvest_rate_per_kg")}
+                className={`${inputCls} disabled:bg-gray-100 disabled:cursor-not-allowed`}
                 placeholder="e.g. 2.50"
               />
             </div>

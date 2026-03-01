@@ -135,6 +135,7 @@ class BatchOut(BaseModel):
     driver_name: str | None = None
     notes: str | None
     received_by: str | None
+    locked_fields: list[str] = []
     created_at: datetime
     updated_at: datetime
 

@@ -23,6 +23,7 @@ export interface ContainerSummary {
   destination: string | null;
   shipping_container_number: string | null;
   status: string;
+  locked_fields?: string[];
   created_at: string;
 }
 

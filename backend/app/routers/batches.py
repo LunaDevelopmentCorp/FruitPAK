@@ -22,6 +22,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
 from app.auth.permissions import has_permission
+from app.utils.locks import get_batch_locks, LOT_QUANTITY_FIELDS
 from app.database import get_db, get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
@@ -244,6 +245,12 @@ async def get_batch(
         palletized_map = {row[0]: int(row[1]) for row in pal_result.all()}
         for lot_out in detail.lots:
             lot_out.palletized_boxes = palletized_map.get(lot_out.id, 0)
+            if lot_out.palletized_boxes > 0:
+                lot_out.locked_fields = LOT_QUANTITY_FIELDS
+
+    # Batch-level locks (paid payments)
+    lock_info = await get_batch_locks(db, batch)
+    detail.locked_fields = lock_info.locked_field_names()
 
     return detail
 
@@ -311,6 +318,16 @@ async def update_batch(
     batch = result.scalar_one_or_none()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+
+    # ── Downstream lock check ─────────────────────────────────
+    lock_info = await get_batch_locks(db, batch)
+    if lock_info.is_locked:
+        conflict = lock_info.check_update(updating)
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{conflict.reason}. {conflict.unlock_hint}",
+            )
 
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(batch, field, value)

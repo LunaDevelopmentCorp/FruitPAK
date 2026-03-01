@@ -56,6 +56,7 @@ export interface BatchOut {
   driver_name: string | null;
   status: string;
   notes: string | null;
+  locked_fields?: string[];
   created_at: string;
 }
 
@@ -212,6 +213,7 @@ export interface LotSummary {
   waste_reason: string | null;
   notes: string | null;
   palletized_boxes: number;
+  locked_fields?: string[];
   status: string;
   pack_date: string | null;
   created_at: string;

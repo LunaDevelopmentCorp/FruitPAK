@@ -52,6 +52,7 @@ export interface PalletSummary {
   net_weight_kg: number | null;
   status: string;
   notes: string | null;
+  locked_fields?: string[];
   created_at: string;
 }
 
