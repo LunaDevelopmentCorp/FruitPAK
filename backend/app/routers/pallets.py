@@ -21,7 +21,7 @@ from datetime import datetime
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -344,6 +344,7 @@ async def create_empty_pallet(
 async def list_pallets(
     status: str | None = None,
     pallet_type: str | None = None,
+    search: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
@@ -355,6 +356,20 @@ async def list_pallets(
         base = base.where(Pallet.status == status)
     if pallet_type:
         base = base.where(Pallet.pallet_type_name == pallet_type)
+    if search:
+        q = f"%{search}%"
+        base = (
+            base
+            .outerjoin(PalletLot, (PalletLot.pallet_id == Pallet.id) & (PalletLot.is_deleted == False))  # noqa: E712
+            .outerjoin(Lot, Lot.id == PalletLot.lot_id)
+            .outerjoin(Batch, Batch.id == Lot.batch_id)
+            .where(or_(
+                Pallet.pallet_number.ilike(q),
+                Lot.lot_code.ilike(q),
+                Batch.batch_code.ilike(q),
+            ))
+            .distinct()
+        )
 
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
@@ -364,10 +379,35 @@ async def list_pallets(
     items_result = await db.execute(
         base.order_by(Pallet.created_at.desc()).limit(limit).offset(offset)
     )
-    items = items_result.scalars().all()
+    items = list(items_result.scalars().all())
+
+    # Populate lot_codes and batch_codes only when searching (avoids
+    # extra JOIN on every default page load)
+    if items and search:
+        pallet_ids = [p.id for p in items]
+        trace_result = await db.execute(
+            select(PalletLot.pallet_id, Lot.lot_code, Batch.batch_code)
+            .join(Lot, Lot.id == PalletLot.lot_id)
+            .join(Batch, Batch.id == Lot.batch_id)
+            .where(PalletLot.pallet_id.in_(pallet_ids), PalletLot.is_deleted == False)  # noqa: E712
+        )
+        lot_map: dict[str, set[str]] = {}
+        batch_map: dict[str, set[str]] = {}
+        for pid, lot_code, batch_code in trace_result.all():
+            lot_map.setdefault(pid, set()).add(lot_code)
+            batch_map.setdefault(pid, set()).add(batch_code)
+
+        summaries = []
+        for p in items:
+            s = PalletSummary.model_validate(p)
+            s.lot_codes = sorted(lot_map.get(p.id, set()))
+            s.batch_codes = sorted(batch_map.get(p.id, set()))
+            summaries.append(s)
+    else:
+        summaries = [PalletSummary.model_validate(p) for p in items]
 
     return PaginatedResponse(
-        items=[PalletSummary.model_validate(p) for p in items],
+        items=summaries,
         total=total,
         limit=limit,
         offset=offset,

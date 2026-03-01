@@ -9,11 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import json
-
-from sqlalchemy import func, select, text
+from sqlalchemy import String, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import Pallet, PalletLot
 from app.models.tenant.container import Container
 from app.models.tenant.export import Export
@@ -125,6 +124,11 @@ async def get_lot_locks(db: AsyncSession, lot) -> LockInfo:
 # ── Batch locks (downstream: paid Payments) ────────────────────
 
 
+BATCH_INTAKE_FIELDS = [
+    "bin_count", "bin_type",
+    "gross_weight_kg", "tare_weight_kg", "net_weight_kg",
+]
+
 BATCH_FINANCIAL_FIELDS = [
     "payment_routing", "harvest_rate_per_kg",
     "gross_weight_kg", "tare_weight_kg", "net_weight_kg",
@@ -132,48 +136,71 @@ BATCH_FINANCIAL_FIELDS = [
 
 
 async def get_batch_locks(db: AsyncSession, batch) -> LockInfo:
-    """Check if a batch is referenced by paid payments."""
+    """Check if a batch is locked by palletized lots or paid payments."""
     info = LockInfo()
 
-    # Use PostgreSQL JSONB containment (@>) to filter server-side
-    # This avoids loading all payments into Python
-    batch_id_literal = json.dumps([batch.id])
+    # 1. Check if any lots from this batch are palletized
+    pal_result = await db.execute(
+        select(
+            func.sum(PalletLot.box_count),
+            func.count(PalletLot.id),
+        )
+        .join(Lot, Lot.id == PalletLot.lot_id)
+        .where(
+            Lot.batch_id == batch.id,
+            PalletLot.is_deleted == False,  # noqa: E712
+        )
+    )
+    row = pal_result.one()
+    total_boxes = int(row[0] or 0)
+    alloc_count = int(row[1] or 0)
 
-    # Grower payments referencing this batch
+    if alloc_count > 0:
+        _add_locks(
+            info,
+            BATCH_INTAKE_FIELDS,
+            reason=f"{total_boxes} boxes palletized across {alloc_count} allocation(s)",
+            blocker_type="pallet_lot",
+            blocker_ref=f"{alloc_count} allocations",
+            unlock_hint="Remove pallet allocations first.",
+        )
+
+    # 2. Check for paid payments referencing this batch
+    #    Filter in DB via CAST(batch_ids AS TEXT) LIKE '%<id>%'
+    #    (asyncpg doesn't support JSONB @> operator; UUID uniqueness
+    #    makes substring match safe against false positives)
+    bid = batch.id
     gp_result = await db.execute(
         select(GrowerPayment.payment_ref).where(
             GrowerPayment.is_deleted == False,  # noqa: E712
             GrowerPayment.status == "paid",
-            text("batch_ids::jsonb @> :bid").bindparams(bid=batch_id_literal),
+            GrowerPayment.batch_ids.cast(String).contains(bid),
         ).limit(3)
     )
     grower_refs = [row[0] for row in gp_result.all()]
 
-    # Team payments referencing this batch
     htp_result = await db.execute(
         select(HarvestTeamPayment.payment_ref).where(
             HarvestTeamPayment.is_deleted == False,  # noqa: E712
             HarvestTeamPayment.status == "paid",
-            text("batch_ids::jsonb @> :bid").bindparams(bid=batch_id_literal),
+            HarvestTeamPayment.batch_ids.cast(String).contains(bid),
         ).limit(3)
     )
     team_refs = [row[0] for row in htp_result.all()]
 
     all_refs = grower_refs + team_refs
-    if not all_refs:
-        return info
+    if all_refs:
+        first_ref = all_refs[0]
+        suffix = f" (+{len(all_refs) - 1} more)" if len(all_refs) > 1 else ""
+        _add_locks(
+            info,
+            BATCH_FINANCIAL_FIELDS,
+            reason=f"Paid payment {first_ref}{suffix} references this batch",
+            blocker_type="payment",
+            blocker_ref=first_ref,
+            unlock_hint="Cancel the payment first.",
+        )
 
-    first_ref = all_refs[0]
-    suffix = f" (+{len(all_refs) - 1} more)" if len(all_refs) > 1 else ""
-
-    _add_locks(
-        info,
-        BATCH_FINANCIAL_FIELDS,
-        reason=f"Paid payment {first_ref}{suffix} references this batch",
-        blocker_type="payment",
-        blocker_ref=first_ref,
-        unlock_hint="Cancel the payment first.",
-    )
     return info
 
 

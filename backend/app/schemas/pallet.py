@@ -104,6 +104,8 @@ class PalletSummary(BaseModel):
     net_weight_kg: float | None
     status: str
     notes: str | None = None
+    lot_codes: list[str] = []
+    batch_codes: list[str] = []
     locked_fields: list[str] = []
     created_at: datetime
 

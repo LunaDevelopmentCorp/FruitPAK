@@ -52,6 +52,8 @@ export interface PalletSummary {
   net_weight_kg: number | null;
   status: string;
   notes: string | null;
+  lot_codes?: string[];
+  batch_codes?: string[];
   locked_fields?: string[];
   created_at: string;
 }
