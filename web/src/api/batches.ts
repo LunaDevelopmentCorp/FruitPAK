@@ -25,7 +25,6 @@ export interface GRNPayload {
   harvest_date?: string;
   quality_grade?: string;
   harvest_team_id: string;
-  payment_routing?: string;
   tare_weight_kg?: number;
   arrival_temp_c?: number;
   brix_reading?: number;
@@ -44,6 +43,7 @@ export interface BatchOut {
   grower_id: string;
   grower_name: string | null;
   payment_routing: string;
+  harvest_rate_per_kg: number | null;
   packhouse_id: string;
   fruit_type: string;
   variety: string | null;
@@ -66,6 +66,7 @@ export interface BatchSummary {
   grower_name: string | null;
   harvest_team_id: string | null;
   payment_routing: string;
+  harvest_rate_per_kg: number | null;
   fruit_type: string;
   variety: string | null;
   gross_weight_kg: number | null;
@@ -165,6 +166,7 @@ export interface BatchUpdatePayload {
   bin_count?: number;
   bin_type?: string;
   payment_routing?: string;
+  harvest_rate_per_kg?: number;
   vehicle_reg?: string;
   driver_name?: string;
   notes?: string;

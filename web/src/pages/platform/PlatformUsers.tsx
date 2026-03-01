@@ -8,6 +8,7 @@ import {
   impersonateUser,
   PlatformUser,
 } from "../../api/platform";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 import { useAuthStore } from "../../store/authStore";
 import { showToast } from "../../store/toastStore";
 import StatusBadge from "../../components/StatusBadge";
@@ -17,6 +18,7 @@ export default function PlatformUsers() {
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const setAuth = useAuthStore((s) => s.setAuth);
 
   useEffect(() => {
@@ -103,17 +105,24 @@ export default function PlatformUsers() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
-                <th className="px-4 py-2">{t("users.headers.name")}</th>
-                <th className="px-4 py-2">{t("users.headers.email")}</th>
-                <th className="px-4 py-2">{t("users.headers.enterprise")}</th>
-                <th className="px-4 py-2">{t("users.headers.role")}</th>
-                <th className="px-4 py-2 text-center">{t("users.headers.status")}</th>
-                <th className="px-4 py-2">{t("users.headers.created")}</th>
+                <th onClick={() => toggleSort("full_name")} className={`px-4 py-2 ${sortableThClass}`}>{t("users.headers.name")}{sortIndicator("full_name")}</th>
+                <th onClick={() => toggleSort("email")} className={`px-4 py-2 ${sortableThClass}`}>{t("users.headers.email")}{sortIndicator("email")}</th>
+                <th onClick={() => toggleSort("enterprise_name")} className={`px-4 py-2 ${sortableThClass}`}>{t("users.headers.enterprise")}{sortIndicator("enterprise_name")}</th>
+                <th onClick={() => toggleSort("role")} className={`px-4 py-2 ${sortableThClass}`}>{t("users.headers.role")}{sortIndicator("role")}</th>
+                <th onClick={() => toggleSort("status")} className={`px-4 py-2 text-center ${sortableThClass}`}>{t("users.headers.status")}{sortIndicator("status")}</th>
+                <th onClick={() => toggleSort("created_at")} className={`px-4 py-2 ${sortableThClass}`}>{t("users.headers.created")}{sortIndicator("created_at")}</th>
                 <th className="px-4 py-2">{t("users.headers.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {users.map((u) => (
+              {sortRows(users, sortCol, sortDir, {
+                full_name: (u) => u.full_name,
+                email: (u) => u.email,
+                enterprise_name: (u) => u.enterprise_name || "",
+                role: (u) => u.role,
+                status: (u) => (u.is_active ? "active" : "inactive"),
+                created_at: (u) => u.created_at,
+              }).map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium">{u.full_name}</td>
                   <td className="px-4 py-2 text-gray-500">{u.email}</td>

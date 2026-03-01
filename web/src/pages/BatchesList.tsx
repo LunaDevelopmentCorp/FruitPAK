@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { listBatches, listGrowers, Grower, BatchSummary } from "../api/batches";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
@@ -94,6 +95,20 @@ export default function BatchesList() {
     setCurrentCursor(cursor);
     fetchBatches(cursor);
   };
+
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
+
+  const sortedBatches = useMemo(() => sortRows(batches, sortCol, sortDir, {
+    code: (b) => b.batch_code,
+    grower: (b) => b.grower_name || "",
+    fruit: (b) => b.fruit_type,
+    variety: (b) => b.variety || "",
+    bins: (b) => b.bin_count ?? 0,
+    netKg: (b) => b.net_weight_kg ?? 0,
+    payTo: (b) => b.payment_routing === "harvest_team" ? (b.harvest_team_name || "") : (b.grower_name || ""),
+    status: (b) => b.status,
+    date: (b) => b.intake_date || b.created_at || "",
+  }), [batches, sortCol, sortDir]);
 
   const hasActiveFilters = statusFilter || growerFilter || dateFrom || dateTo || debouncedSearch;
 
@@ -190,21 +205,19 @@ export default function BatchesList() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium">{t("common:table.code")}</th>
-                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.grower")}</th>
-                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.fruit")}</th>
-                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.variety")}</th>
-                  <th className="text-right px-4 py-2 font-medium">{t("list.headers.bins")}</th>
-                  <th className="text-right px-4 py-2 font-medium">
-                    {t("list.headers.netKg")}
-                  </th>
-                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.payTo")}</th>
-                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
-                  <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
+                  <th onClick={() => toggleSort("code")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("common:table.code")}{sortIndicator("code")}</th>
+                  <th onClick={() => toggleSort("grower")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.grower")}{sortIndicator("grower")}</th>
+                  <th onClick={() => toggleSort("fruit")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.fruit")}{sortIndicator("fruit")}</th>
+                  <th onClick={() => toggleSort("variety")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.variety")}{sortIndicator("variety")}</th>
+                  <th onClick={() => toggleSort("bins")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.bins")}{sortIndicator("bins")}</th>
+                  <th onClick={() => toggleSort("netKg")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.netKg")}{sortIndicator("netKg")}</th>
+                  <th onClick={() => toggleSort("payTo")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.payTo")}{sortIndicator("payTo")}</th>
+                  <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.status")}{sortIndicator("status")}</th>
+                  <th onClick={() => toggleSort("date")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.date")}{sortIndicator("date")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {batches.map((b) => (
+                {sortedBatches.map((b) => (
                   <tr
                     key={b.id}
                     onClick={() => navigate(`/batches/${b.id}`)}

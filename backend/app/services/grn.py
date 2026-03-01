@@ -16,6 +16,7 @@ from app.models.tenant.batch import Batch
 from app.models.tenant.batch_history import BatchHistory
 from app.models.tenant.grower import Grower
 from app.models.tenant.grower_payment import GrowerPayment
+from app.models.tenant.harvest_team import HarvestTeam
 from app.models.tenant.harvest_team_payment import HarvestTeamPayment
 from app.models.tenant.packhouse import Packhouse
 from app.schemas.batch import GRNRequest
@@ -65,11 +66,23 @@ async def create_grn(
         else None
     )
 
+    # Auto-populate harvest rate from team's default rate_per_kg
+    harvest_rate = None
+    if body.harvest_team_id:
+        team = (
+            await db.execute(
+                select(HarvestTeam).where(HarvestTeam.id == body.harvest_team_id)
+            )
+        ).scalar_one_or_none()
+        if team and team.rate_per_kg is not None:
+            harvest_rate = team.rate_per_kg
+
     batch = Batch(
         batch_code=batch_code,
         grower_id=body.grower_id,
         harvest_team_id=body.harvest_team_id,
-        payment_routing=body.payment_routing,
+        payment_routing="grower",  # default — financial user changes via batch detail
+        harvest_rate_per_kg=harvest_rate,
         packhouse_id=body.packhouse_id,
         fruit_type=body.fruit_type,
         variety=body.variety,
@@ -118,7 +131,7 @@ async def create_grn(
     advance_linked = False
     advance_ref: str | None = None
 
-    if body.payment_routing == "harvest_team" and body.harvest_team_id:
+    if False:  # advance linking is now grower-only at intake (routing set later)
         # Link to harvest team advance payment
         team_advance = (
             await db.execute(

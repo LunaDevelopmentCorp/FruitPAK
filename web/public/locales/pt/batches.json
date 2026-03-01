@@ -60,7 +60,10 @@
     "editBatch": "Editar Info do Lote",
     "editTitle": "Editar Info do Lote",
     "updated": "Lote atualizado.",
-    "updateFailed": "Falha ao atualizar o lote."
+    "updateFailed": "Falha ao atualizar o lote.",
+    "financial": "Financeiro",
+    "harvestRate": "Taxa colheita/kg",
+    "harvestRateHelp": "Taxa por kg de fruta Grau 1 para este lote. Substitui a taxa padrão da equipa."
   },
   "lots": {
     "title": "Sublotes de Embalagem",

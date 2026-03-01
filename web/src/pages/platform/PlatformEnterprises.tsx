@@ -5,6 +5,7 @@ import {
   updateEnterprise,
   EnterpriseItem,
 } from "../../api/platform";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 import { showToast } from "../../store/toastStore";
 import StatusBadge from "../../components/StatusBadge";
 
@@ -12,6 +13,7 @@ export default function PlatformEnterprises() {
   const { t } = useTranslation("platform");
   const [enterprises, setEnterprises] = useState<EnterpriseItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   const fetchEnterprises = () => {
     setLoading(true);
@@ -45,18 +47,26 @@ export default function PlatformEnterprises() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-600">
               <tr>
-                <th className="px-4 py-2">{t("enterprises.headers.name")}</th>
-                <th className="px-4 py-2">{t("enterprises.headers.country")}</th>
-                <th className="px-4 py-2">{t("enterprises.headers.schema")}</th>
-                <th className="px-4 py-2 text-center">{t("enterprises.headers.users")}</th>
-                <th className="px-4 py-2 text-center">{t("enterprises.headers.onboarded")}</th>
-                <th className="px-4 py-2 text-center">{t("enterprises.headers.status")}</th>
-                <th className="px-4 py-2">{t("enterprises.headers.created")}</th>
+                <th onClick={() => toggleSort("name")} className={`px-4 py-2 ${sortableThClass}`}>{t("enterprises.headers.name")}{sortIndicator("name")}</th>
+                <th onClick={() => toggleSort("country")} className={`px-4 py-2 ${sortableThClass}`}>{t("enterprises.headers.country")}{sortIndicator("country")}</th>
+                <th onClick={() => toggleSort("schema_name")} className={`px-4 py-2 ${sortableThClass}`}>{t("enterprises.headers.schema")}{sortIndicator("schema_name")}</th>
+                <th onClick={() => toggleSort("user_count")} className={`px-4 py-2 text-center ${sortableThClass}`}>{t("enterprises.headers.users")}{sortIndicator("user_count")}</th>
+                <th onClick={() => toggleSort("onboarded")} className={`px-4 py-2 text-center ${sortableThClass}`}>{t("enterprises.headers.onboarded")}{sortIndicator("onboarded")}</th>
+                <th onClick={() => toggleSort("status")} className={`px-4 py-2 text-center ${sortableThClass}`}>{t("enterprises.headers.status")}{sortIndicator("status")}</th>
+                <th onClick={() => toggleSort("created_at")} className={`px-4 py-2 ${sortableThClass}`}>{t("enterprises.headers.created")}{sortIndicator("created_at")}</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {enterprises.map((ent) => (
+              {sortRows(enterprises, sortCol, sortDir, {
+                name: (e) => e.name,
+                country: (e) => e.country,
+                schema_name: (e) => e.tenant_schema,
+                user_count: (e) => e.user_count,
+                onboarded: (e) => (e.is_onboarded ? "yes" : "no"),
+                status: (e) => (e.is_active ? "active" : "inactive"),
+                created_at: (e) => e.created_at,
+              }).map((ent) => (
                 <tr key={ent.id} className="hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium">{ent.name}</td>
                   <td className="px-4 py-2 text-gray-500">{ent.country}</td>

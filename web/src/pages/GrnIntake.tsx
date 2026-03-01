@@ -21,6 +21,7 @@ import { getFruitTypeConfigs, FruitTypeConfig } from "../api/config";
 import { listHarvestTeams, HarvestTeamItem } from "../api/payments";
 import BatchQR from "../components/BatchQR";
 import { getErrorMessage } from "../api/client";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 
@@ -46,6 +47,9 @@ export default function GrnIntake() {
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [loadingRef, setLoadingRef] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+
+  // ── Sorting ──────────────────────────────────────────────
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   // Recent GRNs list + inline edit
   const [recentBatches, setRecentBatches] = useState<BatchSummary[]>([]);
@@ -213,8 +217,7 @@ export default function GrnIntake() {
       gross_weight_kg: grossNum || undefined,
       tare_weight_kg: data.tare_weight_kg ? Number(data.tare_weight_kg) : undefined,
       bin_count: binNum || undefined,
-      harvest_team_id: data.harvest_team_id || undefined,
-      payment_routing: data.payment_routing || "grower",
+      harvest_team_id: data.harvest_team_id || "",
       field_code: data.field_code || undefined,
       field_name: data.field_name || undefined,
     };
@@ -429,39 +432,23 @@ export default function GrnIntake() {
           </div>
         ) : null}
 
-        {/* Harvest Team + Payment Routing */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("form.harvestTeam")}
-            </label>
-            <select
-              {...register("harvest_team_id", { required: t("form.harvestTeamRequired") })}
-              className={errors.harvest_team_id || getFieldError("harvest_team_id") ? inputError : inputBase}
-            >
-                <option value="">{t("form.selectHarvestTeam")}</option>
-                {harvestTeams.map((ht) => (
-                  <option key={ht.id} value={ht.id}>
-                    {ht.name}{ht.team_leader ? ` (${ht.team_leader})` : ""}
-                  </option>
-                ))}
-              </select>
-            <FieldMsg error={errors.harvest_team_id?.message || getFieldError("harvest_team_id")} />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("form.payTo")}
-            </label>
-            <select
-              {...register("payment_routing")}
-              className={inputBase}
-            >
-              <option value="grower">{t("form.payToGrower")}</option>
-              <option value="harvest_team">{t("form.payToHarvestTeam")}</option>
+        {/* Harvest Team */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {t("form.harvestTeam")}
+          </label>
+          <select
+            {...register("harvest_team_id", { required: t("form.harvestTeamRequired") })}
+            className={errors.harvest_team_id || getFieldError("harvest_team_id") ? inputError : inputBase}
+          >
+              <option value="">{t("form.selectHarvestTeam")}</option>
+              {harvestTeams.map((ht) => (
+                <option key={ht.id} value={ht.id}>
+                  {ht.name}{ht.team_leader ? ` (${ht.team_leader})` : ""}
+                </option>
+              ))}
             </select>
-            <p className="mt-1 text-xs text-gray-500">{t("form.payToHelp")}</p>
-          </div>
+          <FieldMsg error={errors.harvest_team_id?.message || getFieldError("harvest_team_id")} />
         </div>
 
         {/* Fruit type + Variety */}
@@ -714,17 +701,25 @@ export default function GrnIntake() {
             <table className="w-full text-sm">
               <thead className="text-gray-500 text-xs border-b">
                 <tr>
-                  <th className="text-left px-2 py-2 font-medium">{t("recent.batchCode")}</th>
-                  <th className="text-left px-2 py-2 font-medium">{t("common:table.grower")}</th>
-                  <th className="text-left px-2 py-2 font-medium">{t("recent.fruitVariety")}</th>
-                  <th className="text-right px-2 py-2 font-medium">{t("recent.bins")}</th>
-                  <th className="text-right px-2 py-2 font-medium">{t("recent.grossKg")}</th>
-                  <th className="text-right px-2 py-2 font-medium">{t("recent.netKg")}</th>
-                  <th className="text-left px-2 py-2 font-medium">{t("common:table.status")}</th>
+                  <th onClick={() => toggleSort("code")} className={`text-left px-2 py-2 font-medium ${sortableThClass}`}>{t("recent.batchCode")}{sortIndicator("code")}</th>
+                  <th onClick={() => toggleSort("grower")} className={`text-left px-2 py-2 font-medium ${sortableThClass}`}>{t("common:table.grower")}{sortIndicator("grower")}</th>
+                  <th onClick={() => toggleSort("fruit")} className={`text-left px-2 py-2 font-medium ${sortableThClass}`}>{t("recent.fruitVariety")}{sortIndicator("fruit")}</th>
+                  <th onClick={() => toggleSort("bins")} className={`text-right px-2 py-2 font-medium ${sortableThClass}`}>{t("recent.bins")}{sortIndicator("bins")}</th>
+                  <th onClick={() => toggleSort("gross")} className={`text-right px-2 py-2 font-medium ${sortableThClass}`}>{t("recent.grossKg")}{sortIndicator("gross")}</th>
+                  <th onClick={() => toggleSort("net")} className={`text-right px-2 py-2 font-medium ${sortableThClass}`}>{t("recent.netKg")}{sortIndicator("net")}</th>
+                  <th onClick={() => toggleSort("status")} className={`text-left px-2 py-2 font-medium ${sortableThClass}`}>{t("common:table.status")}{sortIndicator("status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {recentBatches.map((b) => (
+                {sortRows(recentBatches, sortCol, sortDir, {
+                  code: (b) => b.batch_code,
+                  grower: (b) => b.grower_name || "",
+                  fruit: (b) => `${b.fruit_type}${b.variety ? ` / ${b.variety}` : ""}`,
+                  bins: (b) => b.bin_count ?? 0,
+                  gross: (b) => b.gross_weight_kg ?? 0,
+                  net: (b) => b.net_weight_kg ?? 0,
+                  status: (b) => b.status,
+                }).map((b) => (
                   <React.Fragment key={b.id}>
                     <tr
                       onClick={() => setEditingBatchId(editingBatchId === b.id ? null : b.id)}

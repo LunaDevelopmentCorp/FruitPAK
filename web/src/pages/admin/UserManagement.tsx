@@ -12,6 +12,7 @@ import {
 } from "../../api/admin";
 import { listPackhouses } from "../../api/batches";
 import { getErrorMessage } from "../../api/client";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 import { useAuthStore } from "../../store/authStore";
 import { showToast } from "../../store/toastStore";
 
@@ -55,6 +56,8 @@ export default function UserManagement() {
     assigned_packhouses: [],
   });
   const [saving, setSaving] = useState(false);
+
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   // Confirm deactivate
   const [confirmToggle, setConfirmToggle] = useState<UserSummary | null>(null);
@@ -193,16 +196,22 @@ export default function UserManagement() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">{t("users.headers.name")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("users.headers.email")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("users.headers.phone")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("users.headers.role")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("users.headers.status")}</th>
+              <th onClick={() => toggleSort("full_name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("users.headers.name")}{sortIndicator("full_name")}</th>
+              <th onClick={() => toggleSort("email")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("users.headers.email")}{sortIndicator("email")}</th>
+              <th onClick={() => toggleSort("phone")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("users.headers.phone")}{sortIndicator("phone")}</th>
+              <th onClick={() => toggleSort("role")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("users.headers.role")}{sortIndicator("role")}</th>
+              <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("users.headers.status")}{sortIndicator("status")}</th>
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
           <tbody className="divide-y">
-            {users.map((u) => (
+            {sortRows(users, sortCol, sortDir, {
+              full_name: (u) => u.full_name,
+              email: (u) => u.email,
+              phone: (u) => u.phone || "",
+              role: (u) => u.role,
+              status: (u) => (u.is_active ? "active" : "inactive"),
+            }).map((u) => (
               <tr key={u.id} className={`hover:bg-gray-50 ${!u.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-2 font-medium text-gray-800">{u.full_name}</td>
                 <td className="px-4 py-2 text-gray-600">{u.email}</td>

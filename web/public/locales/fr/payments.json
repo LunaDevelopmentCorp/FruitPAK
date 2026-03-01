@@ -42,15 +42,60 @@
       "viewReconciliation": "Voir le rapprochement",
       "toast": "Paiement {{ref}} enregistre — alertes mises a jour"
     },
+    "tabs": {
+      "recordPayment": "Enregistrer un paiement",
+      "paymentHistory": "Historique des paiements",
+      "reconciliation": "Rapprochement"
+    },
+    "history": {
+      "allGrowers": "Tous les producteurs",
+      "showing": "{{count}} sur {{total}} paiements",
+      "empty": "Aucun paiement enregistre pour le moment."
+    },
     "recent": {
       "title": "Paiements recents"
+    },
+    "edit": {
+      "title": "Modifier le paiement",
+      "updated": "Paiement mis a jour.",
+      "updateFailed": "Echec de la mise a jour du paiement.",
+      "statusPaid": "Paye",
+      "statusCancelled": "Annule"
+    },
+    "reconciliation": {
+      "title": "Rapprochement producteur",
+      "selectGrower": "Selectionner un producteur",
+      "selectPlaceholder": "Choisir un producteur...",
+      "deliveries": "Livraisons",
+      "payments": "Historique des paiements",
+      "noDeliveries": "Aucune livraison pour ce producteur.",
+      "noPayments": "Aucun paiement enregistre pour ce producteur.",
+      "headers": {
+        "batchCode": "Code lot",
+        "intakeDate": "Date de reception",
+        "intakeKg": "Reception kg",
+        "status": "Statut",
+        "paymentDate": "Date",
+        "paymentRef": "Reference",
+        "paymentType": "Type",
+        "paymentAmount": "Montant"
+      },
+      "summary": {
+        "totalBatches_one": "{{count}} lot",
+        "totalBatches_other": "{{count}} lots",
+        "totalPaid": "Total paye",
+        "totalIntakeKg": "Total recu"
+      },
+      "print": "Imprimer le releve",
+      "statementTitle": "Releve de paiement producteur"
     }
   },
   "team": {
     "title": "Paiements des equipes de recolte",
     "tabs": {
       "recordPayment": "Enregistrer un paiement",
-      "teamSummary": "Resume par equipe"
+      "teamManagement": "Gestion des equipes",
+      "reconciliation": "Rapprochement"
     },
     "form": {
       "team": "Equipe de recolte *",
@@ -80,6 +125,13 @@
       "title": "Paiements recents des equipes",
       "empty": "Aucun paiement enregistre pour le moment."
     },
+    "edit": {
+      "title": "Modifier le paiement",
+      "updated": "Paiement mis a jour.",
+      "updateFailed": "Echec de la mise a jour du paiement.",
+      "statusPaid": "Paye",
+      "statusCancelled": "Annule"
+    },
     "summary": {
       "title": "Resume de rapprochement des equipes",
       "empty": "Aucune equipe de recolte ou paiement pour le moment.",
@@ -90,13 +142,72 @@
         "advances": "Acomptes",
         "finals": "Soldes",
         "totalPaid": "Total paye",
-        "class1Kg": "Classe 1 kg",
+        "class1Kg": "Grade 1 kg",
         "ratePerKg": "Tarif/kg",
         "owed": "Du",
         "balance": "Solde"
       },
       "noRate": "Pas de tarif",
       "totals": "Totaux"
+    },
+    "management": {
+      "title": "Gestion des equipes",
+      "addTeam": "Ajouter une equipe",
+      "searchPlaceholder": "Rechercher nom, chef...",
+      "showing": "{{count}} sur {{total}} equipes",
+      "empty": "Aucune equipe de recolte. Ajoutez une equipe ou utilisez l'assistant pour un import en masse.",
+      "teamCreated": "Equipe creee.",
+      "createFailed": "Echec de la creation de l'equipe.",
+      "teamUpdated": "Equipe mise a jour.",
+      "updateFailed": "Echec de la mise a jour de l'equipe.",
+      "teamDeleted": "Equipe supprimee.",
+      "deleteFailed": "Echec de la suppression de l'equipe.",
+      "confirmDelete": "Supprimer \"{{name}}\" ? Cette action est irreversible.",
+      "teamLeader": "Chef d'equipe",
+      "teamSize": "Taille de l'equipe",
+      "estVolume": "Vol. est. (kg)",
+      "ratePerKg": "Tarif/kg"
+    },
+    "reconciliation": {
+      "title": "Rapprochement des equipes",
+      "selectTeam": "Selectionner une equipe",
+      "allTeams": "Toutes les equipes",
+      "selectPlaceholder": "Choisir une equipe...",
+      "filterName": "Rechercher",
+      "filterNamePlaceholder": "Nom ou chef d'equipe...",
+      "filterBatch": "Rechercher",
+      "filterBatchPlaceholder": "Code lot...",
+      "dateFrom": "Du",
+      "dateTo": "Au",
+      "clearFilters": "Effacer les filtres",
+      "noResults": "Aucun resultat ne correspond a vos filtres.",
+      "deliveries": "Livraisons",
+      "payments": "Historique des paiements",
+      "noDeliveries": "Aucune livraison pour cette equipe.",
+      "noPayments": "Aucun paiement enregistre pour cette equipe.",
+      "headers": {
+        "batchCode": "Code lot",
+        "intakeDate": "Date de reception",
+        "intakeKg": "Reception kg",
+        "class1Kg": "Grade 1 kg",
+        "ratePerKg": "Tarif/kg",
+        "owed": "Du",
+        "paymentDate": "Date",
+        "paymentRef": "Reference",
+        "paymentType": "Type",
+        "paymentAmount": "Montant"
+      },
+      "summary": {
+        "totalOwed": "Total du",
+        "totalPaid": "Total paye",
+        "balance": "Solde"
+      },
+      "setRate": "Definir tarif",
+      "clickToEditRate": "Cliquer pour modifier le tarif",
+      "rateUpdated": "Tarif mis a jour.",
+      "rateUpdateFailed": "Echec de la mise a jour du tarif.",
+      "print": "Imprimer le releve",
+      "statementTitle": "Releve de paiement d'equipe"
     }
   }
 }

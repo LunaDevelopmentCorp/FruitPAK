@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
 import CsvImport from "../../../components/CsvImport";
+import { useTableSort, sortRows, sortableThClass } from "../../../hooks/useTableSort";
 
 interface GrowerForm {
   name: string;
@@ -34,8 +35,23 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "growers" });
   const [showForms, setShowForms] = useState(true);
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   const growers = watch("growers");
+
+  // Build display rows with original indices, then sort
+  const sortedGrowers = useMemo(() => {
+    const rows = growers
+      ?.map((g, idx) => ({ ...g, _idx: idx }))
+      .filter((g) => g.name?.trim()) ?? [];
+    return sortRows(rows, sortCol, sortDir, {
+      name: (r) => r.name,
+      code: (r) => r.grower_code || "",
+      region: (r) => r.region || "",
+      total_hectares: (r) => r.total_hectares,
+      certified: (r) => (r.globalg_ap_certified ? 1 : 0),
+    });
+  }, [growers, sortCol, sortDir]);
 
   const hasUncertified = growers?.some((g) => g.name?.trim() && !g.globalg_ap_certified);
   const hasEntries = growers?.some((g) => g.name?.trim());
@@ -105,18 +121,17 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-4 py-1.5 font-medium">{t("step4.headers.name")}</th>
-                <th className="text-left px-4 py-1.5 font-medium">{t("step4.headers.code")}</th>
-                <th className="text-left px-4 py-1.5 font-medium">{t("step4.headers.region")}</th>
-                <th className="text-right px-4 py-1.5 font-medium">{t("step4.headers.hectares")}</th>
-                <th className="text-center px-4 py-1.5 font-medium">{t("step4.headers.certified")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("name")}>{t("step4.headers.name")}{sortIndicator("name")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("code")}>{t("step4.headers.code")}{sortIndicator("code")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("region")}>{t("step4.headers.region")}{sortIndicator("region")}</th>
+                <th className={`text-right px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("total_hectares")}>{t("step4.headers.hectares")}{sortIndicator("total_hectares")}</th>
+                <th className={`text-center px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("certified")}>{t("step4.headers.certified")}{sortIndicator("certified")}</th>
                 <th className="px-4 py-1.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {growers.map((g, idx) =>
-                g.name?.trim() ? (
-                  <tr key={idx} className="hover:bg-gray-50">
+              {sortedGrowers.map((g) => (
+                  <tr key={g._idx} className="hover:bg-gray-50">
                     <td className="px-4 py-1.5 font-medium">{g.name}</td>
                     <td className="px-4 py-1.5 text-gray-600 font-mono text-xs">{g.grower_code || "\u2014"}</td>
                     <td className="px-4 py-1.5 text-gray-600">{g.region || "\u2014"}</td>
@@ -134,13 +149,12 @@ export default function Step4Growers({ onSave, saving, draftData }: StepProps) {
                       >
                         {t("common:actions.edit")}
                       </button>
-                      <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500 hover:text-red-700">
+                      <button type="button" onClick={() => remove(g._idx)} className="text-xs text-red-500 hover:text-red-700">
                           {t("common:actions.remove")}
                         </button>
                     </td>
                   </tr>
-                ) : null
-              )}
+              ))}
             </tbody>
           </table>
         </div>

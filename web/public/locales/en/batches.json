@@ -60,7 +60,10 @@
     "editBatch": "Edit Batch Info",
     "editTitle": "Edit Batch Info",
     "updated": "Batch updated.",
-    "updateFailed": "Failed to update batch."
+    "updateFailed": "Failed to update batch.",
+    "financial": "Financial",
+    "harvestRate": "Harvest Rate/kg",
+    "harvestRateHelp": "Rate per kg of Grade 1 fruit for this batch. Overrides the team default."
   },
   "lots": {
     "title": "Packing Lots",

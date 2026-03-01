@@ -7,6 +7,7 @@ import {
   DeletedItemSummary,
   DeletedItemsResponse,
 } from "../../api/admin";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 import { showToast as globalToast } from "../../store/toastStore";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -26,6 +27,7 @@ export default function DeletedItems() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort("deleted_at", "desc");
   const [confirmPurge, setConfirmPurge] = useState<DeletedItemSummary | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -90,11 +92,14 @@ export default function DeletedItems() {
           i.label.toLowerCase().includes(q)
       );
     }
-    return items.sort(
-      (a, b) =>
-        new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime()
-    );
-  }, [data, activeTab, search]);
+    return sortRows(items, sortCol, sortDir, {
+      type: (i) => i.item_type,
+      code: (i) => i.code,
+      description: (i) => i.label,
+      status: (i) => i.status,
+      deleted_at: (i) => i.deleted_at,
+    });
+  }, [data, activeTab, search, sortCol, sortDir]);
 
   const handleRestore = async (item: DeletedItemSummary) => {
     setActionLoading(item.id);
@@ -203,11 +208,11 @@ export default function DeletedItems() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.type")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.code")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.description")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.status")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("deleted.headers.deleted")}</th>
+                <th onClick={() => toggleSort("type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("deleted.headers.type")}{sortIndicator("type")}</th>
+                <th onClick={() => toggleSort("code")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("deleted.headers.code")}{sortIndicator("code")}</th>
+                <th onClick={() => toggleSort("description")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("deleted.headers.description")}{sortIndicator("description")}</th>
+                <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("deleted.headers.status")}{sortIndicator("status")}</th>
+                <th onClick={() => toggleSort("deleted_at")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("deleted.headers.deleted")}{sortIndicator("deleted_at")}</th>
                 <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>

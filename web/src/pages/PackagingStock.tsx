@@ -14,6 +14,7 @@ import {
 import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 const MOVEMENT_TYPE_KEYS = [
   { value: "", key: "movements.allTypes" },
@@ -46,6 +47,11 @@ export default function PackagingStock() {
   const [movements, setMovements] = useState<PackagingMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"stock" | "movements">("stock");
+
+  // Sort state — boxes and pallets are visible simultaneously, so separate hooks
+  const { sortCol: boxSortCol, sortDir: boxSortDir, toggleSort: boxToggleSort, sortIndicator: boxSortIndicator } = useTableSort();
+  const { sortCol: palletSortCol, sortDir: palletSortDir, toggleSort: palletToggleSort, sortIndicator: palletSortIndicator } = useTableSort();
+  const { sortCol: movSortCol, sortDir: movSortDir, toggleSort: movToggleSort, sortIndicator: movSortIndicator } = useTableSort();
 
   // Receive form state
   const [showReceive, setShowReceive] = useState(false);
@@ -419,17 +425,24 @@ export default function PackagingStock() {
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">{t("common:table.name")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.weight")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.costPerUnit")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.inStock")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.minLevel")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.status")}</th>
+                    <th onClick={() => boxToggleSort("name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("common:table.name")}{boxSortIndicator("name")}</th>
+                    <th onClick={() => boxToggleSort("weight_kg")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.weight")}{boxSortIndicator("weight_kg")}</th>
+                    <th onClick={() => boxToggleSort("cost_per_unit")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.costPerUnit")}{boxSortIndicator("cost_per_unit")}</th>
+                    <th onClick={() => boxToggleSort("in_stock")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.inStock")}{boxSortIndicator("in_stock")}</th>
+                    <th onClick={() => boxToggleSort("min_level")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.minLevel")}{boxSortIndicator("min_level")}</th>
+                    <th onClick={() => boxToggleSort("status")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.status")}{boxSortIndicator("status")}</th>
                     <th className="text-right px-4 py-2 font-medium">{t("stock.headers.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {boxes.map((s) => {
+                  {sortRows(boxes, boxSortCol, boxSortDir, {
+                    name: (r) => r.name,
+                    weight_kg: (r) => r.weight_kg,
+                    cost_per_unit: (r) => r.cost_per_unit,
+                    in_stock: (r) => r.current_quantity,
+                    min_level: (r) => r.min_stock_level,
+                    status: (r) => (r.min_stock_level > 0 && r.current_quantity <= r.min_stock_level) ? "low" : "ok",
+                  }).map((s) => {
                     const low = s.min_stock_level > 0 && s.current_quantity <= s.min_stock_level;
                     return (
                       <tr key={s.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
@@ -507,15 +520,20 @@ export default function PackagingStock() {
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">{t("common:table.name")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.inStock")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.minLevel")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("stock.headers.status")}</th>
+                    <th onClick={() => palletToggleSort("name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("common:table.name")}{palletSortIndicator("name")}</th>
+                    <th onClick={() => palletToggleSort("in_stock")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.inStock")}{palletSortIndicator("in_stock")}</th>
+                    <th onClick={() => palletToggleSort("min_level")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.minLevel")}{palletSortIndicator("min_level")}</th>
+                    <th onClick={() => palletToggleSort("status")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("stock.headers.status")}{palletSortIndicator("status")}</th>
                     <th className="text-right px-4 py-2 font-medium">{t("stock.headers.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {pallets.map((s) => {
+                  {sortRows(pallets, palletSortCol, palletSortDir, {
+                    name: (r) => r.name,
+                    in_stock: (r) => r.current_quantity,
+                    min_level: (r) => r.min_stock_level,
+                    status: (r) => (r.min_stock_level > 0 && r.current_quantity <= r.min_stock_level) ? "low" : "ok",
+                  }).map((s) => {
                     const low = s.min_stock_level > 0 && s.current_quantity <= s.min_stock_level;
                     return (
                       <tr key={s.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
@@ -657,16 +675,23 @@ export default function PackagingStock() {
               <table className="w-full text-sm">
                 <thead className="text-gray-500 text-xs bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.date")}</th>
-                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.item")}</th>
-                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.type")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("movements.headers.qty")}</th>
-                    <th className="text-right px-4 py-2 font-medium">{t("movements.headers.costPerUnit")}</th>
-                    <th className="text-left px-4 py-2 font-medium">{t("movements.headers.notes")}</th>
+                    <th onClick={() => movToggleSort("date")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("movements.headers.date")}{movSortIndicator("date")}</th>
+                    <th onClick={() => movToggleSort("item_name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("movements.headers.item")}{movSortIndicator("item_name")}</th>
+                    <th onClick={() => movToggleSort("movement_type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("movements.headers.type")}{movSortIndicator("movement_type")}</th>
+                    <th onClick={() => movToggleSort("quantity")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("movements.headers.qty")}{movSortIndicator("quantity")}</th>
+                    <th onClick={() => movToggleSort("cost_per_unit")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("movements.headers.costPerUnit")}{movSortIndicator("cost_per_unit")}</th>
+                    <th onClick={() => movToggleSort("notes")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("movements.headers.notes")}{movSortIndicator("notes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredMovements.map((m) => {
+                  {sortRows(filteredMovements, movSortCol, movSortDir, {
+                    date: (r) => r.recorded_at,
+                    item_name: (r) => stock.find((s) => s.id === r.stock_id)?.name ?? r.stock_id,
+                    movement_type: (r) => r.movement_type,
+                    quantity: (r) => r.quantity,
+                    cost_per_unit: (r) => r.cost_per_unit,
+                    notes: (r) => r.notes,
+                  }).map((m) => {
                     const stockItem = stock.find((s) => s.id === m.stock_id);
                     return (
                       <tr key={m.id} className="hover:bg-green-50/50 even:bg-gray-50/50">

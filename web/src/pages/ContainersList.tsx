@@ -7,12 +7,14 @@ import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
 
 export default function ContainersList() {
   const { t } = useTranslation("containers");
   const navigate = useNavigate();
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -231,20 +233,31 @@ export default function ContainersList() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.containerNumber")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.shippingNumber")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.type")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.customer")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.destination")}</th>
-                <th className="text-right px-4 py-2 font-medium">{t("list.headers.pallets")}</th>
-                <th className="text-right px-4 py-2 font-medium">{t("list.headers.fillPercent")}</th>
-                <th className="text-right px-4 py-2 font-medium">{t("list.headers.cartons")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
+                <th onClick={() => toggleSort("container_number")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.containerNumber")}{sortIndicator("container_number")}</th>
+                <th onClick={() => toggleSort("shipping_number")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.shippingNumber")}{sortIndicator("shipping_number")}</th>
+                <th onClick={() => toggleSort("type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.type")}{sortIndicator("type")}</th>
+                <th onClick={() => toggleSort("customer")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.customer")}{sortIndicator("customer")}</th>
+                <th onClick={() => toggleSort("destination")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.destination")}{sortIndicator("destination")}</th>
+                <th onClick={() => toggleSort("pallets")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.pallets")}{sortIndicator("pallets")}</th>
+                <th onClick={() => toggleSort("fill_pct")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.fillPercent")}{sortIndicator("fill_pct")}</th>
+                <th onClick={() => toggleSort("cartons")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.cartons")}{sortIndicator("cartons")}</th>
+                <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.status")}{sortIndicator("status")}</th>
+                <th onClick={() => toggleSort("created_at")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.date")}{sortIndicator("created_at")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((c) => {
+              {sortRows(filtered, sortCol, sortDir, {
+                container_number: (r) => r.container_number,
+                shipping_number: (r) => r.shipping_container_number,
+                type: (r) => r.container_type,
+                customer: (r) => r.customer_name,
+                destination: (r) => r.destination,
+                pallets: (r) => r.pallet_count,
+                fill_pct: (r) => r.capacity_pallets > 0 ? r.pallet_count / r.capacity_pallets : 0,
+                cartons: (r) => r.total_cartons,
+                status: (r) => r.status,
+                created_at: (r) => r.created_at,
+              }).map((c) => {
                 const fillPct = c.capacity_pallets > 0
                   ? Math.round((c.pallet_count / c.capacity_pallets) * 100)
                   : 0;

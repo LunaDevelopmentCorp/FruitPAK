@@ -40,6 +40,8 @@ class Batch(TenantBase):
     )
     # Who receives fruit payment: "grower" or "harvest_team"
     payment_routing: Mapped[str] = mapped_column(String(20), default="grower")
+    # Per-batch harvest rate — overrides team.rate_per_kg when set
+    harvest_rate_per_kg: Mapped[float | None] = mapped_column(Float)
     packhouse_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("packhouses.id"), nullable=False
     )

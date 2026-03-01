@@ -1,4 +1,4 @@
-"""Tenant-scoped harvest team routes — list, get, update, delete."""
+"""Tenant-scoped harvest team routes — list, get, create, update, delete."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
+from app.models.tenant.batch import Batch
 from app.models.tenant.harvest_team import HarvestTeam
 from app.schemas.common import PaginatedResponse
 
@@ -22,11 +23,27 @@ class HarvestTeamOut(BaseModel):
     grower_id: str | None
     supplier_id: str | None
     estimated_volume_kg: float | None
+    rate_per_kg: float | None = None
+    rate_currency: str = "ZAR"
     fruit_types: list[str] | None = None
     assigned_fields: list[str] | None = None
     notes: str | None
 
     model_config = {"from_attributes": True}
+
+
+class HarvestTeamCreate(BaseModel):
+    name: str
+    team_leader: str | None = None
+    team_size: int | None = None
+    grower_id: str | None = None
+    supplier_id: str | None = None
+    estimated_volume_kg: float | None = None
+    rate_per_kg: float | None = None
+    rate_currency: str = "ZAR"
+    fruit_types: list[str] | None = None
+    assigned_fields: list[str] | None = None
+    notes: str | None = None
 
 
 class HarvestTeamUpdate(BaseModel):
@@ -36,6 +53,8 @@ class HarvestTeamUpdate(BaseModel):
     grower_id: str | None = None
     supplier_id: str | None = None
     estimated_volume_kg: float | None = None
+    rate_per_kg: float | None = None
+    rate_currency: str | None = None
     fruit_types: list[str] | None = None
     assigned_fields: list[str] | None = None
     notes: str | None = None
@@ -76,6 +95,20 @@ async def get_harvest_team(
     return HarvestTeamOut.model_validate(team)
 
 
+@router.post("/", response_model=HarvestTeamOut, status_code=status.HTTP_201_CREATED)
+async def create_harvest_team(
+    body: HarvestTeamCreate,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("batch.write")),
+    _onboarded: User = Depends(require_onboarded),
+):
+    team = HarvestTeam(**body.model_dump(exclude_none=True))
+    db.add(team)
+    await db.flush()
+    await db.refresh(team)
+    return HarvestTeamOut.model_validate(team)
+
+
 @router.patch("/{team_id}", response_model=HarvestTeamOut)
 async def update_harvest_team(
     team_id: str,
@@ -109,5 +142,19 @@ async def delete_harvest_team(
     team = result.scalar_one_or_none()
     if not team:
         raise HTTPException(status_code=404, detail="Harvest team not found")
+
+    # Prevent deleting teams that have batches
+    batch_count = await db.scalar(
+        select(func.count(Batch.id)).where(
+            Batch.harvest_team_id == team_id,
+            Batch.is_deleted == False,  # noqa: E712
+        )
+    )
+    if batch_count:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete team with {batch_count} active batch(es). Remove batch links first.",
+        )
+
     await db.delete(team)
     await db.flush()

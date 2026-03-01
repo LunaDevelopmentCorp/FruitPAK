@@ -60,7 +60,10 @@
     "editBatch": "Editar Info del Lote",
     "editTitle": "Editar Info del Lote",
     "updated": "Lote actualizado.",
-    "updateFailed": "Error al actualizar el lote."
+    "updateFailed": "Error al actualizar el lote.",
+    "financial": "Financiero",
+    "harvestRate": "Tarifa cosecha/kg",
+    "harvestRateHelp": "Tarifa por kg de fruta Grado 1 para este lote. Reemplaza la tarifa predeterminada del equipo."
   },
   "lots": {
     "title": "Sublotes de Empaque",

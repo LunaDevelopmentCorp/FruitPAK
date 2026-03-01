@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listActivity, ActivityEntry, ActivityListResponse } from "../../api/admin";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 
 const ACTION_COLORS: Record<string, string> = {
   created: "bg-green-50 text-green-700",
@@ -43,6 +44,7 @@ export default function ActivityLogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const [entityFilter, setEntityFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [offset, setOffset] = useState(0);
@@ -124,16 +126,23 @@ export default function ActivityLogPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium w-36">{t("activity.headers.time")}</th>
-                  <th className="text-left px-4 py-2 font-medium w-32">{t("activity.headers.user")}</th>
-                  <th className="text-left px-4 py-2 font-medium w-28">{t("activity.headers.action")}</th>
-                  <th className="text-left px-4 py-2 font-medium w-24">{t("activity.headers.type")}</th>
-                  <th className="text-left px-4 py-2 font-medium w-28">{t("activity.headers.code")}</th>
-                  <th className="text-left px-4 py-2 font-medium">{t("activity.headers.summary")}</th>
+                  <th onClick={() => toggleSort("timestamp")} className={`text-left px-4 py-2 font-medium w-36 ${sortableThClass}`}>{t("activity.headers.time")}{sortIndicator("timestamp")}</th>
+                  <th onClick={() => toggleSort("user_name")} className={`text-left px-4 py-2 font-medium w-32 ${sortableThClass}`}>{t("activity.headers.user")}{sortIndicator("user_name")}</th>
+                  <th onClick={() => toggleSort("action")} className={`text-left px-4 py-2 font-medium w-28 ${sortableThClass}`}>{t("activity.headers.action")}{sortIndicator("action")}</th>
+                  <th onClick={() => toggleSort("entity_type")} className={`text-left px-4 py-2 font-medium w-24 ${sortableThClass}`}>{t("activity.headers.type")}{sortIndicator("entity_type")}</th>
+                  <th onClick={() => toggleSort("code")} className={`text-left px-4 py-2 font-medium w-28 ${sortableThClass}`}>{t("activity.headers.code")}{sortIndicator("code")}</th>
+                  <th onClick={() => toggleSort("summary")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("activity.headers.summary")}{sortIndicator("summary")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {data.items.map((a: ActivityEntry) => (
+                {sortRows(data.items, sortCol, sortDir, {
+                  timestamp: (a) => a.created_at,
+                  user_name: (a) => a.user_name || "",
+                  action: (a) => a.action,
+                  entity_type: (a) => a.entity_type,
+                  code: (a) => a.entity_code || "",
+                  summary: (a) => a.summary || "",
+                }).map((a: ActivityEntry) => (
                   <tr key={a.id} className="hover:bg-gray-50">
                     <td className="px-4 py-2 text-xs text-gray-400">
                       {new Date(a.created_at).toLocaleString()}

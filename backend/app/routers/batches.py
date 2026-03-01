@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.permissions import has_permission
 from app.database import get_db, get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
@@ -291,6 +292,18 @@ async def update_batch(
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
 ):
+    # Financial fields require financials.write permission
+    financial_fields = {"payment_routing", "harvest_rate_per_kg"}
+    updating = set(body.model_dump(exclude_unset=True).keys())
+    if updating & financial_fields:
+        payload = getattr(_user, "_token_payload", {})
+        user_perms = payload.get("permissions", [])
+        if not has_permission(user_perms, "financials.write"):
+            raise HTTPException(
+                status_code=403,
+                detail="financials.write permission required to change payment routing or harvest rate",
+            )
+
     result = await db.execute(
         select(Batch).where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
         .options(selectinload(Batch.grower))

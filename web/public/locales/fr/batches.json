@@ -60,7 +60,10 @@
     "editBatch": "Modifier les infos du lot",
     "editTitle": "Modifier les infos du lot",
     "updated": "Lot mis a jour.",
-    "updateFailed": "Echec de la mise a jour du lot."
+    "updateFailed": "Echec de la mise a jour du lot.",
+    "financial": "Financier",
+    "harvestRate": "Tarif recolte/kg",
+    "harvestRateHelp": "Tarif par kg de fruit Grade 1 pour ce lot. Remplace le tarif par defaut de l'equipe."
   },
   "lots": {
     "title": "Sous-lots de conditionnement",

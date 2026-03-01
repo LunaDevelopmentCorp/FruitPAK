@@ -12,6 +12,7 @@ import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 import CsvImport from "../components/CsvImport";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 const inputBase =
   "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-green-500";
@@ -52,6 +53,7 @@ function CutoffCell({ dateStr }: { dateStr: string | null }) {
 
 export default function ShippingSchedules() {
   const { t } = useTranslation("shipping");
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   const [schedules, setSchedules] = useState<ShippingScheduleSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -377,21 +379,32 @@ export default function ShippingSchedules() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">{t("list.headers.vessel")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.voyage")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.line")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.loadingPort")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.dischargePort")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.etd")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.eta")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.bookingCutoff")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.cargoCutoff")}</th>
-                <th className="px-4 py-3 font-medium">{t("list.headers.status")}</th>
+                <th onClick={() => toggleSort("vessel_name")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.vessel")}{sortIndicator("vessel_name")}</th>
+                <th onClick={() => toggleSort("voyage_number")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.voyage")}{sortIndicator("voyage_number")}</th>
+                <th onClick={() => toggleSort("shipping_line")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.line")}{sortIndicator("shipping_line")}</th>
+                <th onClick={() => toggleSort("port_of_loading")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.loadingPort")}{sortIndicator("port_of_loading")}</th>
+                <th onClick={() => toggleSort("port_of_discharge")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.dischargePort")}{sortIndicator("port_of_discharge")}</th>
+                <th onClick={() => toggleSort("etd")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.etd")}{sortIndicator("etd")}</th>
+                <th onClick={() => toggleSort("eta")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.eta")}{sortIndicator("eta")}</th>
+                <th onClick={() => toggleSort("booking_cutoff")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.bookingCutoff")}{sortIndicator("booking_cutoff")}</th>
+                <th onClick={() => toggleSort("cargo_cutoff")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.cargoCutoff")}{sortIndicator("cargo_cutoff")}</th>
+                <th onClick={() => toggleSort("status")} className={`px-4 py-3 font-medium ${sortableThClass}`}>{t("list.headers.status")}{sortIndicator("status")}</th>
                 <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((s) => (
+              {sortRows(filtered, sortCol, sortDir, {
+                vessel_name: (r) => r.vessel_name,
+                voyage_number: (r) => r.voyage_number,
+                shipping_line: (r) => r.shipping_line,
+                port_of_loading: (r) => r.port_of_loading,
+                port_of_discharge: (r) => r.port_of_discharge,
+                etd: (r) => r.etd,
+                eta: (r) => r.eta,
+                booking_cutoff: (r) => r.booking_cutoff,
+                cargo_cutoff: (r) => r.cargo_cutoff,
+                status: (r) => r.status,
+              }).map((s) => (
                 <tr key={s.id} className="hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium">{s.vessel_name}</td>
                   <td className="px-4 py-2 text-gray-600">{s.voyage_number}</td>

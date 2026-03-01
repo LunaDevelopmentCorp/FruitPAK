@@ -29,6 +29,8 @@ interface EditFormData {
   driver_name: string;
   notes: string;
   rejection_reason: string;
+  payment_routing: string;
+  harvest_rate_per_kg: string;
 }
 
 export default React.memo(function BatchInfo({
@@ -61,6 +63,8 @@ export default React.memo(function BatchInfo({
       driver_name: batch.driver_name || "",
       notes: batch.notes || "",
       rejection_reason: batch.rejection_reason || "",
+      payment_routing: batch.payment_routing || "grower",
+      harvest_rate_per_kg: batch.harvest_rate_per_kg?.toString() || "",
     },
   });
 
@@ -99,6 +103,8 @@ export default React.memo(function BatchInfo({
       driver_name: batch.driver_name || "",
       notes: batch.notes || "",
       rejection_reason: batch.rejection_reason || "",
+      payment_routing: batch.payment_routing || "grower",
+      harvest_rate_per_kg: batch.harvest_rate_per_kg?.toString() || "",
     });
     setEditing(true);
   };
@@ -131,6 +137,13 @@ export default React.memo(function BatchInfo({
       if (data.notes !== (batch.notes || "")) payload.notes = data.notes;
       if (data.rejection_reason !== (batch.rejection_reason || ""))
         payload.rejection_reason = data.rejection_reason;
+      if (data.payment_routing !== (batch.payment_routing || "grower"))
+        payload.payment_routing = data.payment_routing;
+      const newRate = parseFloat(data.harvest_rate_per_kg);
+      if (!isNaN(newRate) && newRate !== batch.harvest_rate_per_kg)
+        payload.harvest_rate_per_kg = newRate;
+      else if (data.harvest_rate_per_kg === "" && batch.harvest_rate_per_kg != null)
+        payload.harvest_rate_per_kg = undefined;
 
       if (Object.keys(payload).length === 0) {
         setEditing(false);
@@ -274,6 +287,32 @@ export default React.memo(function BatchInfo({
             </div>
           </div>
         </div>
+
+        {/* Financial (payment routing + harvest rate) */}
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            {t("info.financial")}
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("info.paymentTo")}</label>
+              <select {...register("payment_routing")} className={inputCls}>
+                <option value="grower">{t("info.payToGrower")}</option>
+                <option value="harvest_team">{t("info.payToHarvestTeam")}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("info.harvestRate")}</label>
+              <input
+                type="number"
+                step="0.01"
+                {...register("harvest_rate_per_kg")}
+                className={inputCls}
+                placeholder="e.g. 2.50"
+              />
+            </div>
+          </div>
+        </div>
       </form>
     );
   }
@@ -338,6 +377,10 @@ export default React.memo(function BatchInfo({
           <Row
             label={t("info.paymentTo")}
             value={batch.payment_routing === "harvest_team" ? t("info.payToHarvestTeam") : t("info.payToGrower")}
+          />
+          <Row
+            label={t("info.harvestRate")}
+            value={batch.harvest_rate_per_kg != null ? `${batch.harvest_rate_per_kg}/kg` : "—"}
           />
           <Row
             label={t("info.harvestDate")}

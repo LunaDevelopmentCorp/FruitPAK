@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import api, { getErrorMessage } from "../api/client";
 import { fetchAllPages } from "../api/fetchAll";
 import CsvImport from "../components/CsvImport";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import PageHeader from "../components/PageHeader";
 import { showToast } from "../store/toastStore";
 
@@ -441,38 +442,12 @@ export default function DataManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [ggnFilter, setGgnFilter] = useState<"all" | "yes" | "no">("all");
-  const [sortKey, setSortKey] = useState<keyof GrowerSummary | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-
   // Team-specific state
   const [teamEditingId, setTeamEditingId] = useState<string | null>(null);
   const [teamSearch, setTeamSearch] = useState("");
-  const [teamSortKey, setTeamSortKey] = useState<keyof HarvestTeamSummary | null>(null);
-  const [teamSortDir, setTeamSortDir] = useState<"asc" | "desc">("asc");
 
-  const toggleSort = (key: keyof GrowerSummary) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
-
-  const sortIndicator = (key: keyof GrowerSummary) =>
-    sortKey === key ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : "";
-
-  const toggleTeamSort = (key: keyof HarvestTeamSummary) => {
-    if (teamSortKey === key) {
-      setTeamSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setTeamSortKey(key);
-      setTeamSortDir("asc");
-    }
-  };
-
-  const teamSortIndicator = (key: keyof HarvestTeamSummary) =>
-    teamSortKey === key ? (teamSortDir === "asc" ? " \u25B2" : " \u25BC") : "";
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
+  const { sortCol: teamSortCol, sortDir: teamSortDir, toggleSort: toggleTeamSort, sortIndicator: teamSortIndicator } = useTableSort();
 
   const fetchData = async () => {
     setLoading(true);
@@ -494,8 +469,8 @@ export default function DataManagement() {
     fetchData();
   }, []);
 
-  const filteredGrowers = growers
-    .filter((g) => {
+  const filteredGrowers = useMemo(() => {
+    const rows = growers.filter((g) => {
       if (ggnFilter === "yes" && !g.globalg_ap_certified) return false;
       if (ggnFilter === "no" && g.globalg_ap_certified) return false;
       if (!search.trim()) return true;
@@ -508,33 +483,20 @@ export default function DataManagement() {
         (g.email || "").toLowerCase().includes(q) ||
         (g.globalg_ap_number || "").toLowerCase().includes(q)
       );
-    })
-    .sort((a, b) => {
-      if (!sortKey) return 0;
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      let cmp: number;
-      if (typeof av === "number" && typeof bv === "number") {
-        cmp = av - bv;
-      } else if (typeof av === "boolean" && typeof bv === "boolean") {
-        cmp = Number(av) - Number(bv);
-      } else {
-        const sa = String(av);
-        const sb = String(bv);
-        // Natural sort: if both values look numeric, compare as numbers
-        const na = Number(sa);
-        const nb = Number(sb);
-        if (sa !== "" && sb !== "" && !isNaN(na) && !isNaN(nb)) {
-          cmp = na - nb;
-        } else {
-          cmp = sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" });
-        }
-      }
-      return sortDir === "asc" ? cmp : -cmp;
     });
+    return sortRows(rows, sortCol, sortDir, {
+      name: (g) => g.name,
+      grower_code: (g) => g.grower_code,
+      contact_person: (g) => g.contact_person,
+      phone: (g) => g.phone,
+      email: (g) => g.email,
+      region: (g) => g.region,
+      total_hectares: (g) => g.total_hectares,
+      estimated_volume_tons: (g) => g.estimated_volume_tons,
+      globalg_ap_certified: (g) => g.globalg_ap_certified ? 1 : 0,
+      globalg_ap_number: (g) => g.globalg_ap_number,
+    });
+  }, [growers, search, ggnFilter, sortCol, sortDir]);
 
   const handleGrowerSave = (updated: GrowerSummary) => {
     setGrowers((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
@@ -553,8 +515,8 @@ export default function DataManagement() {
   };
 
   // Filtered & sorted teams
-  const filteredTeams = teams
-    .filter((tm) => {
+  const filteredTeams = useMemo(() => {
+    const rows = teams.filter((tm) => {
       if (!teamSearch.trim()) return true;
       const q = teamSearch.toLowerCase();
       return (
@@ -562,22 +524,14 @@ export default function DataManagement() {
         (tm.team_leader || "").toLowerCase().includes(q) ||
         (tm.notes || "").toLowerCase().includes(q)
       );
-    })
-    .sort((a, b) => {
-      if (!teamSortKey) return 0;
-      const av = a[teamSortKey];
-      const bv = b[teamSortKey];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      let cmp: number;
-      if (typeof av === "number" && typeof bv === "number") {
-        cmp = av - bv;
-      } else {
-        cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" });
-      }
-      return teamSortDir === "asc" ? cmp : -cmp;
     });
+    return sortRows(rows, teamSortCol, teamSortDir, {
+      name: (tm) => tm.name,
+      team_leader: (tm) => tm.team_leader,
+      team_size: (tm) => tm.team_size,
+      estimated_volume_kg: (tm) => tm.estimated_volume_kg,
+    });
+  }, [teams, teamSearch, teamSortCol, teamSortDir]);
 
   const handleTeamSave = (updated: HarvestTeamSummary) => {
     setTeams((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));

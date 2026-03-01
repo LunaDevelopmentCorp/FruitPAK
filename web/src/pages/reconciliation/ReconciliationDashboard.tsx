@@ -30,6 +30,7 @@ import { getDashboard, triggerRun, updateAlert } from "../../api/reconciliation"
 import { showToast } from "../../store/toastStore";
 import PageHeader from "../../components/PageHeader";
 import StatusBadge from "../../components/StatusBadge";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 
 // ── Severity badge colours ──────────────────────────────────
 const SEV_COLORS: Record<string, string> = {
@@ -150,6 +151,8 @@ export default function ReconciliationDashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   // Filters
   const [filterType, setFilterType] = useState<string>("");
@@ -276,11 +279,11 @@ export default function ReconciliationDashboard() {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 text-xs text-gray-500 uppercase">
-              <th className="px-3 py-2 w-8"></th>
-              <th className="px-3 py-2 text-left">{t("headers.type")}</th>
-              <th className="px-3 py-2 text-left">{t("headers.title")}</th>
-              <th className="px-3 py-2 text-left">{t("headers.variance")}</th>
-              <th className="px-3 py-2 text-left">{t("headers.status")}</th>
+              <th onClick={() => toggleSort("severity")} className={`px-3 py-2 w-8 ${sortableThClass}`}>{sortIndicator("severity")}</th>
+              <th onClick={() => toggleSort("type")} className={`px-3 py-2 text-left ${sortableThClass}`}>{t("headers.type")}{sortIndicator("type")}</th>
+              <th onClick={() => toggleSort("title")} className={`px-3 py-2 text-left ${sortableThClass}`}>{t("headers.title")}{sortIndicator("title")}</th>
+              <th onClick={() => toggleSort("variance")} className={`px-3 py-2 text-left ${sortableThClass}`}>{t("headers.variance")}{sortIndicator("variance")}</th>
+              <th onClick={() => toggleSort("status")} className={`px-3 py-2 text-left ${sortableThClass}`}>{t("headers.status")}{sortIndicator("status")}</th>
               <th className="px-3 py-2 text-left w-40">{t("headers.actions")}</th>
             </tr>
           </thead>
@@ -292,7 +295,16 @@ export default function ReconciliationDashboard() {
                 </td>
               </tr>
             ) : (
-              filteredAlerts.map((alert) => (
+              sortRows(filteredAlerts, sortCol, sortDir, {
+                severity: (r) => {
+                  const order: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+                  return order[r.severity] ?? 4;
+                },
+                type: (r) => r.alert_type,
+                title: (r) => r.title,
+                variance: (r) => r.variance,
+                status: (r) => r.status,
+              }).map((alert) => (
                 <AlertRow key={alert.id} alert={alert} onAction={handleAction} />
               ))
             )}

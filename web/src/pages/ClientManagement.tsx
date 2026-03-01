@@ -11,6 +11,7 @@ import {
 } from "../api/clients";
 import { getErrorMessage } from "../api/client";
 import { CURRENCIES, formatCurrency } from "../constants/currencies";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import { showToast } from "../store/toastStore";
 import CsvImport from "../components/CsvImport";
 import PageHeader from "../components/PageHeader";
@@ -53,6 +54,8 @@ export default function ClientManagement() {
     notes: "",
   });
   const [saving, setSaving] = useState(false);
+
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   // Confirm deactivate/activate
   const [confirmToggle, setConfirmToggle] = useState<ClientSummary | null>(null);
@@ -213,20 +216,30 @@ export default function ClientManagement() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.name")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.contact")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.email")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.phone")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.country")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.incoterm")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.paymentTerms")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.creditLimit")}</th>
-              <th className="text-left px-4 py-2 font-medium">{t("headers.status")}</th>
+              <th onClick={() => toggleSort("name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.name")}{sortIndicator("name")}</th>
+              <th onClick={() => toggleSort("contact_person")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.contact")}{sortIndicator("contact_person")}</th>
+              <th onClick={() => toggleSort("email")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.email")}{sortIndicator("email")}</th>
+              <th onClick={() => toggleSort("phone")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.phone")}{sortIndicator("phone")}</th>
+              <th onClick={() => toggleSort("country")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.country")}{sortIndicator("country")}</th>
+              <th onClick={() => toggleSort("incoterm")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.incoterm")}{sortIndicator("incoterm")}</th>
+              <th onClick={() => toggleSort("payment_terms")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.paymentTerms")}{sortIndicator("payment_terms")}</th>
+              <th onClick={() => toggleSort("credit_limit")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.creditLimit")}{sortIndicator("credit_limit")}</th>
+              <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("headers.status")}{sortIndicator("status")}</th>
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
           <tbody className="divide-y">
-            {clients.map((c) => (
+            {sortRows(clients, sortCol, sortDir, {
+              name: (c) => c.name,
+              contact_person: (c) => c.contact_person || "",
+              email: (c) => c.email || "",
+              phone: (c) => c.phone || "",
+              country: (c) => c.country || "",
+              incoterm: (c) => c.incoterm || "",
+              payment_terms: (c) => c.payment_terms_days ?? -1,
+              credit_limit: (c) => c.credit_limit ?? -1,
+              status: (c) => (c.is_active ? "active" : "inactive"),
+            }).map((c) => (
               <tr key={c.id} className={`hover:bg-green-50/50 even:bg-gray-50/50 ${!c.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-2 font-medium text-gray-800">{c.name}</td>
                 <td className="px-4 py-2 text-gray-600">{c.contact_person || "\u2014"}</td>

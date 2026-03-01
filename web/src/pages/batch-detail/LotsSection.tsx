@@ -11,6 +11,7 @@ import { FruitTypeConfig } from "../../api/config";
 import StatusBadge from "../../components/StatusBadge";
 import { showToast as globalToast } from "../../store/toastStore";
 import { BatchSectionProps, BatchConfigs, LotRowForm } from "./types";
+import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 
 const LOTS_PER_PAGE = 15;
 
@@ -21,6 +22,7 @@ interface Props extends BatchSectionProps {
 export default function LotsSection({ batch, batchId, onRefresh, configs }: Props) {
   const { t } = useTranslation("batches");
   const { boxSizes, binTypes, fruitConfigs } = configs;
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   const [creatingLots, setCreatingLots] = useState(false);
   const emptyRow = (): LotRowForm => ({ grade: "", carton_count: 0, unit: "cartons" as const });
@@ -358,19 +360,28 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">{t("lots.lotCode")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("palletize.boxType")}</th>
-                <th className="text-right px-2 py-1.5 font-medium">{t("lots.cartons")}</th>
-                <th className="text-right px-2 py-1.5 font-medium">{t("lots.weight")}</th>
-                <th className="text-right px-2 py-1.5 font-medium">{t("lots.unallocated")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.status")}</th>
+                <th onClick={() => toggleSort("lot_code")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("lots.lotCode")}{sortIndicator("lot_code")}</th>
+                <th onClick={() => toggleSort("grade")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("common:table.grade")}{sortIndicator("grade")}</th>
+                <th onClick={() => toggleSort("size_label")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("common:table.size")}{sortIndicator("size_label")}</th>
+                <th onClick={() => toggleSort("box_type")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("palletize.boxType")}{sortIndicator("box_type")}</th>
+                <th onClick={() => toggleSort("cartons")} className={`text-right px-2 py-1.5 font-medium ${sortableThClass}`}>{t("lots.cartons")}{sortIndicator("cartons")}</th>
+                <th onClick={() => toggleSort("weight")} className={`text-right px-2 py-1.5 font-medium ${sortableThClass}`}>{t("lots.weight")}{sortIndicator("weight")}</th>
+                <th onClick={() => toggleSort("unallocated")} className={`text-right px-2 py-1.5 font-medium ${sortableThClass}`}>{t("lots.unallocated")}{sortIndicator("unallocated")}</th>
+                <th onClick={() => toggleSort("status")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("common:table.status")}{sortIndicator("status")}</th>
                 <th className="px-2 py-1.5 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {paginatedLots.map((lot) => {
+              {sortRows(paginatedLots, sortCol, sortDir, {
+                lot_code: (r) => r.lot_code,
+                grade: (r) => r.grade,
+                size_label: (r) => r.size,
+                box_type: (r) => boxSizes.find((bs) => bs.id === r.box_size_id)?.name ?? null,
+                cartons: (r) => r.carton_count,
+                weight: (r) => r.weight_kg,
+                unallocated: (r) => r.carton_count - (r.palletized_boxes ?? 0),
+                status: (r) => r.status,
+              }).map((lot) => {
                 const unallocated = lot.carton_count - (lot.palletized_boxes ?? 0);
                 const isEditing = editingLotId === lot.id;
                 const isBinGrade = /^2$|class\s*2|industrial/i.test((isEditing ? editLotForm.grade : lot.grade) || "");

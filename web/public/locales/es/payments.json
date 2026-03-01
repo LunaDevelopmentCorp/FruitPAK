@@ -42,15 +42,60 @@
       "viewReconciliation": "Ver Conciliación",
       "toast": "Pago {{ref}} registrado — alertas actualizadas"
     },
+    "tabs": {
+      "recordPayment": "Registrar Pago",
+      "paymentHistory": "Historial de Pagos",
+      "reconciliation": "Conciliacion"
+    },
+    "history": {
+      "allGrowers": "Todos los productores",
+      "showing": "{{count}} de {{total}} pagos",
+      "empty": "No hay pagos registrados aun."
+    },
     "recent": {
       "title": "Pagos Recientes"
+    },
+    "edit": {
+      "title": "Editar Pago",
+      "updated": "Pago actualizado.",
+      "updateFailed": "Error al actualizar el pago.",
+      "statusPaid": "Pagado",
+      "statusCancelled": "Cancelado"
+    },
+    "reconciliation": {
+      "title": "Conciliacion de Productor",
+      "selectGrower": "Seleccionar Productor",
+      "selectPlaceholder": "Elegir un productor...",
+      "deliveries": "Entregas",
+      "payments": "Historial de Pagos",
+      "noDeliveries": "No hay entregas para este productor.",
+      "noPayments": "No hay pagos registrados para este productor.",
+      "headers": {
+        "batchCode": "Codigo de Lote",
+        "intakeDate": "Fecha de Recepcion",
+        "intakeKg": "Recepcion kg",
+        "status": "Estado",
+        "paymentDate": "Fecha",
+        "paymentRef": "Referencia",
+        "paymentType": "Tipo",
+        "paymentAmount": "Monto"
+      },
+      "summary": {
+        "totalBatches_one": "{{count}} lote",
+        "totalBatches_other": "{{count}} lotes",
+        "totalPaid": "Total Pagado",
+        "totalIntakeKg": "Total Recibido"
+      },
+      "print": "Imprimir Estado de Cuenta",
+      "statementTitle": "Estado de Cuenta del Productor"
     }
   },
   "team": {
     "title": "Pagos a Equipos de Cosecha",
     "tabs": {
       "recordPayment": "Registrar Pago",
-      "teamSummary": "Resumen del Equipo"
+      "teamManagement": "Gestión de Equipos",
+      "reconciliation": "Conciliación"
     },
     "form": {
       "team": "Equipo de Cosecha *",
@@ -80,6 +125,13 @@
       "title": "Pagos Recientes a Equipos",
       "empty": "No hay pagos registrados aún."
     },
+    "edit": {
+      "title": "Editar Pago",
+      "updated": "Pago actualizado.",
+      "updateFailed": "Error al actualizar el pago.",
+      "statusPaid": "Pagado",
+      "statusCancelled": "Cancelado"
+    },
     "summary": {
       "title": "Resumen de Conciliación por Equipo",
       "empty": "No hay equipos de cosecha ni pagos aún.",
@@ -90,13 +142,72 @@
         "advances": "Anticipos",
         "finals": "Finales",
         "totalPaid": "Total Pagado",
-        "class1Kg": "Clase 1 kg",
+        "class1Kg": "Grado 1 kg",
         "ratePerKg": "Tarifa/kg",
         "owed": "Adeudado",
         "balance": "Saldo"
       },
       "noRate": "Sin tarifa",
       "totals": "Totales"
+    },
+    "management": {
+      "title": "Gestión de Equipos",
+      "addTeam": "Agregar Equipo",
+      "searchPlaceholder": "Buscar nombre, líder...",
+      "showing": "{{count}} de {{total}} equipos",
+      "empty": "No hay equipos de cosecha. Agregue un equipo o use el asistente para importación masiva.",
+      "teamCreated": "Equipo creado.",
+      "createFailed": "Error al crear el equipo.",
+      "teamUpdated": "Equipo actualizado.",
+      "updateFailed": "Error al actualizar el equipo.",
+      "teamDeleted": "Equipo eliminado.",
+      "deleteFailed": "Error al eliminar el equipo.",
+      "confirmDelete": "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
+      "teamLeader": "Líder de Equipo",
+      "teamSize": "Tamaño del Equipo",
+      "estVolume": "Vol. est. (kg)",
+      "ratePerKg": "Tarifa/kg"
+    },
+    "reconciliation": {
+      "title": "Conciliación de Equipos",
+      "selectTeam": "Seleccionar Equipo",
+      "allTeams": "Todos los Equipos",
+      "selectPlaceholder": "Elegir un equipo...",
+      "filterName": "Buscar",
+      "filterNamePlaceholder": "Nombre o lider...",
+      "filterBatch": "Buscar",
+      "filterBatchPlaceholder": "Codigo de lote...",
+      "dateFrom": "Desde",
+      "dateTo": "Hasta",
+      "clearFilters": "Limpiar filtros",
+      "noResults": "No hay resultados que coincidan con sus filtros.",
+      "deliveries": "Entregas",
+      "payments": "Historial de Pagos",
+      "noDeliveries": "No hay entregas para este equipo.",
+      "noPayments": "No hay pagos registrados para este equipo.",
+      "headers": {
+        "batchCode": "Código de Lote",
+        "intakeDate": "Fecha de Recepción",
+        "intakeKg": "Recepción kg",
+        "class1Kg": "Grado 1 kg",
+        "ratePerKg": "Tarifa/kg",
+        "owed": "Adeudado",
+        "paymentDate": "Fecha",
+        "paymentRef": "Referencia",
+        "paymentType": "Tipo",
+        "paymentAmount": "Monto"
+      },
+      "summary": {
+        "totalOwed": "Total Adeudado",
+        "totalPaid": "Total Pagado",
+        "balance": "Saldo"
+      },
+      "setRate": "Definir tarifa",
+      "clickToEditRate": "Clic para editar la tarifa",
+      "rateUpdated": "Tarifa actualizada.",
+      "rateUpdateFailed": "Error al actualizar la tarifa.",
+      "print": "Imprimir Estado de Cuenta",
+      "statementTitle": "Estado de Cuenta del Equipo"
     }
   }
 }

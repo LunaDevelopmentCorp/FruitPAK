@@ -19,11 +19,13 @@ import { getErrorMessage } from "../api/client";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 export default function PalletDetail() {
   const { t } = useTranslation("pallets");
   const { palletId } = useParams<{ palletId: string }>();
   const navigate = useNavigate();
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const [pallet, setPallet] = useState<PalletDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -384,16 +386,22 @@ export default function PalletDetail() {
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-2 py-1.5 font-medium">{t("detail.lotCode")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.grade")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("common:table.size")}</th>
-                <th className="text-left px-2 py-1.5 font-medium">{t("list.headers.boxType")}</th>
-                <th className="text-right px-2 py-1.5 font-medium">{t("list.headers.boxes")}</th>
+                <th onClick={() => toggleSort("lot_code")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("detail.lotCode")}{sortIndicator("lot_code")}</th>
+                <th onClick={() => toggleSort("grade")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("common:table.grade")}{sortIndicator("grade")}</th>
+                <th onClick={() => toggleSort("size_label")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("common:table.size")}{sortIndicator("size_label")}</th>
+                <th onClick={() => toggleSort("box_type")} className={`text-left px-2 py-1.5 font-medium ${sortableThClass}`}>{t("list.headers.boxType")}{sortIndicator("box_type")}</th>
+                <th onClick={() => toggleSort("boxes")} className={`text-right px-2 py-1.5 font-medium ${sortableThClass}`}>{t("list.headers.boxes")}{sortIndicator("boxes")}</th>
                 {canModify && <th className="px-2 py-1.5 font-medium" />}
               </tr>
             </thead>
             <tbody className="divide-y">
-              {pallet.pallet_lots.map((pl) => (
+              {sortRows(pallet.pallet_lots, sortCol, sortDir, {
+                lot_code: (r) => r.lot_code || r.lot_id,
+                grade: (r) => r.grade,
+                size_label: (r) => r.size,
+                box_type: (r) => r.box_size_name,
+                boxes: (r) => r.box_count,
+              }).map((pl) => (
                 <tr key={pl.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                   <td className="px-2 py-1.5 font-mono text-xs text-green-700">
                     {pl.lot_code || pl.lot_id}

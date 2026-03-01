@@ -42,15 +42,60 @@
       "viewReconciliation": "View Reconciliation",
       "toast": "Payment {{ref}} recorded — alerts updated"
     },
+    "tabs": {
+      "recordPayment": "Record Payment",
+      "paymentHistory": "Payment History",
+      "reconciliation": "Reconciliation"
+    },
+    "history": {
+      "allGrowers": "All growers",
+      "showing": "{{count}} of {{total}} payments",
+      "empty": "No payments recorded yet."
+    },
     "recent": {
       "title": "Recent Payments"
+    },
+    "edit": {
+      "title": "Edit Payment",
+      "updated": "Payment updated.",
+      "updateFailed": "Failed to update payment.",
+      "statusPaid": "Paid",
+      "statusCancelled": "Cancelled"
+    },
+    "reconciliation": {
+      "title": "Grower Reconciliation",
+      "selectGrower": "Select Grower",
+      "selectPlaceholder": "Choose a grower...",
+      "deliveries": "Deliveries",
+      "payments": "Payment History",
+      "noDeliveries": "No deliveries for this grower.",
+      "noPayments": "No payments recorded for this grower.",
+      "headers": {
+        "batchCode": "Batch Code",
+        "intakeDate": "Intake Date",
+        "intakeKg": "Intake kg",
+        "status": "Status",
+        "paymentDate": "Date",
+        "paymentRef": "Reference",
+        "paymentType": "Type",
+        "paymentAmount": "Amount"
+      },
+      "summary": {
+        "totalBatches_one": "{{count}} batch",
+        "totalBatches_other": "{{count}} batches",
+        "totalPaid": "Total Paid",
+        "totalIntakeKg": "Total Intake"
+      },
+      "print": "Print Statement",
+      "statementTitle": "Grower Payment Statement"
     }
   },
   "team": {
     "title": "Harvest Team Payments",
     "tabs": {
       "recordPayment": "Record Payment",
-      "teamSummary": "Team Summary"
+      "teamManagement": "Team Management",
+      "reconciliation": "Reconciliation"
     },
     "form": {
       "team": "Harvest Team *",
@@ -80,6 +125,13 @@
       "title": "Recent Team Payments",
       "empty": "No payments recorded yet."
     },
+    "edit": {
+      "title": "Edit Payment",
+      "updated": "Payment updated.",
+      "updateFailed": "Failed to update payment.",
+      "statusPaid": "Paid",
+      "statusCancelled": "Cancelled"
+    },
     "summary": {
       "title": "Team Reconciliation Summary",
       "empty": "No harvest teams or payments yet.",
@@ -90,13 +142,72 @@
         "advances": "Advances",
         "finals": "Finals",
         "totalPaid": "Total Paid",
-        "class1Kg": "Class 1 kg",
+        "class1Kg": "Grade 1 kg",
         "ratePerKg": "Rate/kg",
         "owed": "Owed",
         "balance": "Balance"
       },
       "noRate": "No rate",
       "totals": "Totals"
+    },
+    "management": {
+      "title": "Team Management",
+      "addTeam": "Add Team",
+      "searchPlaceholder": "Search name, leader...",
+      "showing": "{{count}} of {{total}} teams",
+      "empty": "No harvest teams. Add a team or use the wizard for bulk upload.",
+      "teamCreated": "Team created.",
+      "createFailed": "Failed to create team.",
+      "teamUpdated": "Team updated.",
+      "updateFailed": "Failed to update team.",
+      "teamDeleted": "Team deleted.",
+      "deleteFailed": "Failed to delete team.",
+      "confirmDelete": "Delete \"{{name}}\"? This cannot be undone.",
+      "teamLeader": "Team Leader",
+      "teamSize": "Team Size",
+      "estVolume": "Est. Volume (kg)",
+      "ratePerKg": "Rate/kg"
+    },
+    "reconciliation": {
+      "title": "Team Reconciliation",
+      "selectTeam": "Select Team",
+      "allTeams": "All Teams",
+      "selectPlaceholder": "Choose a team...",
+      "filterName": "Search",
+      "filterNamePlaceholder": "Team name or leader...",
+      "filterBatch": "Search",
+      "filterBatchPlaceholder": "Batch code...",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "clearFilters": "Clear filters",
+      "noResults": "No results match your filters.",
+      "deliveries": "Deliveries",
+      "payments": "Payment History",
+      "noDeliveries": "No deliveries for this team.",
+      "noPayments": "No payments recorded for this team.",
+      "headers": {
+        "batchCode": "Batch Code",
+        "intakeDate": "Intake Date",
+        "intakeKg": "Intake kg",
+        "class1Kg": "Grade 1 kg",
+        "ratePerKg": "Rate/kg",
+        "owed": "Owed",
+        "paymentDate": "Date",
+        "paymentRef": "Reference",
+        "paymentType": "Type",
+        "paymentAmount": "Amount"
+      },
+      "summary": {
+        "totalOwed": "Total Owed",
+        "totalPaid": "Total Paid",
+        "balance": "Balance"
+      },
+      "setRate": "Set rate",
+      "clickToEditRate": "Click to edit rate",
+      "rateUpdated": "Rate updated.",
+      "rateUpdateFailed": "Failed to update rate.",
+      "print": "Print Statement",
+      "statementTitle": "Team Payment Statement"
     }
   }
 }

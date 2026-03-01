@@ -8,12 +8,14 @@ import { listClients, ClientSummary } from "../api/clients";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk"];
 
 export default function PalletsList() {
   const { t } = useTranslation("pallets");
   const navigate = useNavigate();
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const [pallets, setPallets] = useState<PalletSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -614,21 +616,31 @@ export default function PalletsList() {
                     className="rounded"
                   />
                 </th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.palletNumber")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.type")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.fruit")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.grade")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.size")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.boxType")}</th>
-                <th className="text-right px-4 py-2 font-medium">{t("list.headers.boxes")}</th>
+                <th onClick={() => toggleSort("pallet_number")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.palletNumber")}{sortIndicator("pallet_number")}</th>
+                <th onClick={() => toggleSort("type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.type")}{sortIndicator("type")}</th>
+                <th onClick={() => toggleSort("fruit_type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.fruit")}{sortIndicator("fruit_type")}</th>
+                <th onClick={() => toggleSort("grade")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.grade")}{sortIndicator("grade")}</th>
+                <th onClick={() => toggleSort("size_label")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.size")}{sortIndicator("size_label")}</th>
+                <th onClick={() => toggleSort("box_type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.boxType")}{sortIndicator("box_type")}</th>
+                <th onClick={() => toggleSort("box_count")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.boxes")}{sortIndicator("box_count")}</th>
                 <th className="text-left px-4 py-2 font-medium">{t("list.headers.notes")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.status")}</th>
-                <th className="text-left px-4 py-2 font-medium">{t("list.headers.date")}</th>
+                <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.status")}{sortIndicator("status")}</th>
+                <th onClick={() => toggleSort("created_at")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.date")}{sortIndicator("created_at")}</th>
                 <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((p) => {
+              {sortRows(filtered, sortCol, sortDir, {
+                pallet_number: (r) => r.pallet_number,
+                type: (r) => r.pallet_type_name,
+                fruit_type: (r) => r.fruit_type,
+                grade: (r) => r.grade,
+                size_label: (r) => r.size,
+                box_type: (r) => r.box_size_name,
+                box_count: (r) => r.current_boxes,
+                status: (r) => r.status,
+                created_at: (r) => r.created_at,
+              }).map((p) => {
                 const isLoaded = ["loaded", "exported"].includes(p.status);
                 return (
                   <tr

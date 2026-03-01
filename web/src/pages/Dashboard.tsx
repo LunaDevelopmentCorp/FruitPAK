@@ -7,6 +7,7 @@ import { listGrowerPayments, GrowerPaymentOut } from "../api/payments";
 import { getDashboard, DashboardSummary } from "../api/reconciliation";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
+import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 
 
 export default function Dashboard() {
@@ -18,6 +19,8 @@ export default function Dashboard() {
   const [lots, setLots] = useState<LotSummary[]>([]);
   const [reconciliation, setReconciliation] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const { sortCol: batchSortCol, sortDir: batchSortDir, toggleSort: batchToggleSort, sortIndicator: batchSortIndicator } = useTableSort();
+  const { sortCol: paySortCol, sortDir: paySortDir, toggleSort: payToggleSort, sortIndicator: paySortIndicator } = useTableSort();
 
   useEffect(() => {
     Promise.all([
@@ -148,16 +151,23 @@ export default function Dashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.code")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.grower")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.fruit")}</th>
-                      <th className="text-right px-4 py-2 font-medium">{t("tableHeaders.netKg")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.status")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("tableHeaders.date")}</th>
+                      <th onClick={() => batchToggleSort("batch_code")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("tableHeaders.code")}{batchSortIndicator("batch_code")}</th>
+                      <th onClick={() => batchToggleSort("grower_name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("tableHeaders.grower")}{batchSortIndicator("grower_name")}</th>
+                      <th onClick={() => batchToggleSort("fruit_type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("tableHeaders.fruit")}{batchSortIndicator("fruit_type")}</th>
+                      <th onClick={() => batchToggleSort("net_weight_kg")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("tableHeaders.netKg")}{batchSortIndicator("net_weight_kg")}</th>
+                      <th onClick={() => batchToggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("tableHeaders.status")}{batchSortIndicator("status")}</th>
+                      <th onClick={() => batchToggleSort("date")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("tableHeaders.date")}{batchSortIndicator("date")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {batches.slice(0, 8).map((b) => (
+                    {sortRows(batches.slice(0, 8), batchSortCol, batchSortDir, {
+                      batch_code: (r) => r.batch_code,
+                      grower_name: (r) => r.grower_name,
+                      fruit_type: (r) => r.fruit_type,
+                      net_weight_kg: (r) => r.net_weight_kg,
+                      status: (r) => r.status,
+                      date: (r) => r.intake_date ?? r.created_at,
+                    }).map((b) => (
                       <tr
                         key={b.id}
                         onClick={() => navigate(`/batches/${b.id}`)}
@@ -206,16 +216,23 @@ export default function Dashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.ref")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.grower")}</th>
-                      <th className="text-right px-4 py-2 font-medium">{t("paymentHeaders.amount")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.type")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.status")}</th>
-                      <th className="text-left px-4 py-2 font-medium">{t("paymentHeaders.date")}</th>
+                      <th onClick={() => payToggleSort("payment_ref")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("paymentHeaders.ref")}{paySortIndicator("payment_ref")}</th>
+                      <th onClick={() => payToggleSort("grower_name")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("paymentHeaders.grower")}{paySortIndicator("grower_name")}</th>
+                      <th onClick={() => payToggleSort("gross_amount")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("paymentHeaders.amount")}{paySortIndicator("gross_amount")}</th>
+                      <th onClick={() => payToggleSort("payment_type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("paymentHeaders.type")}{paySortIndicator("payment_type")}</th>
+                      <th onClick={() => payToggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("paymentHeaders.status")}{paySortIndicator("status")}</th>
+                      <th onClick={() => payToggleSort("date")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("paymentHeaders.date")}{paySortIndicator("date")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {payments.slice(0, 5).map((p) => (
+                    {sortRows(payments.slice(0, 5), paySortCol, paySortDir, {
+                      payment_ref: (r) => r.payment_ref,
+                      grower_name: (r) => r.grower_name,
+                      gross_amount: (r) => r.gross_amount,
+                      payment_type: (r) => r.payment_type,
+                      status: (r) => r.status,
+                      date: (r) => r.paid_date ?? r.created_at,
+                    }).map((p) => (
                       <tr key={p.id} className="hover:bg-green-50/50 even:bg-gray-50/50">
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {p.payment_ref}

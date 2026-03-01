@@ -27,7 +27,6 @@ class GRNRequest(BaseModel):
     variety: str | None = None
     quality_grade: str | None = None
     harvest_team_id: str
-    payment_routing: str = "grower"  # "grower" or "harvest_team"
     tare_weight_kg: float = 0.0
     arrival_temp_c: float | None = None
     brix_reading: float | None = None
@@ -97,6 +96,7 @@ class BatchUpdate(BaseModel):
     bin_count: int | None = None
     bin_type: str | None = None
     payment_routing: str | None = None
+    harvest_rate_per_kg: float | None = None
     vehicle_reg: str | None = None
     driver_name: str | None = None
     notes: str | None = None
@@ -111,6 +111,7 @@ class BatchOut(BaseModel):
     grower_name: str | None = None
     harvest_team_id: str | None
     payment_routing: str = "grower"
+    harvest_rate_per_kg: float | None = None
     packhouse_id: str
     fruit_type: str
     variety: str | None
@@ -158,6 +159,7 @@ class BatchSummary(BaseModel):
     harvest_team_name: str | None = None
     harvest_team_leader: str | None = None
     payment_routing: str = "grower"
+    harvest_rate_per_kg: float | None = None
     fruit_type: str
     variety: str | None
     gross_weight_kg: float | None

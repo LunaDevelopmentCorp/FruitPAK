@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
+import { useTableSort, sortRows, sortableThClass } from "../../../hooks/useTableSort";
 
 interface SupplierForm {
   name: string;
@@ -27,8 +28,22 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
   });
   const { fields, append, remove } = useFieldArray({ control, name: "suppliers" });
   const [showForms, setShowForms] = useState(true);
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   const suppliers = watch("suppliers");
+
+  // Build display rows with original indices, then sort
+  const sortedSuppliers = useMemo(() => {
+    const rows = suppliers
+      ?.map((s, idx) => ({ ...s, _idx: idx }))
+      .filter((s) => s.name?.trim()) ?? [];
+    return sortRows(rows, sortCol, sortDir, {
+      name: (r) => r.name,
+      tags: (r) => (r.tags || []).join(", "),
+      contact_person: (r) => r.contact_person || "",
+      phone: (r) => r.phone || "",
+    });
+  }, [suppliers, sortCol, sortDir]);
 
   const filterEmpty = (data: FormData) => ({
     suppliers: data.suppliers.filter((s) => s.name?.trim()),
@@ -59,17 +74,16 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
-                <th className="text-left px-4 py-1.5 font-medium">{t("common:table.name")}</th>
-                <th className="text-left px-4 py-1.5 font-medium">Tags</th>
-                <th className="text-left px-4 py-1.5 font-medium">{t("common:table.contact")}</th>
-                <th className="text-left px-4 py-1.5 font-medium">{t("common:table.phone")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("name")}>{t("common:table.name")}{sortIndicator("name")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("tags")}>Tags{sortIndicator("tags")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("contact_person")}>{t("common:table.contact")}{sortIndicator("contact_person")}</th>
+                <th className={`text-left px-4 py-1.5 font-medium ${sortableThClass}`} onClick={() => toggleSort("phone")}>{t("common:table.phone")}{sortIndicator("phone")}</th>
                 <th className="px-4 py-1.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {suppliers.map((s, idx) =>
-                s.name?.trim() ? (
-                  <tr key={idx} className="hover:bg-gray-50">
+              {sortedSuppliers.map((s) => (
+                  <tr key={s._idx} className="hover:bg-gray-50">
                     <td className="px-4 py-1.5 font-medium">{s.name}</td>
                     <td className="px-4 py-1.5">
                       <div className="flex flex-wrap gap-1">
@@ -90,13 +104,12 @@ export default function Step3Suppliers({ onSave, saving, draftData }: StepProps)
                       >
                         {t("common:actions.edit")}
                       </button>
-                      <button type="button" onClick={() => remove(idx)} className="text-xs text-red-500">
+                      <button type="button" onClick={() => remove(s._idx)} className="text-xs text-red-500">
                           {t("common:actions.remove")}
                         </button>
                     </td>
                   </tr>
-                ) : null
-              )}
+              ))}
             </tbody>
           </table>
         </div>
