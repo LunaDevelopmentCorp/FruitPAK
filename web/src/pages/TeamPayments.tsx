@@ -1211,7 +1211,7 @@ export default function TeamPayments() {
                                   onClick={cancelEditRate}
                                   className="text-gray-400 hover:text-gray-600 text-xs"
                                 >
-                                  \u2717
+                                  {"\u2717"}
                                 </button>
                               </span>
                             ) : b.effective_rate != null ? (
