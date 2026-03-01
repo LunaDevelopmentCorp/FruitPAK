@@ -5,7 +5,7 @@
     "count_other": "{{count}} containers",
     "createContainer": "+ Create Container",
     "allStatuses": "All statuses",
-    "searchPlaceholder": "Search number, customer, destination...",
+    "searchPlaceholder": "Search container, pallet, GRN, lot, customer...",
     "loading": "Loading containers...",
     "empty": "No containers found. Assign pallets to create one.",
     "headers": {
@@ -31,7 +31,11 @@
     "shippingPlaceholder": "e.g. MSKU1234567",
     "destination": "Destination",
     "destinationPlaceholder": "e.g. Rotterdam, NL",
-    "sealNumber": "Seal Number"
+    "sealNumber": "Seal Number",
+    "transporter": "Transporter",
+    "noTransporter": "— None —",
+    "shippingAgent": "Shipping Agent",
+    "noAgent": "— None —"
   },
   "detail": {
     "loading": "Loading container...",
@@ -50,6 +54,8 @@
     "destination": "Destination",
     "exportDate": "Export Date",
     "sealNumber": "Seal Number",
+    "transporter": "Transporter",
+    "shippingAgent": "Shipping Agent",
     "notes": "Notes",
     "loadPallets": "Load Pallets",
     "headers": {

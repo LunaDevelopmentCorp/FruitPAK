@@ -47,6 +47,8 @@
     "bookingCutoff": "Fecho de reserva",
     "cargoCutoff": "Fecho de carga",
     "notes": "Notas",
+    "selectLine": "Selecionar linha maritima...",
+    "otherLine": "Outra (digitar manualmente)",
     "linePlaceholder": "ex. MSC",
     "vesselPlaceholder": "ex. MSC AURORA",
     "voyagePlaceholder": "ex. FE409A",

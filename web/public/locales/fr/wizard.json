@@ -173,7 +173,22 @@
     "tempC": "Temperature (°C)",
     "palletCapacity": "Capacite en palettes",
     "maxWeightKg": "Poids max (kg)",
-    "addConfig": "+ Ajouter une configuration"
+    "addConfig": "+ Ajouter une configuration",
+    "shippingLines": "Compagnies maritimes",
+    "addShippingLine": "+ Ajouter une compagnie maritime",
+    "shippingLineName": "Nom de la compagnie",
+    "shippingLineCode": "Code",
+    "transporters": "Transporteurs",
+    "addTransporter": "+ Ajouter un transporteur",
+    "transporterName": "Nom du transporteur",
+    "transporterCode": "Code",
+    "shippingAgents": "Agents maritimes",
+    "addShippingAgent": "+ Ajouter un agent maritime",
+    "agentName": "Nom de l'agent",
+    "agentCode": "Code",
+    "contactPerson": "Contact",
+    "phone": "Telephone",
+    "email": "Email"
   },
   "step8": {
     "optional": "Cette etape est facultative. Vous pouvez la passer et configurer les parametres financiers plus tard.",

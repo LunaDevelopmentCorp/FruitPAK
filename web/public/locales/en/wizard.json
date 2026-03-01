@@ -173,7 +173,22 @@
     "tempC": "Temp (°C)",
     "palletCapacity": "Pallet capacity",
     "maxWeightKg": "Max weight (kg)",
-    "addConfig": "+ Add config"
+    "addConfig": "+ Add config",
+    "shippingLines": "Shipping Lines",
+    "addShippingLine": "+ Add Shipping Line",
+    "shippingLineName": "Line Name",
+    "shippingLineCode": "Code",
+    "transporters": "Transporters",
+    "addTransporter": "+ Add Transporter",
+    "transporterName": "Transporter Name",
+    "transporterCode": "Code",
+    "shippingAgents": "Shipping Agents",
+    "addShippingAgent": "+ Add Shipping Agent",
+    "agentName": "Agent Name",
+    "agentCode": "Code",
+    "contactPerson": "Contact",
+    "phone": "Phone",
+    "email": "Email"
   },
   "step8": {
     "optional": "This step is optional. You can skip it and configure financials later.",

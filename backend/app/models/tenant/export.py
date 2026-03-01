@@ -46,6 +46,17 @@ class Export(TenantBase):
     actual_departure: Mapped[datetime | None] = mapped_column(Date)
     actual_arrival: Mapped[datetime | None] = mapped_column(Date)
 
+    # ── Logistics links ──────────────────────────────────────
+    shipping_line_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("shipping_lines.id")
+    )
+    transporter_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("transporters.id")
+    )
+    shipping_agent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("shipping_agents.id")
+    )
+
     # ── Link to shipping schedule ─────────────────────────────
     shipping_schedule_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("shipping_schedules.id")
@@ -84,6 +95,9 @@ class Export(TenantBase):
     )
 
     # ── Relationships ────────────────────────────────────────
+    shipping_line_rel = relationship("ShippingLine", lazy="selectin")
+    transporter = relationship("Transporter", lazy="selectin")
+    shipping_agent = relationship("ShippingAgent", lazy="selectin")
     containers = relationship("Container", back_populates="export", lazy="selectin")
     invoices = relationship("ClientInvoice", back_populates="export", lazy="selectin")
     shipping_schedule = relationship("ShippingSchedule", back_populates="exports", lazy="selectin")

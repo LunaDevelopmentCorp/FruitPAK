@@ -7,6 +7,7 @@ import {
   deleteShippingSchedule,
   ShippingScheduleSummary,
 } from "../api/shippingSchedules";
+import { listShippingLines, ShippingLineOut } from "../api/shippingLines";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
@@ -56,6 +57,7 @@ export default function ShippingSchedules() {
   const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
   const [schedules, setSchedules] = useState<ShippingScheduleSummary[]>([]);
+  const [shippingLines, setShippingLines] = useState<ShippingLineOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +70,7 @@ export default function ShippingSchedules() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
+    shipping_line_id: "" as string,
     shipping_line: "",
     vessel_name: "",
     voyage_number: "",
@@ -79,6 +82,7 @@ export default function ShippingSchedules() {
     cargo_cutoff: "",
     notes: "",
   });
+  const [customLine, setCustomLine] = useState(false);
 
   // Edit
   const [editId, setEditId] = useState<string | null>(null);
@@ -99,8 +103,11 @@ export default function ShippingSchedules() {
     loadSchedules();
   }, [statusFilter, lineFilter]);
 
-  // Unique shipping lines for filter dropdown
-  const shippingLines = [...new Set(schedules.map((s) => s.shipping_line))].sort();
+  useEffect(() => {
+    listShippingLines()
+      .then((lines) => setShippingLines(lines.filter((l) => l.is_active)))
+      .catch(() => {});
+  }, []);
 
   // Client-side search
   const filtered = schedules.filter((s) => {
@@ -123,6 +130,7 @@ export default function ShippingSchedules() {
     setCreating(true);
     try {
       await createShippingSchedule({
+        shipping_line_id: form.shipping_line_id || undefined,
         shipping_line: form.shipping_line,
         vessel_name: form.vessel_name,
         voyage_number: form.voyage_number,
@@ -137,6 +145,7 @@ export default function ShippingSchedules() {
       showToast("success", t("create.created"));
       setShowCreate(false);
       setForm({
+        shipping_line_id: "",
         shipping_line: "",
         vessel_name: "",
         voyage_number: "",
@@ -148,6 +157,7 @@ export default function ShippingSchedules() {
         cargo_cutoff: "",
         notes: "",
       });
+      setCustomLine(false);
       loadSchedules();
     } catch (err) {
       showToast("error", getErrorMessage(err));
@@ -202,12 +212,55 @@ export default function ShippingSchedules() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t("create.shippingLine")} *
               </label>
-              <input
-                className={inputBase}
-                placeholder={t("create.linePlaceholder")}
-                value={form.shipping_line}
-                onChange={(e) => setForm({ ...form, shipping_line: e.target.value })}
-              />
+              {customLine ? (
+                <div className="flex gap-2">
+                  <input
+                    className={inputBase}
+                    placeholder={t("create.linePlaceholder")}
+                    value={form.shipping_line}
+                    onChange={(e) =>
+                      setForm({ ...form, shipping_line: e.target.value, shipping_line_id: "" })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomLine(false);
+                      setForm({ ...form, shipping_line: "", shipping_line_id: "" });
+                    }}
+                    className="shrink-0 text-xs text-green-600 hover:text-green-800 whitespace-nowrap"
+                  >
+                    {t("create.backToList", { defaultValue: "Back to list" })}
+                  </button>
+                </div>
+              ) : (
+                <select
+                  className={inputBase}
+                  value={form.shipping_line_id}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "__other__") {
+                      setCustomLine(true);
+                      setForm({ ...form, shipping_line: "", shipping_line_id: "" });
+                    } else {
+                      const line = shippingLines.find((l) => l.id === val);
+                      setForm({
+                        ...form,
+                        shipping_line_id: line?.id ?? "",
+                        shipping_line: line?.name ?? "",
+                      });
+                    }
+                  }}
+                >
+                  <option value="">{t("create.selectLine", { defaultValue: "Select shipping line..." })}</option>
+                  {shippingLines.map((line) => (
+                    <option key={line.id} value={line.id}>
+                      {line.name}
+                    </option>
+                  ))}
+                  <option value="__other__">{t("create.otherLine", { defaultValue: "Other (custom)" })}</option>
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -353,8 +406,8 @@ export default function ShippingSchedules() {
         >
           <option value="">{t("list.allLines")}</option>
           {shippingLines.map((line) => (
-            <option key={line} value={line}>
-              {line}
+            <option key={line.id} value={line.name}>
+              {line.name}
             </option>
           ))}
         </select>
@@ -408,7 +461,7 @@ export default function ShippingSchedules() {
                 <tr key={s.id} className="hover:bg-gray-50">
                   <td className="px-4 py-2 font-medium">{s.vessel_name}</td>
                   <td className="px-4 py-2 text-gray-600">{s.voyage_number}</td>
-                  <td className="px-4 py-2">{s.shipping_line}</td>
+                  <td className="px-4 py-2">{s.shipping_line_name ?? s.shipping_line}</td>
                   <td className="px-4 py-2">{s.port_of_loading}</td>
                   <td className="px-4 py-2">{s.port_of_discharge}</td>
                   <td className="px-4 py-2">{new Date(s.etd).toLocaleDateString()}</td>

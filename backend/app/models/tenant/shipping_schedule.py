@@ -11,7 +11,7 @@ Sources:   manual | msc_api
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import TenantBase
@@ -22,6 +22,11 @@ class ShippingSchedule(TenantBase):
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+
+    # ── Shipping line FK ─────────────────────────────────────
+    shipping_line_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("shipping_lines.id")
     )
 
     # ── Voyage identity ───────────────────────────────────────
@@ -52,4 +57,5 @@ class ShippingSchedule(TenantBase):
     )
 
     # ── Relationships ─────────────────────────────────────────
+    shipping_line_rel = relationship("ShippingLine", lazy="selectin")
     exports = relationship("Export", back_populates="shipping_schedule", lazy="selectin")

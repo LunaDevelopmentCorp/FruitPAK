@@ -173,7 +173,22 @@
     "tempC": "Temp (°C)",
     "palletCapacity": "Capacidade de paletes",
     "maxWeightKg": "Peso máximo (kg)",
-    "addConfig": "+ Adicionar configuração"
+    "addConfig": "+ Adicionar configuração",
+    "shippingLines": "Linhas de Navegacao",
+    "addShippingLine": "+ Adicionar Linha de Navegacao",
+    "shippingLineName": "Nome da Linha",
+    "shippingLineCode": "Codigo",
+    "transporters": "Transportadores",
+    "addTransporter": "+ Adicionar Transportador",
+    "transporterName": "Nome do Transportador",
+    "transporterCode": "Codigo",
+    "shippingAgents": "Agentes Maritimos",
+    "addShippingAgent": "+ Adicionar Agente Maritimo",
+    "agentName": "Nome do Agente",
+    "agentCode": "Codigo",
+    "contactPerson": "Contato",
+    "phone": "Telefone",
+    "email": "Email"
   },
   "step8": {
     "optional": "Este passo é opcional. Você pode pular e configurar os dados financeiros depois.",

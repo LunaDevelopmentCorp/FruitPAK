@@ -47,6 +47,8 @@
     "bookingCutoff": "Booking Cutoff",
     "cargoCutoff": "Cargo Cutoff",
     "notes": "Notes",
+    "selectLine": "Select shipping line...",
+    "otherLine": "Other (type manually)",
     "linePlaceholder": "e.g. MSC",
     "vesselPlaceholder": "e.g. MSC AURORA",
     "voyagePlaceholder": "e.g. FE409A",

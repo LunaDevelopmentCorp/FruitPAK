@@ -3,6 +3,33 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import api, { getErrorMessage } from "../api/client";
 import { fetchAllPages } from "../api/fetchAll";
+import {
+  listShippingLines,
+  createShippingLine,
+  updateShippingLine,
+  deleteShippingLine,
+  type ShippingLineOut,
+  type ShippingLineCreate,
+  type ShippingLineUpdate,
+} from "../api/shippingLines";
+import {
+  listTransporters,
+  createTransporter,
+  updateTransporter,
+  deleteTransporter,
+  type TransporterOut,
+  type TransporterCreate,
+  type TransporterUpdate,
+} from "../api/transporters";
+import {
+  listShippingAgents,
+  createShippingAgent,
+  updateShippingAgent,
+  deleteShippingAgent,
+  type ShippingAgentOut,
+  type ShippingAgentCreate,
+  type ShippingAgentUpdate,
+} from "../api/shippingAgents";
 import CsvImport from "../components/CsvImport";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import PageHeader from "../components/PageHeader";
@@ -434,6 +461,436 @@ function TeamEditPanel({
   );
 }
 
+/* ── Shared logistics entity types (ShippingLines, Transporters, ShippingAgents) ── */
+
+interface LogisticsEntity {
+  id: string;
+  name: string;
+  code: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+  is_active: boolean;
+}
+
+interface LogisticsFormData {
+  name: string;
+  code: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+}
+
+function LogisticsEditPanel<T extends LogisticsEntity>({
+  entity,
+  tPrefix,
+  onSave,
+  onCancel,
+  onDelete,
+  onToggleActive,
+  updateFn,
+}: {
+  entity: T;
+  tPrefix: string;
+  onSave: (updated: T) => void;
+  onCancel: () => void;
+  onDelete: (id: string) => void;
+  onToggleActive: (id: string, active: boolean) => void;
+  updateFn: (id: string, payload: Record<string, unknown>) => Promise<T>;
+}) {
+  const { t } = useTranslation("data");
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<LogisticsFormData>({
+    defaultValues: {
+      name: entity.name,
+      code: entity.code || "",
+      contact_person: entity.contact_person || "",
+      phone: entity.phone || "",
+      email: entity.email || "",
+      address: entity.address || "",
+      notes: entity.notes || "",
+    },
+  });
+
+  const onSubmit = async (data: LogisticsFormData) => {
+    try {
+      const payload: Record<string, unknown> = {
+        name: data.name,
+        code: data.code || null,
+        contact_person: data.contact_person || null,
+        phone: data.phone || null,
+        email: data.email || null,
+        address: data.address || null,
+        notes: data.notes || null,
+      };
+      const updated = await updateFn(entity.id, payload);
+      onSave(updated);
+      showToast("success", t(`${tPrefix}.updated`));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t(`${tPrefix}.updateFailed`)));
+    }
+  };
+
+  return (
+    <tr>
+      <td colSpan={8} className="px-4 py-4 bg-green-50/30 border-t border-b border-green-200">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.name`)} *
+              </label>
+              <input {...register("name", { required: true })} className={inputBase} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.code`)} *
+              </label>
+              <input {...register("code", { required: true })} className={inputBase} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.contact`)}
+              </label>
+              <input {...register("contact_person")} className={inputBase} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.phone`)}
+              </label>
+              <input {...register("phone")} className={inputBase} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.email`)}
+              </label>
+              <input {...register("email")} type="email" className={inputBase} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.address`)}
+              </label>
+              <input {...register("address")} className={inputBase} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t("common:table.notes")}
+              </label>
+              <input {...register("notes")} className={inputBase} />
+            </div>
+          </div>
+          <div className="flex gap-2 items-center">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-1.5 text-sm bg-green-600 text-white rounded font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {isSubmitting ? t("common:actions.saving") : t("common:actions.saveChanges")}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-1.5 text-sm border rounded font-medium hover:bg-gray-50"
+            >
+              {t("common:actions.cancel")}
+            </button>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(t(`${tPrefix}.confirmDelete`, `Delete "${entity.name}"? This cannot be undone.`))) {
+                  onDelete(entity.id);
+                }
+              }}
+              className="px-4 py-1.5 text-sm text-red-600 border border-red-200 rounded font-medium hover:bg-red-50"
+            >
+              {t("common:actions.delete", "Delete")}
+            </button>
+          </div>
+        </form>
+      </td>
+    </tr>
+  );
+}
+
+/* ── Reusable logistics section component ── */
+
+function LogisticsSection<T extends LogisticsEntity>({
+  tPrefix,
+  items,
+  loading,
+  editingId,
+  setEditingId,
+  onSave,
+  onDelete,
+  onToggleActive,
+  onAdd,
+  updateFn,
+}: {
+  tPrefix: string;
+  items: T[];
+  loading: boolean;
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  onSave: (updated: T) => void;
+  onDelete: (id: string) => void;
+  onToggleActive: (id: string, active: boolean) => void;
+  onAdd: (payload: { name: string; code: string; contact_person?: string; phone?: string; email?: string; address?: string; notes?: string }) => Promise<void>;
+  updateFn: (id: string, payload: Record<string, unknown>) => Promise<T>;
+}) {
+  const { t } = useTranslation("data");
+  const [sectionSearch, setSectionSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", code: "", contact_person: "", phone: "", email: "" });
+  const [adding, setAdding] = useState(false);
+
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
+
+  const filtered = useMemo(() => {
+    const rows = items.filter((item) => {
+      if (!sectionSearch.trim()) return true;
+      const q = sectionSearch.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(q) ||
+        (item.code || "").toLowerCase().includes(q) ||
+        (item.contact_person || "").toLowerCase().includes(q) ||
+        (item.email || "").toLowerCase().includes(q)
+      );
+    });
+    return sortRows(rows, sortCol, sortDir, {
+      name: (r) => r.name,
+      code: (r) => r.code,
+      contact_person: (r) => r.contact_person,
+      phone: (r) => r.phone,
+      email: (r) => r.email,
+      is_active: (r) => (r.is_active ? 1 : 0),
+    });
+  }, [items, sectionSearch, sortCol, sortDir]);
+
+  const handleAdd = async () => {
+    if (!addForm.name.trim() || !addForm.code.trim()) return;
+    setAdding(true);
+    try {
+      await onAdd({
+        name: addForm.name,
+        code: addForm.code,
+        contact_person: addForm.contact_person || undefined,
+        phone: addForm.phone || undefined,
+        email: addForm.email || undefined,
+      });
+      setAddForm({ name: "", code: "", contact_person: "", phone: "", email: "" });
+      setShowAdd(false);
+      showToast("success", t(`${tPrefix}.added`));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t(`${tPrefix}.addFailed`)));
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold text-gray-800 mb-3">{t(`${tPrefix}.title`)}</h2>
+      <p className="text-xs text-gray-500 mb-2">{t(`${tPrefix}.clickToEdit`, "Click a row to edit")}</p>
+
+      {/* Add new + filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="px-3 py-1.5 text-sm bg-green-600 text-white rounded font-medium hover:bg-green-700"
+        >
+          + {t(`${tPrefix}.add`)}
+        </button>
+        {items.length > 0 && (
+          <>
+            <input
+              type="text"
+              value={sectionSearch}
+              onChange={(e) => setSectionSearch(e.target.value)}
+              placeholder={t(`${tPrefix}.searchPlaceholder`, "Search...")}
+              className="border rounded-lg px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <span className="text-xs text-gray-500">
+              {t(`${tPrefix}.showing`, { count: filtered.length, total: items.length })}
+            </span>
+            {sectionSearch && (
+              <button
+                onClick={() => setSectionSearch("")}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                {t("common:actions.clearFilters")}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <div className="mt-3 p-3 bg-green-50/50 border border-green-200 rounded-lg">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.name`)} *
+              </label>
+              <input
+                value={addForm.name}
+                onChange={(e) => setAddForm((p) => ({ ...p, name: e.target.value }))}
+                className={inputBase}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.code`)} *
+              </label>
+              <input
+                value={addForm.code}
+                onChange={(e) => setAddForm((p) => ({ ...p, code: e.target.value }))}
+                className={inputBase}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.contact`)}
+              </label>
+              <input
+                value={addForm.contact_person}
+                onChange={(e) => setAddForm((p) => ({ ...p, contact_person: e.target.value }))}
+                className={inputBase}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.phone`)}
+              </label>
+              <input
+                value={addForm.phone}
+                onChange={(e) => setAddForm((p) => ({ ...p, phone: e.target.value }))}
+                className={inputBase}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t(`${tPrefix}.email`)}
+              </label>
+              <input
+                value={addForm.email}
+                onChange={(e) => setAddForm((p) => ({ ...p, email: e.target.value }))}
+                className={inputBase}
+                type="email"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleAdd}
+              disabled={adding || !addForm.name.trim() || !addForm.code.trim()}
+              className="px-4 py-1.5 text-sm bg-green-600 text-white rounded font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {adding ? t("common:actions.saving") : t(`${tPrefix}.add`)}
+            </button>
+            <button
+              onClick={() => setShowAdd(false)}
+              className="px-4 py-1.5 text-sm border rounded font-medium hover:bg-gray-50"
+            >
+              {t("common:actions.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="mt-3 bg-white border rounded-lg overflow-x-auto">
+        {loading ? (
+          <p className="text-gray-400 text-sm p-4">{t("common:actions.loading")}</p>
+        ) : items.length === 0 ? (
+          <p className="text-gray-400 text-sm p-4">{t(`${tPrefix}.empty`, "No records yet")}</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-gray-400 text-sm p-4">{t(`${tPrefix}.noMatch`, "No matching records")}</p>
+        ) : (
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead className="bg-gray-50 text-gray-600 select-none">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium cursor-pointer hover:text-green-700" onClick={() => toggleSort("name")}>{t(`${tPrefix}.name`)}{sortIndicator("name")}</th>
+                <th className="text-left px-4 py-2 font-medium cursor-pointer hover:text-green-700" onClick={() => toggleSort("code")}>{t(`${tPrefix}.code`)}{sortIndicator("code")}</th>
+                <th className="text-left px-4 py-2 font-medium cursor-pointer hover:text-green-700" onClick={() => toggleSort("contact_person")}>{t(`${tPrefix}.contact`)}{sortIndicator("contact_person")}</th>
+                <th className="text-left px-4 py-2 font-medium cursor-pointer hover:text-green-700" onClick={() => toggleSort("phone")}>{t(`${tPrefix}.phone`)}{sortIndicator("phone")}</th>
+                <th className="text-left px-4 py-2 font-medium cursor-pointer hover:text-green-700" onClick={() => toggleSort("email")}>{t(`${tPrefix}.email`)}{sortIndicator("email")}</th>
+                <th className="text-center px-4 py-2 font-medium cursor-pointer hover:text-green-700" onClick={() => toggleSort("is_active")}>{t(`${tPrefix}.active`, "Active")}{sortIndicator("is_active")}</th>
+                <th className="text-left px-4 py-2 font-medium">{t("common:table.notes")}</th>
+                <th className="text-center px-4 py-2 font-medium">{t("common:actions.edit", "Edit")}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filtered.map((item) => (
+                <Fragment key={item.id}>
+                  <tr
+                    onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                    className={`cursor-pointer ${
+                      editingId === item.id
+                        ? "bg-green-50"
+                        : "hover:bg-green-50/50 even:bg-gray-50/50"
+                    }`}
+                  >
+                    <td className="px-4 py-2 font-medium">{item.name}</td>
+                    <td className="px-4 py-2 text-gray-500 font-mono text-xs">{item.code || "\u2014"}</td>
+                    <td className="px-4 py-2 text-gray-500">{item.contact_person || "\u2014"}</td>
+                    <td className="px-4 py-2 text-gray-500">{item.phone || "\u2014"}</td>
+                    <td className="px-4 py-2 text-gray-500">{item.email || "\u2014"}</td>
+                    <td className="px-4 py-2 text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleActive(item.id, !item.is_active);
+                        }}
+                        className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
+                          item.is_active ? "bg-green-500" : "bg-gray-300"
+                        }`}
+                        title={item.is_active ? t(`${tPrefix}.deactivate`, "Deactivate") : t(`${tPrefix}.activate`, "Activate")}
+                      >
+                        <span
+                          className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
+                            item.is_active ? "left-4" : "left-0.5"
+                          }`}
+                        />
+                      </button>
+                    </td>
+                    <td className="px-4 py-2 text-gray-500 max-w-[200px] truncate">{item.notes || "\u2014"}</td>
+                    <td className="px-4 py-2 text-center">
+                      <span className="text-green-600 text-xs font-medium">
+                        {editingId === item.id ? t("common:actions.close", "Close") : t("common:actions.edit", "Edit")}
+                      </span>
+                    </td>
+                  </tr>
+                  {editingId === item.id && (
+                    <LogisticsEditPanel
+                      key={`edit-${item.id}`}
+                      entity={item}
+                      tPrefix={tPrefix}
+                      onSave={onSave}
+                      onCancel={() => setEditingId(null)}
+                      onDelete={onDelete}
+                      onToggleActive={onToggleActive}
+                      updateFn={updateFn}
+                    />
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function DataManagement() {
   const { t } = useTranslation("data");
   const [growers, setGrowers] = useState<GrowerSummary[]>([]);
@@ -446,18 +903,32 @@ export default function DataManagement() {
   const [teamEditingId, setTeamEditingId] = useState<string | null>(null);
   const [teamSearch, setTeamSearch] = useState("");
 
+  // Logistics entities state
+  const [shippingLines, setShippingLines] = useState<ShippingLineOut[]>([]);
+  const [transporters, setTransporters] = useState<TransporterOut[]>([]);
+  const [shippingAgents, setShippingAgents] = useState<ShippingAgentOut[]>([]);
+  const [slEditingId, setSlEditingId] = useState<string | null>(null);
+  const [trEditingId, setTrEditingId] = useState<string | null>(null);
+  const [saEditingId, setSaEditingId] = useState<string | null>(null);
+
   const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const { sortCol: teamSortCol, sortDir: teamSortDir, toggleSort: toggleTeamSort, sortIndicator: teamSortIndicator } = useTableSort();
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [gRes, tRes] = await Promise.all([
+      const [gRes, tRes, slRes, trRes, saRes] = await Promise.all([
         fetchAllPages<GrowerSummary>("/growers/"),
         fetchAllPages<HarvestTeamSummary>("/harvest-teams/"),
+        listShippingLines(),
+        listTransporters(),
+        listShippingAgents(),
       ]);
       setGrowers(gRes.items);
       setTeams(tRes.items);
+      setShippingLines(slRes);
+      setTransporters(trRes);
+      setShippingAgents(saRes);
     } catch {
       // Data tables may be empty but CSV import buttons remain available
     } finally {
@@ -547,6 +1018,99 @@ export default function DataManagement() {
     } catch (err) {
       showToast("error", getErrorMessage(err, t("teams.deleteFailed")));
     }
+  };
+
+  // ── Shipping Lines handlers ──
+  const handleSlSave = (updated: ShippingLineOut) => {
+    setShippingLines((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setSlEditingId(null);
+  };
+  const handleSlDelete = async (id: string) => {
+    try {
+      await deleteShippingLine(id);
+      setShippingLines((prev) => prev.filter((s) => s.id !== id));
+      setSlEditingId(null);
+      showToast("success", t("shippingLines.deleted", "Shipping line deleted"));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("shippingLines.deleteFailed", "Failed to delete shipping line")));
+    }
+  };
+  const handleSlToggleActive = async (id: string, active: boolean) => {
+    try {
+      const updated = await updateShippingLine(id, { is_active: active } as unknown as ShippingLineUpdate);
+      setShippingLines((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("shippingLines.updateFailed")));
+    }
+  };
+  const handleSlAdd = async (payload: ShippingLineCreate) => {
+    const created = await createShippingLine(payload);
+    setShippingLines((prev) => [...prev, created]);
+  };
+  const slUpdateFn = async (id: string, payload: Record<string, unknown>) => {
+    return await updateShippingLine(id, payload as ShippingLineUpdate);
+  };
+
+  // ── Transporters handlers ──
+  const handleTrSave = (updated: TransporterOut) => {
+    setTransporters((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setTrEditingId(null);
+  };
+  const handleTrDelete = async (id: string) => {
+    try {
+      await deleteTransporter(id);
+      setTransporters((prev) => prev.filter((s) => s.id !== id));
+      setTrEditingId(null);
+      showToast("success", t("transporters.deleted", "Transporter deleted"));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("transporters.deleteFailed", "Failed to delete transporter")));
+    }
+  };
+  const handleTrToggleActive = async (id: string, active: boolean) => {
+    try {
+      const updated = await updateTransporter(id, { is_active: active } as unknown as TransporterUpdate);
+      setTransporters((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("transporters.updateFailed")));
+    }
+  };
+  const handleTrAdd = async (payload: TransporterCreate) => {
+    const created = await createTransporter(payload);
+    setTransporters((prev) => [...prev, created]);
+  };
+  const trUpdateFn = async (id: string, payload: Record<string, unknown>) => {
+    return await updateTransporter(id, payload as TransporterUpdate);
+  };
+
+  // ── Shipping Agents handlers ──
+  const handleSaSave = (updated: ShippingAgentOut) => {
+    setShippingAgents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setSaEditingId(null);
+  };
+  const handleSaDelete = async (id: string) => {
+    try {
+      await deleteShippingAgent(id);
+      setShippingAgents((prev) => prev.filter((s) => s.id !== id));
+      setSaEditingId(null);
+      showToast("success", t("shippingAgents.deleted", "Shipping agent deleted"));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("shippingAgents.deleteFailed", "Failed to delete shipping agent")));
+    }
+  };
+  const handleSaToggleActive = async (id: string, active: boolean) => {
+    try {
+      const updated = await updateShippingAgent(id, { is_active: active } as unknown as ShippingAgentUpdate);
+      setShippingAgents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("shippingAgents.updateFailed")));
+    }
+  };
+  const handleSaAdd = async (payload: ShippingAgentCreate) => {
+    const created = await createShippingAgent(payload);
+    setShippingAgents((prev) => [...prev, created]);
+  };
+  const saUpdateFn = async (id: string, payload: Record<string, unknown>) => {
+    return await updateShippingAgent(id, payload as ShippingAgentUpdate);
   };
 
   return (
@@ -779,6 +1343,48 @@ export default function DataManagement() {
           )}
         </div>
       </section>
+
+      {/* Shipping Lines section */}
+      <LogisticsSection<ShippingLineOut>
+        tPrefix="shippingLines"
+        items={shippingLines}
+        loading={loading}
+        editingId={slEditingId}
+        setEditingId={setSlEditingId}
+        onSave={handleSlSave}
+        onDelete={handleSlDelete}
+        onToggleActive={handleSlToggleActive}
+        onAdd={handleSlAdd}
+        updateFn={slUpdateFn}
+      />
+
+      {/* Transporters section */}
+      <LogisticsSection<TransporterOut>
+        tPrefix="transporters"
+        items={transporters}
+        loading={loading}
+        editingId={trEditingId}
+        setEditingId={setTrEditingId}
+        onSave={handleTrSave}
+        onDelete={handleTrDelete}
+        onToggleActive={handleTrToggleActive}
+        onAdd={handleTrAdd}
+        updateFn={trUpdateFn}
+      />
+
+      {/* Shipping Agents section */}
+      <LogisticsSection<ShippingAgentOut>
+        tPrefix="shippingAgents"
+        items={shippingAgents}
+        loading={loading}
+        editingId={saEditingId}
+        setEditingId={setSaEditingId}
+        onSave={handleSaSave}
+        onDelete={handleSaDelete}
+        onToggleActive={handleSaToggleActive}
+        onAdd={handleSaAdd}
+        updateFn={saUpdateFn}
+      />
     </div>
   );
 }

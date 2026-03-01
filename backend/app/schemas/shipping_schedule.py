@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # ── Create ────────────────────────────────────────────────────
 
 class ShippingScheduleCreate(BaseModel):
+    shipping_line_id: str | None = None
     shipping_line: str = Field(..., max_length=100)
     vessel_name: str = Field(..., max_length=255)
     voyage_number: str = Field(..., max_length=100)
@@ -24,6 +25,7 @@ class ShippingScheduleCreate(BaseModel):
 # ── Update (partial) ─────────────────────────────────────────
 
 class ShippingScheduleUpdate(BaseModel):
+    shipping_line_id: str | None = None
     shipping_line: str | None = None
     vessel_name: str | None = None
     voyage_number: str | None = None
@@ -41,7 +43,9 @@ class ShippingScheduleUpdate(BaseModel):
 
 class ShippingScheduleSummary(BaseModel):
     id: str
+    shipping_line_id: str | None = None
     shipping_line: str
+    shipping_line_name: str | None = None
     vessel_name: str
     voyage_number: str
     port_of_loading: str

@@ -5,7 +5,7 @@
     "count_other": "{{count}} conteneurs",
     "createContainer": "+ Creer un conteneur",
     "allStatuses": "Tous les statuts",
-    "searchPlaceholder": "Rechercher numero, client, destination...",
+    "searchPlaceholder": "Rechercher conteneur, palette, GRN, lot, client...",
     "loading": "Chargement des conteneurs...",
     "empty": "Aucun conteneur trouve. Affectez des palettes pour en creer un.",
     "headers": {
@@ -31,7 +31,11 @@
     "shippingPlaceholder": "ex. MSKU1234567",
     "destination": "Destination",
     "destinationPlaceholder": "ex. Rotterdam, NL",
-    "sealNumber": "Numero de scelle"
+    "sealNumber": "Numero de scelle",
+    "transporter": "Transporteur",
+    "noTransporter": "— Aucun —",
+    "shippingAgent": "Agent maritime",
+    "noAgent": "— Aucun —"
   },
   "detail": {
     "loading": "Chargement du conteneur...",
@@ -50,6 +54,8 @@
     "destination": "Destination",
     "exportDate": "Date d'exportation",
     "sealNumber": "Numero de scelle",
+    "transporter": "Transporteur",
+    "shippingAgent": "Agent maritime",
     "notes": "Notes",
     "loadPallets": "Charger des palettes",
     "headers": {

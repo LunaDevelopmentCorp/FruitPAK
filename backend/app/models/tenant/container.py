@@ -62,6 +62,14 @@ class Container(TenantBase):
     # JSON array of readings: [{"temp_c": 2.1, "recorded_at": "...", "location": "front"}, ...]
     temp_readings: Mapped[list | None] = mapped_column(JSON)
 
+    # ── Logistics links ──────────────────────────────────────
+    transporter_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("transporters.id")
+    )
+    shipping_agent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("shipping_agents.id")
+    )
+
     # ── Export link ──────────────────────────────────────────
     export_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("exports.id")
@@ -85,5 +93,7 @@ class Container(TenantBase):
     client = relationship("Client", lazy="selectin")
     transport_config = relationship("TransportConfig", lazy="selectin")
     packhouse = relationship("Packhouse", lazy="selectin")
+    transporter = relationship("Transporter", lazy="selectin")
+    shipping_agent = relationship("ShippingAgent", lazy="selectin")
     export = relationship("Export", back_populates="containers", lazy="selectin")
     pallets = relationship("Pallet", back_populates="container", lazy="selectin")

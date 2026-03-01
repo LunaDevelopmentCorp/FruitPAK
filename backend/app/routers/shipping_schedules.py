@@ -31,6 +31,14 @@ from app.utils.activity import log_activity
 router = APIRouter()
 
 
+def _schedule_summary(schedule: ShippingSchedule) -> ShippingScheduleSummary:
+    """Build a ShippingScheduleSummary with denormalized shipping line name."""
+    s = ShippingScheduleSummary.model_validate(schedule)
+    if schedule.shipping_line_rel:
+        s.shipping_line_name = schedule.shipping_line_rel.name
+    return s
+
+
 # ── POST /api/shipping-schedules/ ────────────────────────────
 
 @router.post("/", response_model=ShippingScheduleSummary, status_code=201)
@@ -42,6 +50,7 @@ async def create_shipping_schedule(
     """Create a new shipping schedule entry."""
     schedule = ShippingSchedule(
         id=str(uuid.uuid4()),
+        shipping_line_id=body.shipping_line_id,
         shipping_line=body.shipping_line,
         vessel_name=body.vessel_name,
         voyage_number=body.voyage_number,
@@ -70,7 +79,7 @@ async def create_shipping_schedule(
         ),
     )
 
-    return ShippingScheduleSummary.model_validate(schedule)
+    return _schedule_summary(schedule)
 
 
 # ── GET /api/shipping-schedules/ ─────────────────────────────
@@ -118,7 +127,7 @@ async def list_shipping_schedules(
     items = items_result.scalars().all()
 
     return PaginatedResponse(
-        items=[ShippingScheduleSummary.model_validate(s) for s in items],
+        items=[_schedule_summary(s) for s in items],
         total=total,
         limit=limit,
         offset=offset,
@@ -144,7 +153,10 @@ async def get_shipping_schedule(
     schedule = result.scalar_one_or_none()
     if not schedule:
         raise HTTPException(status_code=404, detail="Shipping schedule not found")
-    return ShippingScheduleDetail.model_validate(schedule)
+    detail = ShippingScheduleDetail.model_validate(schedule)
+    if schedule.shipping_line_rel:
+        detail.shipping_line_name = schedule.shipping_line_rel.name
+    return detail
 
 
 # ── PATCH /api/shipping-schedules/{id} ───────────────────────
@@ -184,7 +196,7 @@ async def update_shipping_schedule(
         summary=f"Updated shipping schedule: {schedule.vessel_name} V.{schedule.voyage_number}",
     )
 
-    return ShippingScheduleSummary.model_validate(schedule)
+    return _schedule_summary(schedule)
 
 
 # ── DELETE /api/shipping-schedules/{id} ──────────────────────

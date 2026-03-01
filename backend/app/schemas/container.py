@@ -18,6 +18,8 @@ class ContainerFromPalletsRequest(BaseModel):
     export_date: datetime | None = None
     destination: str | None = None
     seal_number: str | None = None
+    transporter_id: str | None = None
+    shipping_agent_id: str | None = None
     notes: str | None = None
 
 
@@ -32,6 +34,8 @@ class CreateEmptyContainerRequest(BaseModel):
     destination: str | None = None
     export_date: datetime | None = None
     seal_number: str | None = None
+    transporter_id: str | None = None
+    shipping_agent_id: str | None = None
     notes: str | None = None
 
 
@@ -47,6 +51,8 @@ class ContainerUpdate(BaseModel):
     destination: str | None = None
     export_date: datetime | None = None
     seal_number: str | None = None
+    transporter_id: str | None = None
+    shipping_agent_id: str | None = None
     notes: str | None = None
     status: str | None = None
 
@@ -86,6 +92,7 @@ class TraceLot(BaseModel):
 class TraceBatch(BaseModel):
     batch_code: str
     grower_name: str | None
+    grower_code: str | None = None
     fruit_type: str
     intake_date: str | None
 
@@ -111,7 +118,14 @@ class ContainerSummary(BaseModel):
     customer_name: str | None
     destination: str | None
     shipping_container_number: str | None = None
+    transporter_id: str | None = None
+    transporter_name: str | None = None
+    shipping_agent_id: str | None = None
+    shipping_agent_name: str | None = None
     status: str
+    pallet_numbers: list[str] = []
+    lot_codes: list[str] = []
+    batch_codes: list[str] = []
     locked_fields: list[str] = []
     created_at: datetime
 

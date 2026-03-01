@@ -22,7 +22,14 @@ export interface ContainerSummary {
   customer_name: string | null;
   destination: string | null;
   shipping_container_number: string | null;
+  transporter_id: string | null;
+  transporter_name: string | null;
+  shipping_agent_id: string | null;
+  shipping_agent_name: string | null;
   status: string;
+  pallet_numbers?: string[];
+  lot_codes?: string[];
+  batch_codes?: string[];
   locked_fields?: string[];
   created_at: string;
 }
@@ -49,6 +56,7 @@ export interface TraceLot {
 export interface TraceBatch {
   batch_code: string;
   grower_name: string | null;
+  grower_code: string | null;
   fruit_type: string;
   intake_date: string | null;
 }
@@ -83,6 +91,8 @@ export interface ContainerFromPalletsPayload {
   export_date?: string;
   destination?: string;
   seal_number?: string;
+  transporter_id?: string;
+  shipping_agent_id?: string;
   notes?: string;
 }
 
@@ -103,6 +113,8 @@ export interface CreateEmptyContainerPayload {
   destination?: string;
   export_date?: string;
   seal_number?: string;
+  transporter_id?: string;
+  shipping_agent_id?: string;
   notes?: string;
 }
 
@@ -141,6 +153,8 @@ export interface UpdateContainerPayload {
   destination?: string | null;
   export_date?: string | null;
   seal_number?: string | null;
+  transporter_id?: string | null;
+  shipping_agent_id?: string | null;
   notes?: string | null;
   status?: string;
 }

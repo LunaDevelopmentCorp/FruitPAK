@@ -242,8 +242,35 @@ class TransportInput(BaseModel):
     atmosphere_settings: dict | None = None
 
 
+class ShippingLineInput(BaseModel):
+    name: str
+    code: str
+    contact_person: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
+
+class TransporterInput(BaseModel):
+    name: str
+    code: str
+    contact_person: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
+
+class ShippingAgentInput(BaseModel):
+    name: str
+    code: str
+    contact_person: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
+
 class Step7Data(BaseModel):
     transport_configs: list[TransportInput] | None = None
+    shipping_lines: list[ShippingLineInput] | None = None
+    transporters: list[TransporterInput] | None = None
+    shipping_agents: list[ShippingAgentInput] | None = None
 
 
 # ── Step 8: Financial basics (optional) ──────────────────────

@@ -5,7 +5,9 @@ import { fetchAllPages } from "./fetchAll";
 
 export interface ShippingScheduleSummary {
   id: string;
+  shipping_line_id: string | null;
   shipping_line: string;
+  shipping_line_name: string | null;
   vessel_name: string;
   voyage_number: string;
   port_of_loading: string;
@@ -27,6 +29,7 @@ export interface ShippingScheduleDetail extends ShippingScheduleSummary {
 // ── Create ───────────────────────────────────────────────────
 
 export interface CreateShippingSchedulePayload {
+  shipping_line_id?: string;
   shipping_line: string;
   vessel_name: string;
   voyage_number: string;
@@ -50,6 +53,7 @@ export async function createShippingSchedule(
 // ── Update ───────────────────────────────────────────────────
 
 export interface UpdateShippingSchedulePayload {
+  shipping_line_id?: string;
   shipping_line?: string;
   vessel_name?: string;
   voyage_number?: string;

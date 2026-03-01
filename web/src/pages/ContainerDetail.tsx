@@ -327,6 +327,8 @@ export default function ContainerDetail() {
             <Row label={t("detail.destination")} value={container.destination || "\u2014"} />
             <Row label={t("detail.exportDate")} value={container.export_date ? new Date(container.export_date).toLocaleDateString() : "\u2014"} />
             <Row label={t("detail.sealNumber")} value={container.seal_number || "\u2014"} />
+            <Row label={t("detail.transporter")} value={container.transporter_name || "\u2014"} />
+            <Row label={t("detail.shippingAgent")} value={container.shipping_agent_name || "\u2014"} />
           </div>
         )}
       </div>
@@ -430,7 +432,7 @@ export default function ContainerDetail() {
                         <p key={i} className="text-xs text-gray-700">
                           <span className="font-mono text-green-700">{b.batch_code}</span>
                           {" \u2190 "}
-                          <span className="font-medium">{b.grower_name || "?"}</span>
+                          <span className="font-medium">{b.grower_code ? `${b.grower_name} (${b.grower_code})` : (b.grower_name || "?")}</span>
                           {" \u00b7 "}
                           {b.fruit_type}
                           {b.intake_date && ` \u00b7 ${new Date(b.intake_date).toLocaleDateString()}`}

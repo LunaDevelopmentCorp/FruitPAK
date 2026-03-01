@@ -32,7 +32,10 @@ from app.models.tenant.packaging_stock import PackagingStock
 from app.models.tenant.product_config import BinType, BoxSize, PackSpec, PalletType, PalletTypeBoxCapacity, ProductConfig
 from app.models.tenant.tenant_config import TenantConfig
 from app.models.tenant.supplier import Supplier
+from app.models.tenant.shipping_agent import ShippingAgent
+from app.models.tenant.shipping_line import ShippingLine
 from app.models.tenant.transport_config import TransportConfig
+from app.models.tenant.transporter import Transporter
 from app.models.tenant.wizard_state import WizardState
 from app.schemas.wizard import (
     Step1Complete,
@@ -590,6 +593,27 @@ async def save_step_7(
         await db.flush()
         for tc in body.transport_configs:
             db.add(TransportConfig(**tc.model_dump()))
+        await db.flush()
+
+    if body.shipping_lines:
+        await db.execute(delete(ShippingLine))
+        await db.flush()
+        for sl in body.shipping_lines:
+            db.add(ShippingLine(**sl.model_dump()))
+        await db.flush()
+
+    if body.transporters:
+        await db.execute(delete(Transporter))
+        await db.flush()
+        for tr in body.transporters:
+            db.add(Transporter(**tr.model_dump()))
+        await db.flush()
+
+    if body.shipping_agents:
+        await db.execute(delete(ShippingAgent))
+        await db.flush()
+        for sa in body.shipping_agents:
+            db.add(ShippingAgent(**sa.model_dump()))
         await db.flush()
 
     return await _finish_step(db, state, 7, body.model_dump(exclude_unset=True), complete, next_step=8)

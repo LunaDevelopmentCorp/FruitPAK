@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listContainers, ContainerSummary, createEmptyContainer, CreateEmptyContainerPayload } from "../api/containers";
 import { listClients, ClientSummary } from "../api/clients";
+import { listTransporters, TransporterOut } from "../api/transporters";
+import { listShippingAgents, ShippingAgentOut } from "../api/shippingAgents";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
@@ -24,9 +26,13 @@ export default function ContainersList() {
   // Create form state
   const [showCreate, setShowCreate] = useState(false);
   const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [transporters, setTransporters] = useState<TransporterOut[]>([]);
+  const [shippingAgents, setShippingAgents] = useState<ShippingAgentOut[]>([]);
   const [newContainerType, setNewContainerType] = useState("reefer_40ft");
   const [newCapacity, setNewCapacity] = useState(20);
   const [newClientId, setNewClientId] = useState("");
+  const [newTransporterId, setNewTransporterId] = useState("");
+  const [newShippingAgentId, setNewShippingAgentId] = useState("");
   const [newShippingNumber, setNewShippingNumber] = useState("");
   const [newDestination, setNewDestination] = useState("");
   const [newSealNumber, setNewSealNumber] = useState("");
@@ -36,21 +42,31 @@ export default function ContainersList() {
     setLoading(true);
     const params: Record<string, string> = {};
     if (statusFilter) params.status = statusFilter;
+    if (search.trim().length >= 3) params.search = search.trim();
     listContainers(params)
       .then(setContainers)
       .catch(() => setError("Failed to load containers"))
       .finally(() => setLoading(false));
   };
 
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    loadContainers();
-  }, [statusFilter]);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(loadContainers, search ? 300 : 0);
+    return () => clearTimeout(searchTimer.current);
+  }, [statusFilter, search]);
 
   const handleOpenCreate = () => {
     setShowCreate(true);
     listClients()
       .then(setClients)
       .catch(() => showToast("error", "Failed to load clients"));
+    listTransporters()
+      .then(setTransporters)
+      .catch(() => {});
+    listShippingAgents()
+      .then(setShippingAgents)
+      .catch(() => {});
   };
 
   const handleCancelCreate = () => {
@@ -58,6 +74,8 @@ export default function ContainersList() {
     setNewContainerType("reefer_40ft");
     setNewCapacity(20);
     setNewClientId("");
+    setNewTransporterId("");
+    setNewShippingAgentId("");
     setNewShippingNumber("");
     setNewDestination("");
     setNewSealNumber("");
@@ -71,6 +89,8 @@ export default function ContainersList() {
         capacity_pallets: newCapacity,
       };
       if (newClientId) payload.client_id = newClientId;
+      if (newTransporterId) payload.transporter_id = newTransporterId;
+      if (newShippingAgentId) payload.shipping_agent_id = newShippingAgentId;
       if (newShippingNumber.trim()) payload.shipping_container_number = newShippingNumber.trim();
       if (newDestination.trim()) payload.destination = newDestination.trim();
       if (newSealNumber.trim()) payload.seal_number = newSealNumber.trim();
@@ -93,7 +113,10 @@ export default function ContainersList() {
       c.container_number.toLowerCase().includes(q) ||
       (c.customer_name && c.customer_name.toLowerCase().includes(q)) ||
       (c.destination && c.destination.toLowerCase().includes(q)) ||
-      (c.shipping_container_number && c.shipping_container_number.toLowerCase().includes(q))
+      (c.shipping_container_number && c.shipping_container_number.toLowerCase().includes(q)) ||
+      (c.pallet_numbers && c.pallet_numbers.some((p) => p.toLowerCase().includes(q))) ||
+      (c.lot_codes && c.lot_codes.some((l) => l.toLowerCase().includes(q))) ||
+      (c.batch_codes && c.batch_codes.some((b) => b.toLowerCase().includes(q)))
     );
   });
 
@@ -147,6 +170,32 @@ export default function ContainersList() {
                 <option value="">{t("create.noClient")}</option>
                 {clients.map((cl) => (
                   <option key={cl.id} value={cl.id}>{cl.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.transporter")}</label>
+              <select
+                value={newTransporterId}
+                onChange={(e) => setNewTransporterId(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+              >
+                <option value="">{t("create.noTransporter")}</option>
+                {transporters.map((tr) => (
+                  <option key={tr.id} value={tr.id}>{tr.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.shippingAgent")}</label>
+              <select
+                value={newShippingAgentId}
+                onChange={(e) => setNewShippingAgentId(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+              >
+                <option value="">{t("create.noAgent")}</option>
+                {shippingAgents.map((sa) => (
+                  <option key={sa.id} value={sa.id}>{sa.name}</option>
                 ))}
               </select>
             </div>

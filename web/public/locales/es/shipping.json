@@ -47,6 +47,8 @@
     "bookingCutoff": "Cierre de reserva",
     "cargoCutoff": "Cierre de carga",
     "notes": "Notas",
+    "selectLine": "Seleccionar linea naviera...",
+    "otherLine": "Otra (escribir manualmente)",
     "linePlaceholder": "ej. MSC",
     "vesselPlaceholder": "ej. MSC AURORA",
     "voyagePlaceholder": "ej. FE409A",

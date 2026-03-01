@@ -17,7 +17,7 @@ from datetime import datetime
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +25,7 @@ from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.client import Client
+from app.models.tenant.batch import Batch
 from app.models.tenant.container import Container
 from app.models.tenant.lot import Lot
 from app.models.tenant.pallet import Pallet, PalletLot
@@ -46,6 +47,16 @@ from app.utils.locks import get_container_locks
 from app.utils.numbering import generate_code
 
 router = APIRouter()
+
+
+def _container_summary(container: Container) -> ContainerSummary:
+    """Build a ContainerSummary with denormalized relationship names."""
+    s = ContainerSummary.model_validate(container)
+    if container.transporter:
+        s.transporter_name = container.transporter.name
+    if container.shipping_agent:
+        s.shipping_agent_name = container.shipping_agent.name
+    return s
 
 
 async def _resolve_client(db: AsyncSession, client_id: str | None) -> tuple[str | None, str | None]:
@@ -82,6 +93,8 @@ async def create_empty_container(
         destination=body.destination,
         export_date=body.export_date,
         seal_number=body.seal_number,
+        transporter_id=body.transporter_id,
+        shipping_agent_id=body.shipping_agent_id,
         pallet_count=0,
         total_cartons=0,
         status="open",
@@ -99,7 +112,7 @@ async def create_empty_container(
         summary=f"Created empty container {container.container_number} for {customer_name or 'unassigned client'}",
     )
 
-    return ContainerSummary.model_validate(container)
+    return _container_summary(container)
 
 
 # ── POST /api/containers/from-pallets ────────────────────────
@@ -158,6 +171,8 @@ async def create_container_from_pallets(
         destination=body.destination,
         export_date=body.export_date,
         seal_number=body.seal_number,
+        transporter_id=body.transporter_id,
+        shipping_agent_id=body.shipping_agent_id,
         pallet_count=len(pallets),
         total_cartons=total_cartons,
         gross_weight_kg=total_weight if total_weight else None,
@@ -186,7 +201,7 @@ async def create_container_from_pallets(
         details={"pallet_count": len(pallets), "total_cartons": total_cartons},
     )
 
-    return ContainerSummary.model_validate(container)
+    return _container_summary(container)
 
 
 # ── POST /api/containers/{id}/load-pallets ───────────────────
@@ -278,7 +293,7 @@ async def load_pallets_into_container(
         details={"pallets_added": len(pallets), "total_pallets": container.pallet_count},
     )
 
-    return ContainerSummary.model_validate(container)
+    return _container_summary(container)
 
 
 # ── PATCH /api/containers/{id} ────────────────────────────────
@@ -339,7 +354,7 @@ async def update_container(
         summary=f"Updated container {container.container_number}",
     )
 
-    return ContainerSummary.model_validate(container)
+    return _container_summary(container)
 
 
 # ── GET /api/containers/ ─────────────────────────────────────
@@ -348,6 +363,7 @@ async def update_container(
 async def list_containers(
     status: str | None = None,
     customer: str | None = None,
+    search: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
@@ -359,6 +375,25 @@ async def list_containers(
         base = base.where(Container.status == status)
     if customer:
         base = base.where(Container.customer_name.ilike(f"%{customer}%"))
+    if search:
+        q = f"%{search}%"
+        base = (
+            base
+            .outerjoin(Pallet, (Pallet.container_id == Container.id) & (Pallet.is_deleted == False))  # noqa: E712
+            .outerjoin(PalletLot, (PalletLot.pallet_id == Pallet.id) & (PalletLot.is_deleted == False))  # noqa: E712
+            .outerjoin(Lot, Lot.id == PalletLot.lot_id)
+            .outerjoin(Batch, Batch.id == Lot.batch_id)
+            .where(or_(
+                Container.container_number.ilike(q),
+                Container.customer_name.ilike(q),
+                Container.destination.ilike(q),
+                Container.shipping_container_number.ilike(q),
+                Pallet.pallet_number.ilike(q),
+                Lot.lot_code.ilike(q),
+                Batch.batch_code.ilike(q),
+            ))
+            .distinct()
+        )
 
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
@@ -368,10 +403,49 @@ async def list_containers(
     items_result = await db.execute(
         base.order_by(Container.created_at.desc()).limit(limit).offset(offset)
     )
-    items = items_result.scalars().all()
+    items = list(items_result.scalars().all())
+
+    # Populate pallet_numbers, lot_codes, batch_codes only when searching
+    # (avoids extra JOINs on every default page load)
+    if items and search:
+        container_ids = [c.id for c in items]
+        trace_result = await db.execute(
+            select(
+                Pallet.container_id,
+                Pallet.pallet_number,
+                Lot.lot_code,
+                Batch.batch_code,
+            )
+            .outerjoin(PalletLot, (PalletLot.pallet_id == Pallet.id) & (PalletLot.is_deleted == False))  # noqa: E712
+            .outerjoin(Lot, Lot.id == PalletLot.lot_id)
+            .outerjoin(Batch, Batch.id == Lot.batch_id)
+            .where(
+                Pallet.container_id.in_(container_ids),
+                Pallet.is_deleted == False,  # noqa: E712
+            )
+        )
+        pallet_map: dict[str, set[str]] = {}
+        lot_map: dict[str, set[str]] = {}
+        batch_map: dict[str, set[str]] = {}
+        for cid, pnum, lcode, bcode in trace_result.all():
+            pallet_map.setdefault(cid, set()).add(pnum)
+            if lcode:
+                lot_map.setdefault(cid, set()).add(lcode)
+            if bcode:
+                batch_map.setdefault(cid, set()).add(bcode)
+
+        summaries = []
+        for c in items:
+            s = _container_summary(c)
+            s.pallet_numbers = sorted(pallet_map.get(c.id, set()))
+            s.lot_codes = sorted(lot_map.get(c.id, set()))
+            s.batch_codes = sorted(batch_map.get(c.id, set()))
+            summaries.append(s)
+    else:
+        summaries = [_container_summary(c) for c in items]
 
     return PaginatedResponse(
-        items=[ContainerSummary.model_validate(c) for c in items],
+        items=summaries,
         total=total,
         limit=limit,
         offset=offset,
@@ -402,6 +476,10 @@ async def get_container(
         raise HTTPException(status_code=404, detail="Container not found")
 
     detail = ContainerDetail.model_validate(container)
+    if container.transporter:
+        detail.transporter_name = container.transporter.name
+    if container.shipping_agent:
+        detail.shipping_agent_name = container.shipping_agent.name
 
     # Build traceability: container → pallets → lots → batches → growers
     trace_pallets: list[TracePallet] = []
@@ -430,6 +508,7 @@ async def get_container(
                     tp.batches.append(TraceBatch(
                         batch_code=batch.batch_code,
                         grower_name=grower.name if grower else None,
+                        grower_code=grower.grower_code if grower else None,
                         fruit_type=batch.fruit_type,
                         intake_date=batch.intake_date.isoformat() if batch.intake_date else None,
                     ))

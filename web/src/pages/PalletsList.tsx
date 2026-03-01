@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listPallets, allocateBoxesToPallet, getPalletTypes, getPalletTypeCapacities, getBoxSizes, createEmptyPallet, PalletSummary, PalletTypeConfig, BoxSizeConfig, LotAssignment } from "../api/pallets";
 import { listLots, listPackhouses, LotSummary, Packhouse } from "../api/batches";
-import { createContainerFromPallets } from "../api/containers";
+import { createContainerFromPallets, loadPalletsIntoContainer, listContainers, ContainerSummary } from "../api/containers";
 import { listClients, ClientSummary } from "../api/clients";
+import { listTransporters, TransporterOut } from "../api/transporters";
+import { listShippingAgents, ShippingAgentOut } from "../api/shippingAgents";
 import { showToast as globalToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
@@ -36,10 +38,17 @@ export default function PalletsList() {
   const [capacityPallets, setCapacityPallets] = useState(20);
   const [clientId, setClientId] = useState("");
   const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [transporters, setTransporters] = useState<TransporterOut[]>([]);
+  const [shippingAgents, setShippingAgents] = useState<ShippingAgentOut[]>([]);
+  const [newTransporterId, setNewTransporterId] = useState("");
+  const [newShippingAgentId, setNewShippingAgentId] = useState("");
   const [shippingContainerNumber, setShippingContainerNumber] = useState("");
   const [destination, setDestination] = useState("");
   const [sealNumber, setSealNumber] = useState("");
   const [containerSaving, setContainerSaving] = useState(false);
+  const [containerMode, setContainerMode] = useState<"new" | "existing">("new");
+  const [existingContainers, setExistingContainers] = useState<ContainerSummary[]>([]);
+  const [selectedContainerId, setSelectedContainerId] = useState("");
 
   // Create empty pallet
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -84,15 +93,20 @@ export default function PalletsList() {
     setLoading(true);
     const params: Record<string, string> = {};
     if (statusFilter) params.status = statusFilter;
+    if (search.trim().length >= 3) params.search = search.trim();
     listPallets(params)
       .then(setPallets)
       .catch(() => setError("Failed to load pallets"))
       .finally(() => setLoading(false));
   };
 
+  // Debounce search — fetch from backend after 300ms of no typing
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    fetchPallets();
-  }, [statusFilter]);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(fetchPallets, search ? 300 : 0);
+    return () => clearTimeout(searchTimer.current);
+  }, [statusFilter, search]);
 
   const filtered = pallets.filter((p) => {
     if (!search.trim()) return true;
@@ -102,7 +116,9 @@ export default function PalletsList() {
       (p.fruit_type && p.fruit_type.toLowerCase().includes(q)) ||
       (p.grade && p.grade.toLowerCase().includes(q)) ||
       (p.size && p.size.toLowerCase().includes(q)) ||
-      (p.box_size_name && p.box_size_name.toLowerCase().includes(q))
+      (p.box_size_name && p.box_size_name.toLowerCase().includes(q)) ||
+      (p.lot_codes && p.lot_codes.some((c) => c.toLowerCase().includes(q))) ||
+      (p.batch_codes && p.batch_codes.some((c) => c.toLowerCase().includes(q)))
     );
   });
 
@@ -134,6 +150,8 @@ export default function PalletsList() {
         capacity_pallets: capacityPallets,
         pallet_ids: assignableSelected.map((p) => p.id),
         client_id: clientId || undefined,
+        transporter_id: newTransporterId || undefined,
+        shipping_agent_id: newShippingAgentId || undefined,
         shipping_container_number: shippingContainerNumber || undefined,
         destination: destination || undefined,
         seal_number: sealNumber || undefined,
@@ -142,12 +160,40 @@ export default function PalletsList() {
       setShowContainerForm(false);
       setSelectedIds(new Set());
       setClientId("");
+      setNewTransporterId("");
+      setNewShippingAgentId("");
       setShippingContainerNumber("");
       setDestination("");
       setSealNumber("");
       fetchPallets();
     } catch {
       globalToast("error", t("createContainer.containerCreateFailed"));
+    } finally {
+      setContainerSaving(false);
+    }
+  };
+
+  const handleLoadIntoExisting = async () => {
+    if (assignableSelected.length === 0) {
+      globalToast("error", "Select at least one pallet to assign.");
+      return;
+    }
+    if (!selectedContainerId) {
+      globalToast("error", t("createContainer.selectContainer"));
+      return;
+    }
+    setContainerSaving(true);
+    try {
+      const result = await loadPalletsIntoContainer(selectedContainerId, {
+        pallet_ids: assignableSelected.map((p) => p.id),
+      });
+      globalToast("success", t("createContainer.palletsLoaded", { count: assignableSelected.length, number: result.container_number }));
+      setShowContainerForm(false);
+      setSelectedIds(new Set());
+      setSelectedContainerId("");
+      fetchPallets();
+    } catch {
+      globalToast("error", t("createContainer.loadFailed"));
     } finally {
       setContainerSaving(false);
     }
@@ -164,7 +210,13 @@ export default function PalletsList() {
               <button
                 onClick={() => {
                   setShowContainerForm(true);
+                  setContainerMode("new");
                   listClients().then(setClients).catch(() => {});
+                  listTransporters().then(setTransporters).catch(() => {});
+                  listShippingAgents().then(setShippingAgents).catch(() => {});
+                  listContainers()
+                    .then((all) => setExistingContainers(all.filter((c) => c.status === "open" || c.status === "loading")))
+                    .catch(() => setExistingContainers([]));
                 }}
                 className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700"
               >
@@ -474,92 +526,181 @@ export default function PalletsList() {
         );
       })()}
 
-      {/* Container creation form */}
+      {/* Container assignment form */}
       {showContainerForm && (
         <div className="mb-6 bg-white rounded-lg border p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-700">{t("createContainer.title")}</h3>
           <p className="text-xs text-gray-500">
             {t("createContainer.help", { palletCount: assignableSelected.length, boxCount: assignableSelected.reduce((a, p) => a + p.current_boxes, 0) })}
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.containerType")}</label>
-              <select
-                value={containerType}
-                onChange={(e) => setContainerType(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              >
-                {CONTAINER_TYPES.map((t) => (
-                  <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.capacityPallets")}</label>
-              <input
-                type="number"
-                value={capacityPallets || ""}
-                onChange={(e) => setCapacityPallets(Number(e.target.value))}
-                min={1}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.client")}</label>
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              >
-                <option value="">{t("createContainer.selectClient")}</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.shippingNumber")}</label>
-              <input
-                value={shippingContainerNumber}
-                onChange={(e) => setShippingContainerNumber(e.target.value)}
-                placeholder={t("createContainer.shippingPlaceholder")}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.destination")}</label>
-              <input
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder={t("createContainer.destinationPlaceholder")}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t("createContainer.sealNumber")}</label>
-              <input
-                value={sealNumber}
-                onChange={(e) => setSealNumber(e.target.value)}
-                placeholder={t("createEmpty.notesPlaceholder")}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2 border-t">
+
+          {/* Tab toggle */}
+          <div className="flex gap-1 bg-gray-100 rounded p-0.5 w-fit">
             <button
-              onClick={handleCreateContainer}
-              disabled={containerSaving}
-              className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              onClick={() => setContainerMode("new")}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                containerMode === "new" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
             >
-              {containerSaving ? t("common:actions.creating") : t("createContainer.title")}
+              {t("createContainer.createNew")}
             </button>
             <button
-              onClick={() => setShowContainerForm(false)}
-              className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+              onClick={() => setContainerMode("existing")}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                containerMode === "existing" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
             >
-              {t("common:actions.cancel")}
+              {t("createContainer.loadIntoExisting")}
             </button>
           </div>
+
+          {containerMode === "new" ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.containerType")}</label>
+                  <select
+                    value={containerType}
+                    onChange={(e) => setContainerType(e.target.value)}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  >
+                    {CONTAINER_TYPES.map((ct) => (
+                      <option key={ct} value={ct}>{ct.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.capacityPallets")}</label>
+                  <input
+                    type="number"
+                    value={capacityPallets || ""}
+                    onChange={(e) => setCapacityPallets(Number(e.target.value))}
+                    min={1}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.client")}</label>
+                  <select
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  >
+                    <option value="">{t("createContainer.selectClient")}</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.transporter")}</label>
+                  <select
+                    value={newTransporterId}
+                    onChange={(e) => setNewTransporterId(e.target.value)}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  >
+                    <option value="">{t("createContainer.noTransporter")}</option>
+                    {transporters.map((tr) => (
+                      <option key={tr.id} value={tr.id}>{tr.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.shippingAgent")}</label>
+                  <select
+                    value={newShippingAgentId}
+                    onChange={(e) => setNewShippingAgentId(e.target.value)}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  >
+                    <option value="">{t("createContainer.noAgent")}</option>
+                    {shippingAgents.map((sa) => (
+                      <option key={sa.id} value={sa.id}>{sa.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.shippingNumber")}</label>
+                  <input
+                    value={shippingContainerNumber}
+                    onChange={(e) => setShippingContainerNumber(e.target.value)}
+                    placeholder={t("createContainer.shippingPlaceholder")}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.destination")}</label>
+                  <input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder={t("createContainer.destinationPlaceholder")}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.sealNumber")}</label>
+                  <input
+                    value={sealNumber}
+                    onChange={(e) => setSealNumber(e.target.value)}
+                    placeholder={t("createEmpty.notesPlaceholder")}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <button
+                  onClick={handleCreateContainer}
+                  disabled={containerSaving}
+                  className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {containerSaving ? t("common:actions.creating") : t("createContainer.title")}
+                </button>
+                <button
+                  onClick={() => setShowContainerForm(false)}
+                  className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                >
+                  {t("common:actions.cancel")}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {existingContainers.length === 0 ? (
+                <p className="text-sm text-gray-500">{t("createContainer.noOpenContainers")}</p>
+              ) : (
+                <div className="max-w-md">
+                  <label className="block text-xs text-gray-500 mb-1">{t("createContainer.selectContainer")}</label>
+                  <select
+                    value={selectedContainerId}
+                    onChange={(e) => setSelectedContainerId(e.target.value)}
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  >
+                    <option value="">{t("createContainer.selectContainer")}</option>
+                    {existingContainers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.container_number}
+                        {c.customer_name ? ` \u2014 ${c.customer_name}` : ""}
+                        {` (${c.pallet_count}/${c.capacity_pallets})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2 border-t">
+                <button
+                  onClick={handleLoadIntoExisting}
+                  disabled={containerSaving || !selectedContainerId}
+                  className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {containerSaving ? t("createContainer.loading") : t("createContainer.loadButton")}
+                </button>
+                <button
+                  onClick={() => setShowContainerForm(false)}
+                  className="border text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-50"
+                >
+                  {t("common:actions.cancel")}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
