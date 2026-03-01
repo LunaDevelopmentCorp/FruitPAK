@@ -18,7 +18,7 @@
       "bins": "Bins",
       "netKg": "Neto (kg)",
       "teamLeader": "Jefe de equipo",
-      "payTo": "Pagar a",
+      "harvestTeam": "Equipo de Cosecha",
       "team": "Equipo",
       "status": "Estado",
       "date": "Fecha"
@@ -45,6 +45,7 @@
     "paymentTo": "Pago a",
     "payToGrower": "Productor",
     "payToHarvestTeam": "Equipo de Cosecha",
+    "harvestTeam": "Equipo de Cosecha",
     "harvestDate": "Fecha de Cosecha",
     "intakeDate": "Fecha de Recepción",
     "fruitDetails": "Detalles de Fruta",

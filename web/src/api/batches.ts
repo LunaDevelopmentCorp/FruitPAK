@@ -42,6 +42,9 @@ export interface BatchOut {
   batch_code: string;
   grower_id: string;
   grower_name: string | null;
+  grower_code: string | null;
+  harvest_team_id: string | null;
+  harvest_team_name: string | null;
   payment_routing: string;
   harvest_rate_per_kg: number | null;
   packhouse_id: string;
@@ -65,6 +68,7 @@ export interface BatchSummary {
   batch_code: string;
   grower_id: string;
   grower_name: string | null;
+  grower_code: string | null;
   harvest_team_id: string | null;
   payment_routing: string;
   harvest_rate_per_kg: number | null;
@@ -134,7 +138,6 @@ export interface BatchHistoryItem {
 }
 
 export interface BatchDetail extends BatchOut {
-  harvest_team_id: string | null;
   arrival_temp_c: number | null;
   brix_reading: number | null;
   quality_assessment: Record<string, unknown> | null;
@@ -236,6 +239,7 @@ export interface LotOut extends LotSummary {
   variety: string | null;
   batch_code: string | null;
   grower_name: string | null;
+  grower_code: string | null;
   box_size_name: string | null;
   box_weight_kg: number | null;
 }

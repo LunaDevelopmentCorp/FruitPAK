@@ -105,7 +105,7 @@ export default function BatchesList() {
     variety: (b) => b.variety || "",
     bins: (b) => b.bin_count ?? 0,
     netKg: (b) => b.net_weight_kg ?? 0,
-    payTo: (b) => b.payment_routing === "harvest_team" ? (b.harvest_team_name || "") : (b.grower_name || ""),
+    team: (b) => b.harvest_team_name || "",
     status: (b) => b.status,
     date: (b) => b.intake_date || b.created_at || "",
   }), [batches, sortCol, sortDir]);
@@ -211,7 +211,7 @@ export default function BatchesList() {
                   <th onClick={() => toggleSort("variety")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.variety")}{sortIndicator("variety")}</th>
                   <th onClick={() => toggleSort("bins")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.bins")}{sortIndicator("bins")}</th>
                   <th onClick={() => toggleSort("netKg")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.netKg")}{sortIndicator("netKg")}</th>
-                  <th onClick={() => toggleSort("payTo")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.payTo")}{sortIndicator("payTo")}</th>
+                  <th onClick={() => toggleSort("team")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.harvestTeam")}{sortIndicator("team")}</th>
                   <th onClick={() => toggleSort("status")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.status")}{sortIndicator("status")}</th>
                   <th onClick={() => toggleSort("date")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.date")}{sortIndicator("date")}</th>
                 </tr>
@@ -226,17 +226,15 @@ export default function BatchesList() {
                     <td className="px-4 py-2 font-mono text-xs text-green-700">
                       {b.batch_code}
                     </td>
-                    <td className="px-4 py-2">{b.grower_name || "\u2014"}</td>
+                    <td className="px-4 py-2">{b.grower_code ? `${b.grower_name} (${b.grower_code})` : (b.grower_name || "\u2014")}</td>
                     <td className="px-4 py-2">{b.fruit_type}</td>
                     <td className="px-4 py-2">{b.variety || "\u2014"}</td>
                     <td className="px-4 py-2 text-right">{b.bin_count ?? "\u2014"}</td>
                     <td className="px-4 py-2 text-right">
                       {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
                     </td>
-                    <td className="px-4 py-2">
-                      {b.payment_routing === "harvest_team"
-                        ? <span className="text-purple-700">{b.harvest_team_leader || b.harvest_team_name || t("list.headers.team")}</span>
-                        : <span className="text-gray-600">{b.grower_name || t("list.headers.grower")}</span>}
+                    <td className="px-4 py-2 text-purple-700">
+                      {b.harvest_team_name || "\u2014"}
                     </td>
                     <td className="px-4 py-2">
                       <StatusBadge status={b.status} />

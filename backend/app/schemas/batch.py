@@ -109,7 +109,9 @@ class BatchOut(BaseModel):
     batch_code: str
     grower_id: str
     grower_name: str | None = None
+    grower_code: str | None = None
     harvest_team_id: str | None
+    harvest_team_name: str | None = None
     payment_routing: str = "grower"
     harvest_rate_per_kg: float | None = None
     packhouse_id: str
@@ -143,9 +145,12 @@ class BatchOut(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _extract_grower_name(cls, data):
+    def _extract_related(cls, data):
         if hasattr(data, "grower") and data.grower:
             data.__dict__["grower_name"] = data.grower.name
+            data.__dict__["grower_code"] = data.grower.grower_code
+        if hasattr(data, "harvest_team") and data.harvest_team:
+            data.__dict__["harvest_team_name"] = data.harvest_team.name
         return data
 
 
@@ -156,6 +161,7 @@ class BatchSummary(BaseModel):
     batch_code: str
     grower_id: str
     grower_name: str | None = None
+    grower_code: str | None = None
     harvest_team_id: str | None = None
     harvest_team_name: str | None = None
     harvest_team_leader: str | None = None
@@ -185,6 +191,7 @@ class BatchSummary(BaseModel):
     def _extract_related_names(cls, data):
         if hasattr(data, "grower") and data.grower:
             data.__dict__["grower_name"] = data.grower.name
+            data.__dict__["grower_code"] = data.grower.grower_code
         if hasattr(data, "harvest_team") and data.harvest_team:
             data.__dict__["harvest_team_name"] = data.harvest_team.name
             data.__dict__["harvest_team_leader"] = data.harvest_team.team_leader
@@ -221,6 +228,7 @@ class BatchDetailOut(BatchOut):
     def _extract_relations(cls, data):
         if hasattr(data, "grower") and data.grower:
             data.__dict__["grower_name"] = data.grower.name
+            data.__dict__["grower_code"] = data.grower.grower_code
         if hasattr(data, "packhouse") and data.packhouse:
             data.__dict__["packhouse_name"] = data.packhouse.name
         # Prevent lazy-load of history in async context — the router

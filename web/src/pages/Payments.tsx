@@ -320,7 +320,7 @@ export default function Payments() {
 
               <div className="space-y-2 text-sm">
                 <Row label={t("grower.success.reference")} value={result.payment_ref} mono />
-                <Row label={t("grower.success.grower")} value={result.grower_name || result.grower_id} />
+                <Row label={t("grower.success.grower")} value={result.grower_code ? `${result.grower_name} (${result.grower_code})` : (result.grower_name || result.grower_id)} />
                 <Row label={t("grower.success.amount")} value={`${getCurrencySymbol(baseCurrency)} ${result.gross_amount.toLocaleString()}`} bold />
                 <Row label={t("grower.success.type")} value={result.payment_type} />
                 <Row label={t("grower.success.batchesCovered")} value={`${result.batch_ids.length}`} />
@@ -548,7 +548,7 @@ export default function Payments() {
                   {t("grower.edit.title")} — {editingPayment.payment_ref}
                 </h4>
                 <span className="text-xs text-gray-400">
-                  {editingPayment.grower_name}
+                  {editingPayment.grower_code ? `${editingPayment.grower_name} (${editingPayment.grower_code})` : editingPayment.grower_name}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -654,7 +654,7 @@ export default function Payments() {
                       <td className="px-4 py-2 font-mono text-xs text-green-700">
                         {p.payment_ref}
                       </td>
-                      <td className="px-4 py-2">{p.grower_name || "—"}</td>
+                      <td className="px-4 py-2">{p.grower_code ? `${p.grower_name} (${p.grower_code})` : (p.grower_name || "—")}</td>
                       <td className="px-4 py-2 text-right font-medium">
                         {getCurrencySymbol(baseCurrency)} {p.gross_amount.toLocaleString()}
                       </td>

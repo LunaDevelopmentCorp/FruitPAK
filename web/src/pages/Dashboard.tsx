@@ -176,7 +176,7 @@ export default function Dashboard() {
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {b.batch_code}
                         </td>
-                        <td className="px-4 py-2">{b.grower_name || "\u2014"}</td>
+                        <td className="px-4 py-2">{b.grower_code ? `${b.grower_name} (${b.grower_code})` : (b.grower_name || "\u2014")}</td>
                         <td className="px-4 py-2">{b.fruit_type}</td>
                         <td className="px-4 py-2 text-right">
                           {b.net_weight_kg?.toLocaleString() ?? "\u2014"}
@@ -237,7 +237,7 @@ export default function Dashboard() {
                         <td className="px-4 py-2 font-mono text-xs text-green-700">
                           {p.payment_ref}
                         </td>
-                        <td className="px-4 py-2">{p.grower_name || "\u2014"}</td>
+                        <td className="px-4 py-2">{p.grower_code ? `${p.grower_name} (${p.grower_code})` : (p.grower_name || "\u2014")}</td>
                         <td className="px-4 py-2 text-right font-medium">
                           {p.currency} {p.gross_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>

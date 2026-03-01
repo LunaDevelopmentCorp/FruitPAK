@@ -18,7 +18,7 @@
       "bins": "Contentores",
       "netKg": "Líquido (kg)",
       "teamLeader": "Líder de equipa",
-      "payTo": "Pagar a",
+      "harvestTeam": "Equipa de Colheita",
       "team": "Equipa",
       "status": "Estado",
       "date": "Data"
@@ -45,6 +45,7 @@
     "paymentTo": "Pagamento a",
     "payToGrower": "Produtor",
     "payToHarvestTeam": "Equipa de Colheita",
+    "harvestTeam": "Equipa de Colheita",
     "harvestDate": "Data de Colheita",
     "intakeDate": "Data de Receção",
     "fruitDetails": "Detalhes da Fruta",

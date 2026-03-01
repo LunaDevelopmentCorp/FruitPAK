@@ -167,6 +167,7 @@ async def create_grower_payment(
         payment_ref=payment.payment_ref,
         grower_id=payment.grower_id,
         grower_name=grower.name,
+        grower_code=grower.grower_code,
         batch_ids=payment.batch_ids,
         currency=payment.currency,
         gross_amount=payment.gross_amount,
@@ -212,6 +213,7 @@ async def list_grower_payments(
             payment_ref=p.payment_ref,
             grower_id=p.grower_id,
             grower_name=p.grower.name if p.grower else None,
+            grower_code=p.grower.grower_code if p.grower else None,
             batch_ids=p.batch_ids or [],
             currency=p.currency,
             gross_amount=p.gross_amount,
@@ -298,11 +300,13 @@ async def update_grower_payment(
     )
 
     grower_name = payment.grower.name if payment.grower else None
+    grower_code = payment.grower.grower_code if payment.grower else None
     return GrowerPaymentOut(
         id=payment.id,
         payment_ref=payment.payment_ref,
         grower_id=payment.grower_id,
         grower_name=grower_name,
+        grower_code=grower_code,
         batch_ids=payment.batch_ids or [],
         currency=payment.currency,
         gross_amount=payment.gross_amount,

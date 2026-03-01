@@ -18,7 +18,7 @@
       "bins": "Bacs",
       "netKg": "Net (kg)",
       "teamLeader": "Chef d'équipe",
-      "payTo": "Payer a",
+      "harvestTeam": "Equipe de récolte",
       "team": "Equipe",
       "status": "Statut",
       "date": "Date"
@@ -45,6 +45,7 @@
     "paymentTo": "Paiement a",
     "payToGrower": "Producteur",
     "payToHarvestTeam": "Equipe de recolte",
+    "harvestTeam": "Equipe de récolte",
     "harvestDate": "Date de recolte",
     "intakeDate": "Date de reception",
     "fruitDetails": "Details du fruit",

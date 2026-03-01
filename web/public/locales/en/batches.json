@@ -18,7 +18,7 @@
       "bins": "Bins",
       "netKg": "Net (kg)",
       "teamLeader": "Team Leader",
-      "payTo": "Pay To",
+      "harvestTeam": "Harvest Team",
       "team": "Team",
       "status": "Status",
       "date": "Date"
@@ -45,6 +45,7 @@
     "paymentTo": "Payment To",
     "payToGrower": "Grower",
     "payToHarvestTeam": "Harvest Team",
+    "harvestTeam": "Harvest Team",
     "harvestDate": "Harvest Date",
     "intakeDate": "Intake Date",
     "fruitDetails": "Fruit Details",

@@ -106,6 +106,7 @@ class LotOut(BaseModel):
     # Resolved names
     batch_code: str | None = None
     grower_name: str | None = None
+    grower_code: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -116,6 +117,7 @@ class LotOut(BaseModel):
             data.batch_code = lot.batch.batch_code
         if hasattr(lot, "grower") and lot.grower:
             data.grower_name = lot.grower.name
+            data.grower_code = lot.grower.grower_code
         if hasattr(lot, "box_size") and lot.box_size:
             data.box_size_name = lot.box_size.name
             data.box_weight_kg = lot.box_size.weight_kg

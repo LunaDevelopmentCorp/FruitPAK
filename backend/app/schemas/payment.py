@@ -34,6 +34,7 @@ class GrowerPaymentOut(BaseModel):
     payment_ref: str
     grower_id: str
     grower_name: str | None = None
+    grower_code: str | None = None
     batch_ids: list[str]
     currency: str
     gross_amount: float

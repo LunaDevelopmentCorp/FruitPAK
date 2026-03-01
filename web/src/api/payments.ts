@@ -23,6 +23,7 @@ export interface GrowerPaymentOut {
   payment_ref: string;
   grower_id: string;
   grower_name: string | null;
+  grower_code: string | null;
   batch_ids: string[];
   currency: string;
   gross_amount: number;

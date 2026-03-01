@@ -726,7 +726,7 @@ export default function GrnIntake() {
                       className={`cursor-pointer hover:bg-green-50/50 even:bg-gray-50/50 ${editingBatchId === b.id ? "bg-amber-50" : ""}`}
                     >
                       <td className="px-2 py-2 font-mono text-xs text-green-700">{b.batch_code}</td>
-                      <td className="px-2 py-2">{b.grower_name || b.grower_id}</td>
+                      <td className="px-2 py-2">{b.grower_code ? `${b.grower_name || b.grower_id} (${b.grower_code})` : (b.grower_name || b.grower_id)}</td>
                       <td className="px-2 py-2">
                         {b.fruit_type}{b.variety ? ` / ${b.variety}` : ""}
                       </td>

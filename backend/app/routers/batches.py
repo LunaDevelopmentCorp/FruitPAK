@@ -86,6 +86,13 @@ async def grn_intake(
         summary=f"Submitted GRN {batch.batch_code} — {batch.fruit_type or 'unknown'}, {batch.net_weight_kg or 0:.1f} kg",
     )
 
+    # Re-fetch with relationships needed by BatchOut validator
+    fresh = await db.execute(
+        select(Batch).where(Batch.id == batch.id)
+        .options(selectinload(Batch.grower), selectinload(Batch.harvest_team))
+    )
+    batch = fresh.scalar_one()
+
     return GRNResponse(
         batch=BatchOut.model_validate(batch),
         qr_code_url=qr_url,
@@ -193,6 +200,7 @@ async def get_batch(
         .options(
             selectinload(Batch.grower),
             selectinload(Batch.packhouse),
+            selectinload(Batch.harvest_team),
             selectinload(Batch.lots),
         )
     )
@@ -313,7 +321,7 @@ async def update_batch(
 
     result = await db.execute(
         select(Batch).where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.grower))
+        .options(selectinload(Batch.grower), selectinload(Batch.harvest_team))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -359,7 +367,7 @@ async def close_production_run(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots), selectinload(Batch.grower))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower), selectinload(Batch.harvest_team))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -426,7 +434,7 @@ async def reopen_production_run(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.grower))
+        .options(selectinload(Batch.grower), selectinload(Batch.harvest_team))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -471,7 +479,7 @@ async def finalize_grn(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots), selectinload(Batch.grower))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower), selectinload(Batch.harvest_team))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -538,7 +546,7 @@ async def delete_batch(
     result = await db.execute(
         select(Batch)
         .where(Batch.id == batch_id, Batch.is_deleted == False)  # noqa: E712
-        .options(selectinload(Batch.lots), selectinload(Batch.grower))
+        .options(selectinload(Batch.lots), selectinload(Batch.grower), selectinload(Batch.harvest_team))
     )
     batch = result.scalar_one_or_none()
     if not batch:
