@@ -66,6 +66,7 @@ export default function PlatformUsers() {
         is_onboarded: true,
         permissions: [],
         assigned_packhouses: null,
+        preferred_language: "en",
       });
       window.location.href = "/dashboard";
     } catch {

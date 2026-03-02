@@ -91,15 +91,15 @@ export default function PalletDetail() {
     const payload: PalletUpdatePayload = {};
     if (data.pallet_type_name) payload.pallet_type_name = data.pallet_type_name;
     if (data.capacity_boxes) payload.capacity_boxes = Number(data.capacity_boxes);
-    if (data.fruit_type !== undefined) payload.fruit_type = data.fruit_type || null;
-    if (data.variety !== undefined) payload.variety = data.variety || null;
-    if (data.grade !== undefined) payload.grade = data.grade || null;
-    if (data.size !== undefined) payload.size = data.size || null;
+    if (data.fruit_type !== undefined) payload.fruit_type = data.fruit_type || undefined;
+    if (data.variety !== undefined) payload.variety = data.variety || undefined;
+    if (data.grade !== undefined) payload.grade = data.grade || undefined;
+    if (data.size !== undefined) payload.size = data.size || undefined;
     if (data.box_size_id !== undefined) payload.box_size_id = data.box_size_id || null;
-    if (data.target_market !== undefined) payload.target_market = data.target_market || null;
-    if (data.cold_store_room !== undefined) payload.cold_store_room = data.cold_store_room || null;
-    if (data.cold_store_position !== undefined) payload.cold_store_position = data.cold_store_position || null;
-    if (data.notes !== undefined) payload.notes = data.notes || null;
+    if (data.target_market !== undefined) payload.target_market = data.target_market || undefined;
+    if (data.cold_store_room !== undefined) payload.cold_store_room = data.cold_store_room || undefined;
+    if (data.cold_store_position !== undefined) payload.cold_store_position = data.cold_store_position || undefined;
+    if (data.notes !== undefined) payload.notes = data.notes || undefined;
     if (data.net_weight_kg) payload.net_weight_kg = Number(data.net_weight_kg);
     if (data.gross_weight_kg) payload.gross_weight_kg = Number(data.gross_weight_kg);
 
