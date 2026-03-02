@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { showToast } from "../store/toastStore";
 import i18n from "../i18n";
 
@@ -14,6 +14,44 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
+// ── GET request deduplication ────────────────────────────────
+// If an identical GET is already in-flight, reuse its promise instead of
+// firing a duplicate HTTP request.  This prevents React StrictMode
+// double-mounts and multiple components on the same page from multiplying
+// network calls for the same data.
+const inflightGets = new Map<string, Promise<AxiosResponse>>();
+
+function getDedupeKey(config: InternalAxiosRequestConfig): string | null {
+  if (config.method?.toLowerCase() !== "get") return null;
+  const params = config.params
+    ? "?" + new URLSearchParams(config.params as Record<string, string>).toString()
+    : "";
+  return `${config.url}${params}`;
+}
+
+// Wrap the default adapter to intercept GET requests
+const defaultAdapter = api.defaults.adapter;
+api.defaults.adapter = (config: InternalAxiosRequestConfig) => {
+  const key = getDedupeKey(config);
+  if (!key) {
+    // Not a GET — pass through to default adapter
+    return axios.getAdapter(defaultAdapter!)(config);
+  }
+
+  const existing = inflightGets.get(key);
+  if (existing) {
+    // Return clone of existing promise so callers get independent objects
+    return existing.then((res) => ({ ...res }));
+  }
+
+  // First call — fire actual request and store promise
+  const promise = axios.getAdapter(defaultAdapter!)(config).finally(() => {
+    inflightGets.delete(key);
+  });
+  inflightGets.set(key, promise);
+  return promise;
+};
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token) {
@@ -23,7 +61,6 @@ api.interceptors.request.use((config) => {
   if (packhouseId) {
     config.headers["X-Packhouse-Id"] = packhouseId;
   }
-  console.log("[api] Request:", config.method?.toUpperCase(), config.url, token ? "(token attached)" : "(no token)");
   return config;
 });
 
@@ -43,15 +80,10 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 api.interceptors.response.use(
-  (response) => {
-    console.log("[api] Response:", response.status, response.config.url);
-    return response;
-  },
+  (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const status = error.response?.status;
-
-    console.warn("[api] Error:", status, originalRequest.url, (error.response?.data as Record<string, unknown>)?.detail || "");
 
     // On 401, try to refresh the token before giving up
     if (status === 401 && !originalRequest._retry && window.location.pathname !== "/login") {
@@ -108,7 +140,6 @@ api.interceptors.response.use(
     // 403 Forbidden — NOT an auth failure; user is authenticated but not authorized
     // for this specific action. Don't nuke auth — let the calling code handle it.
     if (status === 403) {
-      console.warn("[api] 403 Forbidden:", (error.response?.data as Record<string, unknown>)?.detail || "Access denied");
       return Promise.reject(error);
     }
 

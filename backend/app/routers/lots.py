@@ -13,7 +13,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import lazyload, selectinload
 
 from app.auth.deps import require_onboarded, require_permission
 from app.auth.packhouse_scope import get_packhouse_scope
@@ -46,21 +46,34 @@ async def _adjust_packaging_stock(
     movement_type: str,
     user_id: str,
     reference_id: str | None = None,
+    _stock_cache: dict[str, "PackagingStock"] | None = None,
 ) -> None:
-    """Adjust packaging stock for a box size. Positive = add, negative = deduct."""
-    result = await db.execute(
-        select(PackagingStock).where(PackagingStock.box_size_id == box_size_id)
-    )
-    stock = result.scalar_one_or_none()
-    if not stock:
-        # Auto-create stock record (starts at 0)
-        stock = PackagingStock(
-            id=str(uuid.uuid4()),
-            box_size_id=box_size_id,
-            current_quantity=0,
+    """Adjust packaging stock for a box size. Positive = add, negative = deduct.
+
+    Pass _stock_cache to reuse already-fetched stock records across calls.
+    """
+    stock = _stock_cache.get(box_size_id) if _stock_cache is not None else None
+    if stock is None:
+        result = await db.execute(
+            select(PackagingStock)
+            .where(PackagingStock.box_size_id == box_size_id)
+            .options(
+                lazyload(PackagingStock.movements),
+                lazyload(PackagingStock.box_size),
+                lazyload(PackagingStock.pallet_type),
+            )
         )
-        db.add(stock)
-        await db.flush()
+        stock = result.scalar_one_or_none()
+        if not stock:
+            stock = PackagingStock(
+                id=str(uuid.uuid4()),
+                box_size_id=box_size_id,
+                current_quantity=0,
+            )
+            db.add(stock)
+            await db.flush()
+        if _stock_cache is not None:
+            _stock_cache[box_size_id] = stock
 
     stock.current_quantity += quantity
 
@@ -157,12 +170,14 @@ async def create_lots_from_batch(
 
     await db.flush()
 
-    # Deduct packaging stock for each lot with a box_size_id
+    # Deduct packaging stock — cache stock records to avoid repeated lookups
+    stock_cache: dict[str, PackagingStock] = {}
     for lot in created_lots:
         if lot.box_size_id and lot.carton_count > 0:
             await _adjust_packaging_stock(
                 db, lot.box_size_id, -lot.carton_count,
                 "consumption", user.id, lot.id,
+                _stock_cache=stock_cache,
             )
     await db.flush()
 

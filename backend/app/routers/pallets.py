@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status as http_sta
 from fastapi.responses import Response
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import lazyload, selectinload
 
 from app.auth.deps import require_onboarded, require_permission
 from app.auth.packhouse_scope import get_packhouse_scope
@@ -31,6 +31,7 @@ from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
 from app.models.tenant.lot import Lot
+from app.models.tenant.packaging_stock import PackagingMovement, PackagingStock
 from app.models.tenant.pallet import Pallet, PalletLot
 from app.models.tenant.product_config import BoxSize, PalletType
 from app.models.tenant.tenant_config import TenantConfig
@@ -94,6 +95,60 @@ def _resolve_mixed_flag(request_value: bool | None, tenant_value: bool) -> bool:
     if request_value is not None:
         return request_value
     return tenant_value
+
+
+async def _adjust_pallet_stock(
+    db: AsyncSession,
+    pallet_type_name: str | None,
+    quantity: int,
+    movement_type: str,
+    user_id: str,
+    reference_id: str | None = None,
+) -> None:
+    """Adjust pallet type stock. quantity: negative = consume, positive = return."""
+    if not pallet_type_name:
+        return
+
+    # Resolve pallet_type_name → PalletType.id
+    pt_result = await db.execute(
+        select(PalletType).where(PalletType.name == pallet_type_name)
+    )
+    pt = pt_result.scalar_one_or_none()
+    if not pt:
+        return  # Unknown pallet type — skip stock tracking
+
+    # Find or create packaging stock record for this pallet type
+    result = await db.execute(
+        select(PackagingStock)
+        .where(PackagingStock.pallet_type_id == pt.id)
+        .options(
+            lazyload(PackagingStock.movements),
+            lazyload(PackagingStock.box_size),
+            lazyload(PackagingStock.pallet_type),
+        )
+    )
+    stock = result.scalar_one_or_none()
+    if not stock:
+        stock = PackagingStock(
+            id=str(uuid.uuid4()),
+            pallet_type_id=pt.id,
+            current_quantity=0,
+        )
+        db.add(stock)
+        await db.flush()
+
+    stock.current_quantity += quantity
+
+    movement = PackagingMovement(
+        id=str(uuid.uuid4()),
+        stock_id=stock.id,
+        movement_type=movement_type,
+        quantity=quantity,
+        reference_type="pallet",
+        reference_id=reference_id,
+        recorded_by=user_id,
+    )
+    db.add(movement)
 
 
 # ── Config endpoints (enterprise box sizes & pallet types) ───
@@ -288,6 +343,15 @@ async def create_pallets_from_lots(
             p.status = "closed"
 
     await db.flush()
+
+    # Deduct pallet type stock (1 per pallet created)
+    for p in created_pallets:
+        await _adjust_pallet_stock(
+            db, p.pallet_type_name, -1,
+            "consumption", user.id, p.id,
+        )
+    await db.flush()
+
     return [PalletSummary.model_validate(p) for p in created_pallets]
 
 
@@ -331,6 +395,13 @@ async def create_empty_pallet(
         notes=body.notes,
     )
     db.add(pallet)
+    await db.flush()
+
+    # Deduct pallet type stock
+    await _adjust_pallet_stock(
+        db, pallet.pallet_type_name, -1,
+        "consumption", user.id, pallet.id,
+    )
     await db.flush()
 
     await log_activity(
@@ -587,6 +658,12 @@ async def delete_pallet(
         )
 
     pallet.is_deleted = True
+
+    # Return pallet type stock
+    await _adjust_pallet_stock(
+        db, pallet.pallet_type_name, 1,
+        "reversal", _user.id, pallet.id,
+    )
     await db.flush()
 
     await log_activity(
