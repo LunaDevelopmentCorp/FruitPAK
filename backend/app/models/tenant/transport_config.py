@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, Integer, JSON, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import TenantBase
 
@@ -33,3 +33,11 @@ class TransportConfig(TenantBase):
     # e.g. {"ventilation_pct": 25, "co2_pct": 5, "o2_pct": 3}
     atmosphere_settings: Mapped[dict | None] = mapped_column(JSON, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Per-box-size capacity limits (e.g. max 5280 × 4kg boxes)
+    box_capacities = relationship(
+        "ContainerTypeBoxCapacity",
+        back_populates="transport_config",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )

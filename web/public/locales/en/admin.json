@@ -3,6 +3,7 @@
   "tabs": {
     "overview": "Overview",
     "users": "Users",
+    "roles": "Roles",
     "activity": "Activity",
     "deletedItems": "Deleted Items"
   },
@@ -74,6 +75,11 @@
       },
       "assignedPackhouses": "Assigned Packhouses",
       "packhouseHelp": "Leave empty for access to all packhouses",
+      "customRole": "Custom Role",
+      "noCustomRole": "None (use role defaults)",
+      "customRoleHelp": "Overrides the base role's permissions with this template",
+      "permissionOverrides": "Permission Overrides",
+      "overridesHelp": "Grant or revoke individual permissions for this user only",
       "saveChanges": "Save Changes",
       "createUser": "Create User"
     },
@@ -88,6 +94,43 @@
       "created": "Created user {{name}}",
       "deactivated": "Deactivated {{name}}",
       "reactivated": "Reactivated {{name}}"
+    }
+  },
+  "roles": {
+    "title": "Role Management",
+    "builtinTitle": "Built-in Roles",
+    "customTitle": "Custom Roles",
+    "newRole": "+ New Role",
+    "loading": "Loading roles...",
+    "loadFailed": "Failed to load roles",
+    "empty": "No custom roles yet. Create one to get started.",
+    "permCount_one": "{{count}} permission",
+    "permCount_other": "{{count}} permissions",
+    "headers": {
+      "name": "Name",
+      "description": "Description",
+      "users": "Users",
+      "status": "Status"
+    },
+    "modal": {
+      "newTitle": "New Custom Role",
+      "editTitle": "Edit Custom Role",
+      "name": "Role Name *",
+      "description": "Description",
+      "startFrom": "Start from built-in role",
+      "startFromNone": "None (start empty)",
+      "permissions": "Permissions",
+      "save": "Save Role",
+      "create": "Create Role"
+    },
+    "delete": {
+      "title": "Delete Role?",
+      "text": "This will deactivate the role \"{{name}}\". It cannot be deleted while users are assigned."
+    },
+    "toast": {
+      "created": "Created role {{name}}",
+      "updated": "Updated role {{name}}",
+      "deleted": "Deleted role {{name}}"
     }
   },
   "activity": {

@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
@@ -124,11 +125,14 @@ async def create_pallets_from_lots(
     body: PalletFromLotsRequest,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Create one or more pallets from lot assignments.
 
     If total boxes exceed pallet capacity, overflow creates additional pallets.
     """
+    if packhouse_scope is not None and body.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=403, detail="Packhouse not in scope")
     # Load all referenced lots with row-level lock to prevent concurrent over-allocation
     lot_ids = list({a.lot_id for a in body.lot_assignments})
     lot_result = await db.execute(
@@ -295,8 +299,11 @@ async def create_empty_pallet(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Create an empty pallet shell for later lot allocation."""
+    if packhouse_scope is not None and body.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=403, detail="Packhouse not in scope")
     # Resolve box size name if box_size_id provided
     box_size_name = None
     if body.box_size_id:
@@ -350,26 +357,36 @@ async def list_pallets(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     base = select(Pallet).where(Pallet.is_deleted == False)  # noqa: E712
+
+    if packhouse_scope is not None:
+        base = base.where(Pallet.packhouse_id.in_(packhouse_scope))
     if status:
         base = base.where(Pallet.status == status)
     if pallet_type:
         base = base.where(Pallet.pallet_type_name == pallet_type)
     if search:
         q = f"%{search}%"
-        base = (
-            base
+        matching_ids = (
+            select(Pallet.id)
             .outerjoin(PalletLot, (PalletLot.pallet_id == Pallet.id) & (PalletLot.is_deleted == False))  # noqa: E712
             .outerjoin(Lot, Lot.id == PalletLot.lot_id)
             .outerjoin(Batch, Batch.id == Lot.batch_id)
-            .where(or_(
-                Pallet.pallet_number.ilike(q),
-                Lot.lot_code.ilike(q),
-                Batch.batch_code.ilike(q),
-            ))
+            .where(
+                Pallet.is_deleted == False,  # noqa: E712
+                or_(
+                    Pallet.pallet_number.ilike(q),
+                    Lot.lot_code.ilike(q),
+                    Batch.batch_code.ilike(q),
+                ),
+            )
             .distinct()
         )
+        if packhouse_scope is not None:
+            matching_ids = matching_ids.where(Pallet.packhouse_id.in_(packhouse_scope))
+        base = select(Pallet).where(Pallet.id.in_(matching_ids))
 
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
@@ -422,6 +439,7 @@ async def get_pallet(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(
         select(Pallet)
@@ -434,6 +452,8 @@ async def get_pallet(
     )
     pallet = result.scalar_one_or_none()
     if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if packhouse_scope is not None and pallet.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Pallet not found")
 
     # Filter to active allocations only and enrich with lot info
@@ -464,6 +484,7 @@ async def update_pallet(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Update editable fields on a pallet. Blocked for loaded/exported pallets."""
     result = await db.execute(
@@ -477,6 +498,8 @@ async def update_pallet(
     )
     pallet = result.scalar_one_or_none()
     if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if packhouse_scope is not None and pallet.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Pallet not found")
     if pallet.status in ("loaded", "exported"):
         raise HTTPException(
@@ -540,8 +563,9 @@ async def update_pallet(
 async def delete_pallet(
     pallet_id: str,
     db: AsyncSession = Depends(get_tenant_db),
-    _user: User = Depends(require_permission("batch.write")),
+    _user: User = Depends(require_permission("pallet.delete")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Soft-delete a pallet. Only allowed if current_boxes == 0."""
     result = await db.execute(
@@ -552,6 +576,8 @@ async def delete_pallet(
     )
     pallet = result.scalar_one_or_none()
     if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if packhouse_scope is not None and pallet.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Pallet not found")
     if pallet.current_boxes > 0:
         raise HTTPException(
@@ -620,6 +646,7 @@ async def allocate_boxes_to_pallet(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Add boxes from lots to an existing open pallet."""
     result = await db.execute(
@@ -628,6 +655,8 @@ async def allocate_boxes_to_pallet(
     )
     pallet = result.scalar_one_or_none()
     if not pallet:
+        raise HTTPException(status_code=404, detail="Pallet not found")
+    if packhouse_scope is not None and pallet.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Pallet not found")
     if pallet.status not in ("open",):
         raise HTTPException(

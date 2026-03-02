@@ -3,14 +3,14 @@
 Represents a reefer or open container that is stuffed with pallets in the
 packhouse cold store / loading dock, then dispatched for export.
 
-Lifecycle:  open → loading → sealed → dispatched → delivered
+Lifecycle:  open → loading → loaded → sealed → dispatched → in_transit → arrived → delivered
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
-    Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text,
+    Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -55,7 +55,7 @@ class Container(TenantBase):
     # ── Seal & verification ──────────────────────────────────
     seal_number: Mapped[str | None] = mapped_column(String(100))
     sealed_at: Mapped[datetime | None] = mapped_column(DateTime)
-    sealed_by: Mapped[str | None] = mapped_column(String(36))  # user_id
+    sealed_by: Mapped[str | None] = mapped_column(String(255))  # user full_name
 
     # ── Temperature ──────────────────────────────────────────
     temp_setpoint_c: Mapped[float | None] = mapped_column(Float)
@@ -69,6 +69,11 @@ class Container(TenantBase):
     shipping_agent_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("shipping_agents.id")
     )
+    shipping_line_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("shipping_lines.id"), index=True
+    )
+    vessel_name: Mapped[str | None] = mapped_column(String(255))
+    voyage_number: Mapped[str | None] = mapped_column(String(100))
 
     # ── Export link ──────────────────────────────────────────
     export_id: Mapped[str | None] = mapped_column(
@@ -76,9 +81,12 @@ class Container(TenantBase):
     )
 
     # ── Status ───────────────────────────────────────────────
-    # open | loading | sealed | dispatched | delivered
+    # open | loading | loaded | sealed | dispatched | in_transit | arrived | delivered
     status: Mapped[str] = mapped_column(String(30), default="open", index=True)
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime)
+    arrived_at: Mapped[datetime | None] = mapped_column(DateTime)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime)
+    eta: Mapped[date | None] = mapped_column(Date, index=True)
 
     # ── Metadata ─────────────────────────────────────────────
     qr_code_url: Mapped[str | None] = mapped_column(String(500))
@@ -95,5 +103,6 @@ class Container(TenantBase):
     packhouse = relationship("Packhouse", lazy="selectin")
     transporter = relationship("Transporter", lazy="selectin")
     shipping_agent = relationship("ShippingAgent", lazy="selectin")
+    shipping_line = relationship("ShippingLine", lazy="selectin")
     export = relationship("Export", back_populates="containers", lazy="selectin")
     pallets = relationship("Pallet", back_populates="container", lazy="selectin")

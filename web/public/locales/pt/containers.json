@@ -81,6 +81,7 @@
     "loadSelected": "Carregar Selecionadas ({{count}})",
     "loadingButton": "Carregando...",
     "loaded": "{{count}} palete(s) carregada(s) no contentor",
-    "loadFailed": "Falha ao carregar paletes"
+    "loadFailed": "Falha ao carregar paletes",
+    "forceOverride": "Ignorar restricoes de capacidade e tipos mistos"
   }
 }

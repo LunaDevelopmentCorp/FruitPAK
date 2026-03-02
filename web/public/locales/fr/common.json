@@ -147,5 +147,10 @@
     "days": "jours",
     "boxes": "cartons",
     "pallets": "palettes"
+  },
+  "packhouse": {
+    "allPackhouses": "Tous les entrepôts",
+    "selectPackhouse": "Sélectionner un entrepôt",
+    "switchPackhouse": "Changer d'entrepôt"
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { usePackhouseStore } from "../store/packhouseStore";
 import { listPallets, allocateBoxesToPallet, getPalletTypes, getPalletTypeCapacities, getBoxSizes, createEmptyPallet, PalletSummary, PalletTypeConfig, BoxSizeConfig, LotAssignment } from "../api/pallets";
 import { listLots, listPackhouses, LotSummary, Packhouse } from "../api/batches";
 import { createContainerFromPallets, loadPalletsIntoContainer, listContainers, ContainerSummary } from "../api/containers";
@@ -17,6 +18,7 @@ const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk
 export default function PalletsList() {
   const { t } = useTranslation("pallets");
   const navigate = useNavigate();
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const [pallets, setPallets] = useState<PalletSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +108,7 @@ export default function PalletsList() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(fetchPallets, search ? 300 : 0);
     return () => clearTimeout(searchTimer.current);
-  }, [statusFilter, search]);
+  }, [statusFilter, search, currentPackhouseId]);
 
   const filtered = pallets.filter((p) => {
     if (!search.trim()) return true;

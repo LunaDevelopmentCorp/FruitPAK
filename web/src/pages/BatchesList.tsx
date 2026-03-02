@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { usePackhouseStore } from "../store/packhouseStore";
 import { listBatches, listGrowers, Grower, BatchSummary } from "../api/batches";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import PageHeader from "../components/PageHeader";
@@ -13,6 +14,7 @@ const PAGE_SIZE = 50;
 export default function BatchesList() {
   const { t } = useTranslation("batches");
   const navigate = useNavigate();
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const [batches, setBatches] = useState<BatchSummary[]>([]);
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export default function BatchesList() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, growerFilter, dateFrom, dateTo, debouncedSearch]);
+  }, [statusFilter, growerFilter, dateFrom, dateTo, debouncedSearch, currentPackhouseId]);
 
   // Re-fetch when filters change (reset to first page)
   useEffect(() => {

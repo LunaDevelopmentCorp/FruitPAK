@@ -33,6 +33,10 @@ class GrowerPayment(TenantBase):
     grower_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("growers.id"), nullable=False, index=True
     )
+    # Packhouse scoping
+    packhouse_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("packhouses.id"), index=True
+    )
     # JSON array of batch IDs this payment covers
     batch_ids: Mapped[list] = mapped_column(JSON, default=list)
 

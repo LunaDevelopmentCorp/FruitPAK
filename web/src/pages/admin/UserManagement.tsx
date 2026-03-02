@@ -10,11 +10,18 @@ import {
   CreateUserPayload,
   UserUpdate,
 } from "../../api/admin";
+import {
+  listCustomRoles,
+  getPermissionGroups,
+  CustomRole,
+  PermissionGroup,
+} from "../../api/customRoles";
 import { listPackhouses } from "../../api/batches";
 import { getErrorMessage } from "../../api/client";
 import { useTableSort, sortRows, sortableThClass } from "../../hooks/useTableSort";
 import { useAuthStore } from "../../store/authStore";
 import { showToast } from "../../store/toastStore";
+import PermissionMatrix from "../../components/PermissionMatrix";
 
 interface Packhouse {
   id: string;
@@ -34,6 +41,8 @@ export default function UserManagement() {
   const currentUser = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [packhouses, setPackhouses] = useState<Packhouse[]>([]);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +56,8 @@ export default function UserManagement() {
     password: string;
     role: string;
     assigned_packhouses: string[];
+    custom_role_id: string;
+    custom_permissions: Record<string, boolean>;
   }>({
     email: "",
     full_name: "",
@@ -54,8 +65,11 @@ export default function UserManagement() {
     password: "",
     role: "operator",
     assigned_packhouses: [],
+    custom_role_id: "",
+    custom_permissions: {},
   });
   const [saving, setSaving] = useState(false);
+  const [showOverrides, setShowOverrides] = useState(false);
 
   const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
 
@@ -66,12 +80,16 @@ export default function UserManagement() {
     setLoading(true);
     setError(null);
     try {
-      const [userList, phList] = await Promise.all([
+      const [userList, phList, roleList, groups] = await Promise.all([
         listUsers(),
         listPackhouses(),
+        listCustomRoles().catch(() => []),
+        getPermissionGroups().catch(() => []),
       ]);
       setUsers(userList);
       setPackhouses(phList as Packhouse[]);
+      setCustomRoles(roleList);
+      setPermissionGroups(groups);
     } catch {
       setError(t("users.loadFailed"));
     } finally {
@@ -92,7 +110,10 @@ export default function UserManagement() {
       password: "",
       role: "operator",
       assigned_packhouses: [],
+      custom_role_id: "",
+      custom_permissions: {},
     });
+    setShowOverrides(false);
     setShowModal(true);
   };
 
@@ -105,8 +126,28 @@ export default function UserManagement() {
       password: "",
       role: u.role,
       assigned_packhouses: u.assigned_packhouses || [],
+      custom_role_id: u.custom_role_id || "",
+      custom_permissions: u.custom_permissions || {},
     });
+    setShowOverrides(
+      u.custom_permissions != null && Object.keys(u.custom_permissions).length > 0
+    );
     setShowModal(true);
+  };
+
+  // Compute base permissions for the override matrix
+  const getBasePermissions = (): string[] => {
+    if (formData.custom_role_id) {
+      const cr = customRoles.find((r) => r.id === formData.custom_role_id);
+      return cr?.permissions || [];
+    }
+    // Fall back to role defaults — we can't replicate exact backend logic,
+    // but the user's effective permissions come from the server.
+    // For the override UI, show the editing user's current permissions minus overrides.
+    if (editingUser) {
+      return editingUser.permissions;
+    }
+    return [];
   };
 
   const handleSave = async () => {
@@ -120,6 +161,20 @@ export default function UserManagement() {
         const oldPH = JSON.stringify(editingUser.assigned_packhouses || []);
         const newPH = JSON.stringify(formData.assigned_packhouses);
         if (oldPH !== newPH) payload.assigned_packhouses = formData.assigned_packhouses;
+
+        const oldCrId = editingUser.custom_role_id || "";
+        if (formData.custom_role_id !== oldCrId) {
+          payload.custom_role_id = formData.custom_role_id || null;
+        }
+
+        const oldOverrides = JSON.stringify(editingUser.custom_permissions || {});
+        const newOverrides = JSON.stringify(formData.custom_permissions);
+        if (oldOverrides !== newOverrides) {
+          payload.custom_permissions =
+            Object.keys(formData.custom_permissions).length > 0
+              ? formData.custom_permissions
+              : null;
+        }
 
         if (Object.keys(payload).length === 0) {
           setShowModal(false);
@@ -137,6 +192,9 @@ export default function UserManagement() {
         if (formData.password) payload.password = formData.password;
         if (formData.assigned_packhouses.length > 0) {
           payload.assigned_packhouses = formData.assigned_packhouses;
+        }
+        if (formData.custom_role_id) {
+          payload.custom_role_id = formData.custom_role_id;
         }
         await createUser(payload);
         showToast("success", t("users.toast.created", { name: formData.full_name }));
@@ -180,6 +238,8 @@ export default function UserManagement() {
   if (loading) return <p className="text-gray-400 text-sm">{t("users.loading")}</p>;
   if (error) return <p className="text-red-600 text-sm">{error}</p>;
 
+  const activeCustomRoles = customRoles.filter((r) => r.is_active);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -217,13 +277,20 @@ export default function UserManagement() {
                 <td className="px-4 py-2 text-gray-600">{u.email}</td>
                 <td className="px-4 py-2 text-gray-500">{u.phone || "\u2014"}</td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                      ROLE_COLORS[u.role] || "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {u.role}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        ROLE_COLORS[u.role] || "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {u.role}
+                    </span>
+                    {u.custom_role_name && (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+                        {u.custom_role_name}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-2">
                   <span
@@ -267,7 +334,7 @@ export default function UserManagement() {
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
               {editingUser ? t("users.modal.editTitle") : t("users.modal.newTitle")}
             </h3>
@@ -335,6 +402,35 @@ export default function UserManagement() {
                 </select>
               </div>
 
+              {/* Custom Role dropdown */}
+              {activeCustomRoles.length > 0 && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t("users.modal.customRole")}</label>
+                  <select
+                    value={formData.custom_role_id}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        custom_role_id: e.target.value,
+                        // Clear overrides when switching custom role
+                        custom_permissions: {},
+                      }))
+                    }
+                    className="border rounded px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">{t("users.modal.noCustomRole")}</option>
+                    {activeCustomRoles.map((cr) => (
+                      <option key={cr.id} value={cr.id}>
+                        {cr.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {t("users.modal.customRoleHelp")}
+                  </p>
+                </div>
+              )}
+
               {packhouses.length > 0 && formData.role === "operator" && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{t("users.modal.assignedPackhouses")}</label>
@@ -357,6 +453,49 @@ export default function UserManagement() {
                   <p className="text-[10px] text-gray-400 mt-1">
                     {t("users.modal.packhouseHelp")}
                   </p>
+                </div>
+              )}
+
+              {/* Permission Overrides */}
+              {editingUser && permissionGroups.length > 0 && (
+                <div className="border-t pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowOverrides(!showOverrides)}
+                    className="flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-gray-800"
+                  >
+                    <svg
+                      className={`w-3 h-3 transition-transform ${showOverrides ? "rotate-90" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                    {t("users.modal.permissionOverrides")}
+                    {Object.keys(formData.custom_permissions).length > 0 && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                        {Object.keys(formData.custom_permissions).length}
+                      </span>
+                    )}
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {t("users.modal.overridesHelp")}
+                  </p>
+                  {showOverrides && (
+                    <div className="mt-3">
+                      <PermissionMatrix
+                        mode="override"
+                        groups={permissionGroups}
+                        basePermissions={getBasePermissions()}
+                        overrides={formData.custom_permissions}
+                        onOverrideChange={(overrides) =>
+                          setFormData((p) => ({ ...p, custom_permissions: overrides }))
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

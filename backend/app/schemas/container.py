@@ -1,6 +1,6 @@
 """Pydantic schemas for Container CRUD operations."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +20,10 @@ class ContainerFromPalletsRequest(BaseModel):
     seal_number: str | None = None
     transporter_id: str | None = None
     shipping_agent_id: str | None = None
+    shipping_line_id: str | None = None
+    vessel_name: str | None = None
+    voyage_number: str | None = None
+    eta: date | None = None
     notes: str | None = None
 
 
@@ -36,6 +40,10 @@ class CreateEmptyContainerRequest(BaseModel):
     seal_number: str | None = None
     transporter_id: str | None = None
     shipping_agent_id: str | None = None
+    shipping_line_id: str | None = None
+    vessel_name: str | None = None
+    voyage_number: str | None = None
+    eta: date | None = None
     notes: str | None = None
 
 
@@ -53,8 +61,12 @@ class ContainerUpdate(BaseModel):
     seal_number: str | None = None
     transporter_id: str | None = None
     shipping_agent_id: str | None = None
+    shipping_line_id: str | None = None
+    vessel_name: str | None = None
+    voyage_number: str | None = None
+    eta: date | None = None
     notes: str | None = None
-    status: str | None = None
+    transport_config_id: str | None = None
 
 
 # ── Load pallets into container ───────────────────────────────
@@ -62,6 +74,23 @@ class ContainerUpdate(BaseModel):
 class LoadPalletsRequest(BaseModel):
     """Payload for POST /api/containers/{id}/load-pallets."""
     pallet_ids: list[str] = Field(..., min_length=1)
+    force: bool = False
+
+
+# ── Status transition request schemas ─────────────────────────
+
+class SealContainerRequest(BaseModel):
+    """Payload for POST /api/containers/{id}/seal."""
+    seal_number: str = Field(..., min_length=1, max_length=100)
+    temp_setpoint_c: float | None = None
+
+
+class ExportContainerRequest(BaseModel):
+    """Payload for POST /api/containers/{id}/export."""
+    vessel_name: str | None = None
+    voyage_number: str | None = None
+    shipping_line_id: str | None = None
+    eta: date | None = None
 
 
 # ── Pallet in container (traceability) ────────────────────────
@@ -122,6 +151,12 @@ class ContainerSummary(BaseModel):
     transporter_name: str | None = None
     shipping_agent_id: str | None = None
     shipping_agent_name: str | None = None
+    shipping_line_id: str | None = None
+    shipping_line_name: str | None = None
+    vessel_name: str | None = None
+    voyage_number: str | None = None
+    eta: date | None = None
+    is_overdue: bool = False
     status: str
     pallet_numbers: list[str] = []
     lot_codes: list[str] = []
@@ -135,11 +170,58 @@ class ContainerSummary(BaseModel):
 class ContainerDetail(ContainerSummary):
     export_date: datetime | None
     seal_number: str | None
+    sealed_at: datetime | None = None
+    sealed_by: str | None = None
     packhouse_id: str | None
+    transport_config_id: str | None = None
+    temp_setpoint_c: float | None = None
+    dispatched_at: datetime | None = None
+    arrived_at: datetime | None = None
+    delivered_at: datetime | None = None
     qr_code_url: str | None
     notes: str | None
     updated_at: datetime
     pallets: list[ContainerPalletOut] = []
     traceability: list[TracePallet] = []
+    capacity_warnings: list[str] = []
 
     model_config = {"from_attributes": True}
+
+
+# ── Transport config capacity schemas ─────────────────────────
+
+class BoxCapacityOut(BaseModel):
+    box_size_id: str
+    box_size_name: str | None = None
+    max_boxes: int
+
+    model_config = {"from_attributes": True}
+
+
+class BoxCapacityInput(BaseModel):
+    box_size_id: str
+    max_boxes: int = Field(..., ge=1)
+
+
+class TransportConfigOut(BaseModel):
+    id: str
+    name: str
+    container_type: str
+    temp_setpoint_c: float | None = None
+    temp_min_c: float | None = None
+    temp_max_c: float | None = None
+    pallet_capacity: int | None = None
+    max_weight_kg: float | None = None
+    box_capacities: list[BoxCapacityOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class TransportConfigUpdate(BaseModel):
+    name: str | None = None
+    container_type: str | None = None
+    temp_setpoint_c: float | None = None
+    temp_min_c: float | None = None
+    temp_max_c: float | None = None
+    pallet_capacity: int | None = None
+    max_weight_kg: float | None = None

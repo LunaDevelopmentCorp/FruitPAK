@@ -7,6 +7,8 @@ marking a step as completed.
 
 from pydantic import BaseModel, model_validator
 
+from app.schemas.container import BoxCapacityInput
+
 
 # ── Wizard state / progress ─────────────────────────────────
 
@@ -240,6 +242,7 @@ class TransportInput(BaseModel):
     pallet_capacity: int | None = None
     max_weight_kg: float | None = None
     atmosphere_settings: dict | None = None
+    box_capacities: list[BoxCapacityInput] | None = None
 
 
 class ShippingLineInput(BaseModel):

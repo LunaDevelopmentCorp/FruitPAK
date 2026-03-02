@@ -188,7 +188,9 @@
     "agentCode": "Code",
     "contactPerson": "Contact",
     "phone": "Phone",
-    "email": "Email"
+    "email": "Email",
+    "boxCapacities": "Box Capacities",
+    "boxCapacitiesHelp": "Set the maximum number of boxes per box size this container type can hold. Leave blank for no limit."
   },
   "step8": {
     "optional": "This step is optional. You can skip it and configure financials later.",

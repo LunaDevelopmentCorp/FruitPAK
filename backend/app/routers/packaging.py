@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.packaging_stock import PackagingMovement, PackagingStock
@@ -89,38 +90,74 @@ async def _get_or_create_stock(
 async def get_stock_levels(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Return current stock levels for all packaging types.
 
     Automatically creates stock records for any box sizes or pallet types
-    that don't have one yet.
+    that don't have one yet (only when scoped to a single packhouse).
     """
-    # Ensure every box size and pallet type has a stock record
-    box_sizes = (await db.execute(select(BoxSize))).scalars().all()
-    pallet_types = (await db.execute(select(PalletType))).scalars().all()
+    # Auto-create stock records only when scoped to exactly one packhouse
+    if packhouse_scope is not None and len(packhouse_scope) == 1:
+        ph_id = packhouse_scope[0]
+        box_sizes = (await db.execute(select(BoxSize))).scalars().all()
+        pallet_types = (await db.execute(select(PalletType))).scalars().all()
 
-    existing = (await db.execute(select(PackagingStock))).scalars().all()
-    existing_box_ids = {s.box_size_id for s in existing if s.box_size_id}
-    existing_pallet_ids = {s.pallet_type_id for s in existing if s.pallet_type_id}
+        existing_stmt = select(PackagingStock).where(
+            PackagingStock.packhouse_id == ph_id
+        )
+        existing = (await db.execute(existing_stmt)).scalars().all()
+        existing_box_ids = {s.box_size_id for s in existing if s.box_size_id}
+        existing_pallet_ids = {s.pallet_type_id for s in existing if s.pallet_type_id}
 
-    for bs in box_sizes:
-        if bs.id not in existing_box_ids:
-            db.add(PackagingStock(
-                id=str(uuid.uuid4()),
-                box_size_id=bs.id,
-                current_quantity=0,
-            ))
-    for pt in pallet_types:
-        if pt.id not in existing_pallet_ids:
-            db.add(PackagingStock(
-                id=str(uuid.uuid4()),
-                pallet_type_id=pt.id,
-                current_quantity=0,
-            ))
-    await db.flush()
+        for bs in box_sizes:
+            if bs.id not in existing_box_ids:
+                db.add(PackagingStock(
+                    id=str(uuid.uuid4()),
+                    box_size_id=bs.id,
+                    packhouse_id=ph_id,
+                    current_quantity=0,
+                ))
+        for pt in pallet_types:
+            if pt.id not in existing_pallet_ids:
+                db.add(PackagingStock(
+                    id=str(uuid.uuid4()),
+                    pallet_type_id=pt.id,
+                    packhouse_id=ph_id,
+                    current_quantity=0,
+                ))
+        await db.flush()
+    elif packhouse_scope is None:
+        # Admin: auto-create without packhouse_id (global stock records)
+        box_sizes = (await db.execute(select(BoxSize))).scalars().all()
+        pallet_types = (await db.execute(select(PalletType))).scalars().all()
+
+        existing = (await db.execute(select(PackagingStock))).scalars().all()
+        existing_box_ids = {s.box_size_id for s in existing if s.box_size_id}
+        existing_pallet_ids = {s.pallet_type_id for s in existing if s.pallet_type_id}
+
+        for bs in box_sizes:
+            if bs.id not in existing_box_ids:
+                db.add(PackagingStock(
+                    id=str(uuid.uuid4()),
+                    box_size_id=bs.id,
+                    current_quantity=0,
+                ))
+        for pt in pallet_types:
+            if pt.id not in existing_pallet_ids:
+                db.add(PackagingStock(
+                    id=str(uuid.uuid4()),
+                    pallet_type_id=pt.id,
+                    current_quantity=0,
+                ))
+        await db.flush()
+    # else: multiple packhouses in scope — skip auto-creation
 
     # Re-query with relationships
-    result = await db.execute(select(PackagingStock))
+    stmt = select(PackagingStock)
+    if packhouse_scope is not None:
+        stmt = stmt.where(PackagingStock.packhouse_id.in_(packhouse_scope))
+    result = await db.execute(stmt)
     all_stock = result.scalars().all()
 
     return [_enrich_stock(s) for s in all_stock]
@@ -134,6 +171,7 @@ async def receive_packaging(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Import / receive packaging stock (opening balance or new delivery)."""
     # Validate that the referenced box_size or pallet_type exists
@@ -149,6 +187,11 @@ async def receive_packaging(
         raise HTTPException(status_code=400, detail="Provide box_size_id or pallet_type_id")
 
     stock = await _get_or_create_stock(db, body.box_size_id, body.pallet_type_id)
+
+    # Packhouse scope check
+    if packhouse_scope is not None and stock.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
+
     stock.current_quantity += body.quantity
 
     # Record movement
@@ -181,6 +224,7 @@ async def update_min_stock(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Update the minimum stock level (low-stock alert threshold)."""
     result = await db.execute(
@@ -189,6 +233,9 @@ async def update_min_stock(
     stock = result.scalar_one_or_none()
     if not stock:
         raise HTTPException(status_code=404, detail="Stock record not found")
+
+    if packhouse_scope is not None and stock.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     stock.min_stock_level = body.min_stock_level
     await db.flush()
@@ -203,6 +250,7 @@ async def adjust_stock(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Manual stock correction (positive to add, negative to subtract)."""
     result = await db.execute(
@@ -211,6 +259,9 @@ async def adjust_stock(
     stock = result.scalar_one_or_none()
     if not stock:
         raise HTTPException(status_code=404, detail="Stock record not found")
+
+    if packhouse_scope is not None and stock.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     new_qty = stock.current_quantity + body.quantity
     if new_qty < 0:
@@ -248,6 +299,7 @@ async def write_off_stock(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Write off stock as lost, damaged, expired, etc."""
     result = await db.execute(
@@ -256,6 +308,9 @@ async def write_off_stock(
     stock = result.scalar_one_or_none()
     if not stock:
         raise HTTPException(status_code=404, detail="Stock record not found")
+
+    if packhouse_scope is not None and stock.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     new_qty = stock.current_quantity - body.quantity
     if new_qty < 0:
@@ -300,11 +355,16 @@ async def list_movements(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """List packaging movement history with optional filters."""
     from sqlalchemy import func
 
     base = select(PackagingMovement)
+    if packhouse_scope is not None:
+        base = base.join(
+            PackagingStock, PackagingMovement.stock_id == PackagingStock.id
+        ).where(PackagingStock.packhouse_id.in_(packhouse_scope))
     if stock_id:
         base = base.where(PackagingMovement.stock_id == stock_id)
     if movement_type:

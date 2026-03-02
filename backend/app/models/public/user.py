@@ -37,6 +37,9 @@ class User(PublicBase):
         String(36), ForeignKey("enterprises.id")
     )
 
+    # Custom role template reference (lives in tenant schema, no FK constraint)
+    custom_role_id: Mapped[str | None] = mapped_column(String(36), default=None)
+
     # Granular RBAC: per-user overrides on top of role defaults.
     # JSON dict of {"permission.name": true/false}.
     # null = use role defaults only.

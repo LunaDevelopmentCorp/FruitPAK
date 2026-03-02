@@ -3,6 +3,7 @@
   "tabs": {
     "overview": "Resumen",
     "users": "Usuarios",
+    "roles": "Roles",
     "activity": "Actividad",
     "deletedItems": "Elementos Eliminados"
   },
@@ -74,6 +75,11 @@
       },
       "assignedPackhouses": "Empacadoras Asignadas",
       "packhouseHelp": "Deje vacío para acceso a todas las empacadoras",
+      "customRole": "Rol Personalizado",
+      "noCustomRole": "Ninguno (usar valores predeterminados del rol)",
+      "customRoleHelp": "Reemplaza los permisos del rol base con esta plantilla",
+      "permissionOverrides": "Excepciones de Permisos",
+      "overridesHelp": "Otorgar o revocar permisos individuales solo para este usuario",
       "saveChanges": "Guardar Cambios",
       "createUser": "Crear Usuario"
     },
@@ -88,6 +94,43 @@
       "created": "Usuario {{name}} creado",
       "deactivated": "{{name}} desactivado",
       "reactivated": "{{name}} reactivado"
+    }
+  },
+  "roles": {
+    "title": "Gestión de Roles",
+    "builtinTitle": "Roles Integrados",
+    "customTitle": "Roles Personalizados",
+    "newRole": "+ Nuevo Rol",
+    "loading": "Cargando roles...",
+    "loadFailed": "Error al cargar roles",
+    "empty": "No hay roles personalizados. Cree uno para empezar.",
+    "permCount_one": "{{count}} permiso",
+    "permCount_other": "{{count}} permisos",
+    "headers": {
+      "name": "Nombre",
+      "description": "Descripción",
+      "users": "Usuarios",
+      "status": "Estado"
+    },
+    "modal": {
+      "newTitle": "Nuevo Rol Personalizado",
+      "editTitle": "Editar Rol Personalizado",
+      "name": "Nombre del Rol *",
+      "description": "Descripción",
+      "startFrom": "Partir de un rol integrado",
+      "startFromNone": "Ninguno (empezar vacío)",
+      "permissions": "Permisos",
+      "save": "Guardar Rol",
+      "create": "Crear Rol"
+    },
+    "delete": {
+      "title": "¿Eliminar Rol?",
+      "text": "Esto desactivará el rol \"{{name}}\". No se puede eliminar mientras haya usuarios asignados."
+    },
+    "toast": {
+      "created": "Rol {{name}} creado",
+      "updated": "Rol {{name}} actualizado",
+      "deleted": "Rol {{name}} eliminado"
     }
   },
   "activity": {

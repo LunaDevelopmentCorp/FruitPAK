@@ -1,11 +1,17 @@
 """Grower and harvest team payment recording.
 
 Endpoints:
-    POST /api/payments/grower         Record a grower payment
-    GET  /api/payments/grower         List grower payments
-    POST /api/payments/team           Record a harvest team payment/advance
-    GET  /api/payments/team           List team payments
-    GET  /api/payments/team/summary   Team-level reconciliation summary
+    POST   /api/payments/grower                             Record a grower payment
+    GET    /api/payments/grower                             List grower payments
+    PATCH  /api/payments/grower/{payment_id}                Update a grower payment
+    DELETE /api/payments/grower/{payment_id}                Soft-delete a grower payment
+    GET    /api/payments/grower/reconciliation/{grower_id}  Grower reconciliation detail
+    POST   /api/payments/team                               Record a harvest team payment/advance
+    GET    /api/payments/team                               List team payments
+    PATCH  /api/payments/team/{payment_id}                  Update a team payment
+    DELETE /api/payments/team/{payment_id}                  Soft-delete a team payment
+    GET    /api/payments/team/summary                       Team-level reconciliation summary
+    GET    /api/payments/team/reconciliation/{team_id}      Team reconciliation detail
 """
 
 from datetime import datetime
@@ -16,6 +22,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
@@ -77,6 +84,7 @@ async def create_grower_payment(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("financials.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Record a grower payment and auto-run reconciliation."""
 
@@ -87,6 +95,10 @@ async def create_grower_payment(
     result = await db.execute(select(Grower).where(Grower.id == body.grower_id))
     grower = result.scalar_one_or_none()
     if not grower:
+        raise HTTPException(status_code=404, detail="Grower not found")
+
+    # Validate grower is in packhouse scope
+    if packhouse_scope is not None and grower.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Grower not found")
 
     # Resolve batch IDs
@@ -134,6 +146,7 @@ async def create_grower_payment(
     payment = GrowerPayment(
         payment_ref=payment_ref,
         grower_id=body.grower_id,
+        packhouse_id=grower.packhouse_id,
         batch_ids=batch_ids,
         currency=base_currency,
         gross_amount=body.amount,
@@ -191,10 +204,13 @@ async def list_grower_payments(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """List grower payments, optionally filtered by grower_id."""
     # Build base query
     base_stmt = select(GrowerPayment).where(GrowerPayment.is_deleted == False)  # noqa: E712
+    if packhouse_scope is not None:
+        base_stmt = base_stmt.where(GrowerPayment.packhouse_id.in_(packhouse_scope))
     if grower_id:
         base_stmt = base_stmt.where(GrowerPayment.grower_id == grower_id)
 
@@ -245,6 +261,7 @@ async def update_grower_payment(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("financials.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Update a grower payment (amount, type, date, notes, status)."""
     result = await db.execute(
@@ -256,6 +273,9 @@ async def update_grower_payment(
     payment = result.scalar_one_or_none()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
+
+    if packhouse_scope is not None and payment.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     # ── Downstream lock check ─────────────────────────────────
     lock_info = get_payment_locks(payment)
@@ -320,6 +340,58 @@ async def update_grower_payment(
     )
 
 
+# ── DELETE /api/payments/grower/{payment_id} ──────────────────
+
+@router.delete("/grower/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_grower_payment(
+    payment_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("financials.write")),
+    _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Soft-delete a grower payment.
+
+    Only allowed if payment status is 'draft' or 'pending'.
+    Reconciled or paid payments cannot be deleted.
+    """
+    result = await db.execute(
+        select(GrowerPayment).where(
+            GrowerPayment.id == payment_id,
+            GrowerPayment.is_deleted == False,  # noqa: E712
+        )
+    )
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    if packhouse_scope is not None and payment.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if payment.status not in ("draft", "pending"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete payment with status '{payment.status}'. "
+                   "Only draft or pending payments can be deleted.",
+        )
+
+    payment.is_deleted = True
+    payment.updated_at = datetime.utcnow()
+    await db.flush()
+
+    # Re-run reconciliation after removing a payment
+    await run_full_reconciliation(db)
+
+    await log_activity(
+        db, user,
+        action="deleted",
+        entity_type="payment",
+        entity_id=str(payment.id),
+        entity_code=payment.payment_ref,
+        summary=f"Deleted grower payment {payment.payment_ref}",
+    )
+
+
 # ── GET /api/payments/grower/reconciliation/{grower_id} ──────
 
 @router.get(
@@ -331,6 +403,7 @@ async def grower_reconciliation_detail(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Per-grower drill-down: batch breakdown + payment history."""
 
@@ -341,6 +414,9 @@ async def grower_reconciliation_detail(
     grower = result.scalar_one_or_none()
     if not grower:
         raise HTTPException(status_code=404, detail="Grower not found")
+
+    if packhouse_scope is not None and grower.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     base_currency = await _get_base_currency(db)
 
@@ -458,6 +534,7 @@ async def create_team_payment(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("financials.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Record a payment or advance to a harvest team."""
 
@@ -470,6 +547,10 @@ async def create_team_payment(
     )
     team = result.scalar_one_or_none()
     if not team:
+        raise HTTPException(status_code=404, detail="Harvest team not found")
+
+    # Validate team is in packhouse scope
+    if packhouse_scope is not None and team.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Harvest team not found")
 
     # Resolve batch IDs
@@ -514,6 +595,7 @@ async def create_team_payment(
     payment = HarvestTeamPayment(
         payment_ref=payment_ref,
         harvest_team_id=body.harvest_team_id,
+        packhouse_id=team.packhouse_id,
         batch_ids=batch_ids,
         currency=base_currency,
         amount=body.amount,
@@ -566,11 +648,14 @@ async def list_team_payments(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """List harvest team payments, optionally filtered by team."""
     base = select(HarvestTeamPayment).where(
         HarvestTeamPayment.is_deleted == False  # noqa: E712
     )
+    if packhouse_scope is not None:
+        base = base.where(HarvestTeamPayment.packhouse_id.in_(packhouse_scope))
     if harvest_team_id:
         base = base.where(HarvestTeamPayment.harvest_team_id == harvest_team_id)
 
@@ -614,6 +699,7 @@ async def update_team_payment(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("financials.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Update a team payment (amount, type, date, notes, status)."""
     result = await db.execute(
@@ -625,6 +711,9 @@ async def update_team_payment(
     payment = result.scalar_one_or_none()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
+
+    if packhouse_scope is not None and payment.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     # ── Downstream lock check ─────────────────────────────────
     lock_info = get_payment_locks(payment)
@@ -683,6 +772,55 @@ async def update_team_payment(
     )
 
 
+# ── DELETE /api/payments/team/{payment_id} ────────────────────
+
+@router.delete("/team/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_team_payment(
+    payment_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("financials.write")),
+    _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Soft-delete a team payment.
+
+    Only allowed if payment status is 'draft' or 'pending'.
+    Paid or cancelled payments cannot be deleted.
+    """
+    result = await db.execute(
+        select(HarvestTeamPayment).where(
+            HarvestTeamPayment.id == payment_id,
+            HarvestTeamPayment.is_deleted == False,  # noqa: E712
+        )
+    )
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    if packhouse_scope is not None and payment.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if payment.status not in ("draft", "pending"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete payment with status '{payment.status}'. "
+                   "Only draft or pending payments can be deleted.",
+        )
+
+    payment.is_deleted = True
+    payment.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user,
+        action="deleted",
+        entity_type="team_payment",
+        entity_id=str(payment.id),
+        entity_code=payment.payment_ref,
+        summary=f"Deleted team payment {payment.payment_ref}",
+    )
+
+
 # ── GET /api/payments/team/summary ───────────────────────────
 
 @router.get("/team/summary", response_model=list[TeamSummary])
@@ -690,11 +828,15 @@ async def team_payment_summary(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Per-team reconciliation: batches delivered vs payments made."""
 
-    # Get all harvest teams
-    result = await db.execute(select(HarvestTeam))
+    # Get harvest teams (filtered by packhouse scope)
+    team_stmt = select(HarvestTeam)
+    if packhouse_scope is not None:
+        team_stmt = team_stmt.where(HarvestTeam.packhouse_id.in_(packhouse_scope))
+    result = await db.execute(team_stmt)
     teams = result.scalars().all()
 
     summaries: list[TeamSummary] = []
@@ -782,6 +924,7 @@ async def team_reconciliation_detail(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("financials.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Per-team drill-down: batch breakdown + payment history + balance."""
 
@@ -792,6 +935,9 @@ async def team_reconciliation_detail(
     team = result.scalar_one_or_none()
     if not team:
         raise HTTPException(status_code=404, detail="Harvest team not found")
+
+    if packhouse_scope is not None and team.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Not found")
 
     # Use system base currency for all display
     base_currency = await _get_base_currency(db)

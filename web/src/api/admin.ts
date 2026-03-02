@@ -144,6 +144,10 @@ export interface UserSummary {
   role: string;
   is_active: boolean;
   assigned_packhouses: string[] | null;
+  custom_role_id: string | null;
+  custom_role_name: string | null;
+  permissions: string[];
+  custom_permissions: Record<string, boolean> | null;
   created_at: string;
 }
 
@@ -152,6 +156,8 @@ export interface UserUpdate {
   full_name?: string;
   phone?: string;
   assigned_packhouses?: string[];
+  custom_role_id?: string | null;
+  custom_permissions?: Record<string, boolean> | null;
 }
 
 export interface CreateUserPayload {
@@ -161,6 +167,7 @@ export interface CreateUserPayload {
   phone?: string;
   role?: string;
   assigned_packhouses?: string[];
+  custom_role_id?: string;
 }
 
 export async function listUsers(): Promise<UserSummary[]> {

@@ -14,12 +14,15 @@
       "type": "Type",
       "customer": "Customer",
       "destination": "Destination",
+      "vessel": "Vessel",
+      "eta": "ETA",
       "pallets": "Pallets",
       "fillPercent": "Fill %",
       "cartons": "Cartons",
       "status": "Status",
       "date": "Date"
-    }
+    },
+    "overdue": "Overdue"
   },
   "create": {
     "title": "New Container",
@@ -35,7 +38,15 @@
     "transporter": "Transporter",
     "noTransporter": "— None —",
     "shippingAgent": "Shipping Agent",
-    "noAgent": "— None —"
+    "noAgent": "— None —",
+    "shippingLine": "Shipping Line",
+    "noShippingLine": "— None —",
+    "vesselName": "Vessel Name",
+    "vesselPlaceholder": "e.g. MSC Flaminia",
+    "voyageNumber": "Voyage Number",
+    "voyagePlaceholder": "e.g. 025E",
+    "eta": "ETA",
+    "etaPlaceholder": "Estimated arrival date"
   },
   "detail": {
     "loading": "Loading container...",
@@ -71,7 +82,50 @@
     "traceability": "Full Traceability",
     "lots": "Lots:",
     "grns": "GRNs / Growers:",
-    "qrCode": "QR Code"
+    "qrCode": "QR Code",
+    "deleteTitle": "Delete Container",
+    "deleteConfirm": "Delete container {{number}}? This cannot be undone.",
+    "deleted": "Container deleted.",
+    "deleteFailed": "Failed to delete container."
+  },
+  "container": {
+    "statusActions": "Status Actions",
+    "markLoaded": "Mark as Loaded",
+    "markLoadedSuccess": "Container marked as loaded",
+    "markLoadedFailed": "Failed to mark as loaded",
+    "sealContainer": "Seal Container",
+    "sealSuccess": "Container sealed",
+    "sealFailed": "Failed to seal container",
+    "sealNumber": "Seal Number",
+    "sealNumberPlaceholder": "Enter seal number",
+    "tempSetpoint": "Temperature Setpoint (°C)",
+    "dispatch": "Dispatch",
+    "dispatchSuccess": "Container dispatched",
+    "dispatchFailed": "Failed to dispatch container",
+    "markExported": "Mark Exported",
+    "markExportedSuccess": "Container marked as exported / in transit",
+    "markExportedFailed": "Failed to mark exported",
+    "markArrived": "Mark Arrived",
+    "markArrivedSuccess": "Container arrived at destination",
+    "markArrivedFailed": "Failed to mark arrived",
+    "confirmDelivery": "Confirm Delivery",
+    "confirmDeliverySuccess": "Container delivery confirmed",
+    "confirmDeliveryFailed": "Failed to confirm delivery",
+    "revert": "Revert Status",
+    "revertSuccess": "Container status reverted",
+    "revertFailed": "Failed to revert status",
+    "overdueWarning": "Container is overdue — ETA was {{eta}}. Has this container arrived at destination?",
+    "stillInTransit": "Still In Transit",
+    "shippingLine": "Shipping Line",
+    "vesselName": "Vessel Name",
+    "voyageNumber": "Voyage Number",
+    "etaLabel": "ETA",
+    "timestamps": "Timestamps",
+    "sealedAt": "Sealed at",
+    "sealedBy": "Sealed by",
+    "dispatchedAt": "Dispatched at",
+    "arrivedAt": "Arrived at",
+    "deliveredAt": "Delivered at"
   },
   "loadPallets": {
     "title": "Load Pallets",
@@ -81,6 +135,7 @@
     "loadSelected": "Load Selected ({{count}})",
     "loadingButton": "Loading...",
     "loaded": "Loaded {{count}} pallet(s) into container",
-    "loadFailed": "Failed to load pallets"
+    "loadFailed": "Failed to load pallets",
+    "forceOverride": "Override capacity and mixed-type restrictions"
   }
 }

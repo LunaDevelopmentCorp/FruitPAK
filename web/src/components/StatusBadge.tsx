@@ -18,6 +18,7 @@ const COLOR_MAP: Record<string, string> = {
   loading: "bg-yellow-50 text-yellow-700",
   sealed: "bg-blue-50 text-blue-700",
   dispatched: "bg-orange-50 text-orange-700",
+  in_transit: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
   delivered: "bg-green-50 text-green-700",
   // Payment
   paid: "bg-green-50 text-green-700",
@@ -32,7 +33,7 @@ const COLOR_MAP: Record<string, string> = {
   // Shipping schedule
   scheduled: "bg-blue-50 text-blue-700",
   departed: "bg-orange-50 text-orange-700",
-  arrived: "bg-green-50 text-green-700",
+  arrived: "bg-teal-50 text-teal-700 ring-teal-600/20",
   cancelled: "bg-red-50 text-red-700",
 };
 

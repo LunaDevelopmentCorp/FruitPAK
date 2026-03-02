@@ -22,12 +22,14 @@ import { getErrorMessage } from "../api/client";
 import { getCurrencySymbol } from "../constants/currencies";
 import { useFinancialConfig } from "../hooks/useFinancialConfig";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
+import { usePackhouseStore } from "../store/packhouseStore";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
 export default function TeamPayments() {
   const { t } = useTranslation("payments");
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const { baseCurrency } = useFinancialConfig();
 
   // ── Data ──────────────────────────────────────────────────
@@ -95,7 +97,7 @@ export default function TeamPayments() {
   useEffect(() => {
     refreshTeams();
     listTeamPayments().then(setPayments).catch(() => {});
-  }, []);
+  }, [currentPackhouseId]);
 
   // Load batches for selected team (record tab)
   useEffect(() => {

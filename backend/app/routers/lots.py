@@ -1,10 +1,11 @@
 """Lot router — packing lot management.
 
 Endpoints:
-    POST  /api/lots/from-batch/{batch_id}  Create lots from a batch
-    GET   /api/lots/                        List lots (with filters)
-    GET   /api/lots/{lot_id}                Single lot detail
-    PATCH /api/lots/{lot_id}                Update lot fields
+    POST   /api/lots/from-batch/{batch_id}  Create lots from a batch
+    GET    /api/lots/                        List lots (with filters)
+    GET    /api/lots/{lot_id}                Single lot detail
+    PATCH  /api/lots/{lot_id}                Update lot fields
+    DELETE /api/lots/{lot_id}                Soft-delete a lot
 """
 
 import uuid
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
@@ -32,7 +34,7 @@ from app.schemas.lot import (
     LotsFromBatchRequest,
 )
 from app.utils.activity import log_activity
-from app.utils.numbering import generate_code
+from app.utils.numbering import generate_code, generate_codes
 
 router = APIRouter()
 
@@ -87,6 +89,7 @@ async def create_lots_from_batch(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Split a batch into packing lots by grade/size.
 
@@ -102,6 +105,8 @@ async def create_lots_from_batch(
     batch = result.scalar_one_or_none()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Batch not found")
 
     # Pre-load box sizes for auto-weight calculation
     box_size_ids = [item.box_size_id for item in body.lots if item.box_size_id]
@@ -113,8 +118,11 @@ async def create_lots_from_batch(
         for bs in bs_result.scalars().all():
             box_size_map[bs.id] = bs.weight_kg
 
+    # Generate all lot codes in one batch (2 DB queries instead of 2N)
+    lot_codes = await generate_codes(db, "lot", len(body.lots), batch_code=batch.batch_code)
+
     created_lots = []
-    for item in body.lots:
+    for i, item in enumerate(body.lots):
         # Auto-calculate weight: carton_count × box weight (if box_size provided)
         weight_kg = item.weight_kg
         if item.box_size_id and item.box_size_id in box_size_map:
@@ -122,7 +130,7 @@ async def create_lots_from_batch(
 
         lot = Lot(
             id=str(uuid.uuid4()),
-            lot_code=await generate_code(db, "lot", batch_code=batch.batch_code),
+            lot_code=lot_codes[i],
             batch_id=batch.id,
             grower_id=batch.grower_id,
             packhouse_id=batch.packhouse_id,
@@ -213,8 +221,12 @@ async def list_lots(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     base_stmt = select(Lot).where(Lot.is_deleted == False)  # noqa: E712
+
+    if packhouse_scope is not None:
+        base_stmt = base_stmt.where(Lot.packhouse_id.in_(packhouse_scope))
 
     if batch_id:
         base_stmt = base_stmt.where(Lot.batch_id == batch_id)
@@ -268,6 +280,7 @@ async def get_lot(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(
         select(Lot)
@@ -280,6 +293,8 @@ async def get_lot(
     )
     lot = result.scalar_one_or_none()
     if not lot:
+        raise HTTPException(status_code=404, detail="Lot not found")
+    if packhouse_scope is not None and lot.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Lot not found")
     out = LotOut.from_orm_with_names(lot)
     lock_info = await get_lot_locks(db, lot)
@@ -296,6 +311,7 @@ async def update_lot(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(
         select(Lot)
@@ -308,6 +324,8 @@ async def update_lot(
     )
     lot = result.scalar_one_or_none()
     if not lot:
+        raise HTTPException(status_code=404, detail="Lot not found")
+    if packhouse_scope is not None and lot.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Lot not found")
 
     # ── Downstream lock check ─────────────────────────────────
@@ -379,3 +397,56 @@ async def update_lot(
             await db.flush()
 
     return LotOut.from_orm_with_names(lot)
+
+
+# ── Delete lot ────────────────────────────────────────────────
+
+@router.delete("/{lot_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lot(
+    lot_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("lot.delete")),
+    _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Soft-delete a lot.
+
+    Only allowed if the lot has no palletized boxes (no PalletLot records).
+    """
+    result = await db.execute(
+        select(Lot).where(
+            Lot.id == lot_id,
+            Lot.is_deleted == False,  # noqa: E712
+        )
+    )
+    lot = result.scalar_one_or_none()
+    if not lot:
+        raise HTTPException(status_code=404, detail="Lot not found")
+    if packhouse_scope is not None and lot.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Lot not found")
+
+    # Check for palletized boxes
+    palletized_result = await db.execute(
+        select(func.count()).where(
+            PalletLot.lot_id == lot_id,
+            PalletLot.is_deleted == False,  # noqa: E712
+        )
+    )
+    palletized_count = palletized_result.scalar() or 0
+    if palletized_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete lot with palletized boxes",
+        )
+
+    lot.is_deleted = True
+    await db.flush()
+
+    await log_activity(
+        db, user,
+        action="deleted",
+        entity_type="lot",
+        entity_id=lot.id,
+        entity_code=lot.lot_code,
+        summary=f"Deleted lot {lot.lot_code}",
+    )

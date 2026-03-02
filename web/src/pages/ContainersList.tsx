@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { usePackhouseStore } from "../store/packhouseStore";
 import { listContainers, ContainerSummary, createEmptyContainer, CreateEmptyContainerPayload } from "../api/containers";
 import { listClients, ClientSummary } from "../api/clients";
 import { listTransporters, TransporterOut } from "../api/transporters";
 import { listShippingAgents, ShippingAgentOut } from "../api/shippingAgents";
+import { listShippingLines, ShippingLineOut } from "../api/shippingLines";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
@@ -16,6 +18,7 @@ const CONTAINER_TYPES = ["reefer_20ft", "reefer_40ft", "open_truck", "break_bulk
 export default function ContainersList() {
   const { t } = useTranslation("containers");
   const navigate = useNavigate();
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +31,7 @@ export default function ContainersList() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [transporters, setTransporters] = useState<TransporterOut[]>([]);
   const [shippingAgents, setShippingAgents] = useState<ShippingAgentOut[]>([]);
+  const [shippingLines, setShippingLines] = useState<ShippingLineOut[]>([]);
   const [newContainerType, setNewContainerType] = useState("reefer_40ft");
   const [newCapacity, setNewCapacity] = useState(20);
   const [newClientId, setNewClientId] = useState("");
@@ -36,6 +40,10 @@ export default function ContainersList() {
   const [newShippingNumber, setNewShippingNumber] = useState("");
   const [newDestination, setNewDestination] = useState("");
   const [newSealNumber, setNewSealNumber] = useState("");
+  const [newShippingLineId, setNewShippingLineId] = useState("");
+  const [newVesselName, setNewVesselName] = useState("");
+  const [newVoyageNumber, setNewVoyageNumber] = useState("");
+  const [newEta, setNewEta] = useState("");
   const [creating, setCreating] = useState(false);
 
   const loadContainers = () => {
@@ -54,7 +62,7 @@ export default function ContainersList() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(loadContainers, search ? 300 : 0);
     return () => clearTimeout(searchTimer.current);
-  }, [statusFilter, search]);
+  }, [statusFilter, search, currentPackhouseId]);
 
   const handleOpenCreate = () => {
     setShowCreate(true);
@@ -66,6 +74,9 @@ export default function ContainersList() {
       .catch(() => {});
     listShippingAgents()
       .then(setShippingAgents)
+      .catch(() => {});
+    listShippingLines()
+      .then(setShippingLines)
       .catch(() => {});
   };
 
@@ -79,6 +90,10 @@ export default function ContainersList() {
     setNewShippingNumber("");
     setNewDestination("");
     setNewSealNumber("");
+    setNewShippingLineId("");
+    setNewVesselName("");
+    setNewVoyageNumber("");
+    setNewEta("");
   };
 
   const handleCreate = async () => {
@@ -94,6 +109,10 @@ export default function ContainersList() {
       if (newShippingNumber.trim()) payload.shipping_container_number = newShippingNumber.trim();
       if (newDestination.trim()) payload.destination = newDestination.trim();
       if (newSealNumber.trim()) payload.seal_number = newSealNumber.trim();
+      if (newShippingLineId) payload.shipping_line_id = newShippingLineId;
+      if (newVesselName.trim()) payload.vessel_name = newVesselName.trim();
+      if (newVoyageNumber.trim()) payload.voyage_number = newVoyageNumber.trim();
+      if (newEta) payload.eta = newEta;
 
       await createEmptyContainer(payload);
       showToast("success", "Container created successfully");
@@ -121,7 +140,7 @@ export default function ContainersList() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-6 py-8">
       <PageHeader
         title={t("list.title")}
         subtitle={t("list.count", { count: filtered.length })}
@@ -228,6 +247,48 @@ export default function ContainersList() {
                 className="w-full border rounded px-3 py-2 text-sm"
               />
             </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.shippingLine")}</label>
+              <select
+                value={newShippingLineId}
+                onChange={(e) => setNewShippingLineId(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+              >
+                <option value="">{t("create.noShippingLine")}</option>
+                {shippingLines.map((sl) => (
+                  <option key={sl.id} value={sl.id}>{sl.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.vesselName")}</label>
+              <input
+                type="text"
+                value={newVesselName}
+                onChange={(e) => setNewVesselName(e.target.value)}
+                placeholder={t("create.vesselPlaceholder")}
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.voyageNumber")}</label>
+              <input
+                type="text"
+                value={newVoyageNumber}
+                onChange={(e) => setNewVoyageNumber(e.target.value)}
+                placeholder={t("create.voyagePlaceholder")}
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.eta")}</label>
+              <input
+                type="date"
+                value={newEta}
+                onChange={(e) => setNewEta(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -259,8 +320,8 @@ export default function ContainersList() {
           className="border rounded px-3 py-2 text-sm"
         >
           <option value="">{t("list.allStatuses")}</option>
-          {["open", "loading", "sealed", "dispatched", "delivered"].map((s) => (
-            <option key={s} value={s}>{s}</option>
+          {["open", "loading", "loaded", "sealed", "dispatched", "in_transit", "arrived", "delivered"].map((s) => (
+            <option key={s} value={s}>{t(`common:status.${s}`)}</option>
           ))}
         </select>
 
@@ -278,7 +339,7 @@ export default function ContainersList() {
       ) : filtered.length === 0 ? (
         <p className="text-gray-400 text-sm">{t("list.empty")}</p>
       ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-white rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
@@ -287,6 +348,8 @@ export default function ContainersList() {
                 <th onClick={() => toggleSort("type")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.type")}{sortIndicator("type")}</th>
                 <th onClick={() => toggleSort("customer")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.customer")}{sortIndicator("customer")}</th>
                 <th onClick={() => toggleSort("destination")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.destination")}{sortIndicator("destination")}</th>
+                <th onClick={() => toggleSort("vessel")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.vessel")}{sortIndicator("vessel")}</th>
+                <th onClick={() => toggleSort("eta")} className={`text-left px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.eta")}{sortIndicator("eta")}</th>
                 <th onClick={() => toggleSort("pallets")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.pallets")}{sortIndicator("pallets")}</th>
                 <th onClick={() => toggleSort("fill_pct")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.fillPercent")}{sortIndicator("fill_pct")}</th>
                 <th onClick={() => toggleSort("cartons")} className={`text-right px-4 py-2 font-medium ${sortableThClass}`}>{t("list.headers.cartons")}{sortIndicator("cartons")}</th>
@@ -301,6 +364,8 @@ export default function ContainersList() {
                 type: (r) => r.container_type,
                 customer: (r) => r.customer_name,
                 destination: (r) => r.destination,
+                vessel: (r) => r.vessel_name,
+                eta: (r) => r.eta,
                 pallets: (r) => r.pallet_count,
                 fill_pct: (r) => r.capacity_pallets > 0 ? r.pallet_count / r.capacity_pallets : 0,
                 cartons: (r) => r.total_cartons,
@@ -325,6 +390,18 @@ export default function ContainersList() {
                     <td className="px-4 py-2">{c.container_type}</td>
                     <td className="px-4 py-2">{c.customer_name || "\u2014"}</td>
                     <td className="px-4 py-2">{c.destination || "\u2014"}</td>
+                    <td className="px-4 py-2 truncate max-w-[120px]" title={c.vessel_name || undefined}>
+                      {c.vessel_name || "\u2014"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {c.eta ? (
+                        <span className={
+                          c.is_overdue ? "text-red-600 font-medium" : "text-gray-700"
+                        }>
+                          {new Date(c.eta).toLocaleDateString()}
+                        </span>
+                      ) : "\u2014"}
+                    </td>
                     <td className="px-4 py-2 text-right font-medium">
                       {c.pallet_count}/{c.capacity_pallets}
                     </td>
@@ -338,6 +415,9 @@ export default function ContainersList() {
                     <td className="px-4 py-2 text-right">{c.total_cartons.toLocaleString()}</td>
                     <td className="px-4 py-2">
                       <StatusBadge status={c.status} />
+                      {c.is_overdue && (
+                        <span className="ml-1 text-xs text-red-600 font-medium">{t("list.overdue")}</span>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {new Date(c.created_at).toLocaleDateString()}

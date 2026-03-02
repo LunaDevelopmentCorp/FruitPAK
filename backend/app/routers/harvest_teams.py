@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.batch import Batch
@@ -28,6 +29,7 @@ class HarvestTeamOut(BaseModel):
     fruit_types: list[str] | None = None
     assigned_fields: list[str] | None = None
     notes: str | None
+    packhouse_id: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -43,6 +45,7 @@ class HarvestTeamCreate(BaseModel):
     rate_currency: str = "ZAR"
     fruit_types: list[str] | None = None
     assigned_fields: list[str] | None = None
+    packhouse_id: str | None = None
     notes: str | None = None
 
 
@@ -71,11 +74,16 @@ async def list_harvest_teams(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
-    count_stmt = select(func.count(HarvestTeam.id))
+    base = select(HarvestTeam)
+    if packhouse_scope is not None:
+        base = base.where(HarvestTeam.packhouse_id.in_(packhouse_scope))
+
+    count_stmt = select(func.count()).select_from(base.subquery())
     total = await db.scalar(count_stmt) or 0
 
-    items_stmt = select(HarvestTeam).order_by(HarvestTeam.name).limit(limit).offset(offset)
+    items_stmt = base.order_by(HarvestTeam.name).limit(limit).offset(offset)
     result = await db.execute(items_stmt)
     items = [HarvestTeamOut.model_validate(t) for t in result.scalars().all()]
 
@@ -87,10 +95,13 @@ async def get_harvest_team(
     team_id: str,
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(select(HarvestTeam).where(HarvestTeam.id == team_id))
     team = result.scalar_one_or_none()
     if not team:
+        raise HTTPException(status_code=404, detail="Harvest team not found")
+    if packhouse_scope is not None and team.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Harvest team not found")
     return HarvestTeamOut.model_validate(team)
 
@@ -101,8 +112,18 @@ async def create_harvest_team(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
-    team = HarvestTeam(**body.model_dump(exclude_none=True))
+    data = body.model_dump(exclude_none=True)
+    # Auto-set packhouse_id from scope if single packhouse and not provided
+    if "packhouse_id" not in data and packhouse_scope and len(packhouse_scope) == 1:
+        data["packhouse_id"] = packhouse_scope[0]
+    # Validate packhouse_id is in scope
+    ph_id = data.get("packhouse_id")
+    if packhouse_scope is not None and ph_id and ph_id not in packhouse_scope:
+        raise HTTPException(status_code=403, detail="No access to this packhouse")
+
+    team = HarvestTeam(**data)
     db.add(team)
     await db.flush()
     await db.refresh(team)
@@ -116,10 +137,13 @@ async def update_harvest_team(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(select(HarvestTeam).where(HarvestTeam.id == team_id))
     team = result.scalar_one_or_none()
     if not team:
+        raise HTTPException(status_code=404, detail="Harvest team not found")
+    if packhouse_scope is not None and team.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Harvest team not found")
 
     updates = body.model_dump(exclude_unset=True)
@@ -137,10 +161,13 @@ async def delete_harvest_team(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(select(HarvestTeam).where(HarvestTeam.id == team_id))
     team = result.scalar_one_or_none()
     if not team:
+        raise HTTPException(status_code=404, detail="Harvest team not found")
+    if packhouse_scope is not None and team.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Harvest team not found")
 
     # Prevent deleting teams that have batches

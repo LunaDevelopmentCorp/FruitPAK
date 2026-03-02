@@ -6,7 +6,7 @@ Expanded from the original scaffold to include wizard onboarding fields.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import TenantBase
@@ -35,6 +35,11 @@ class Grower(TenantBase):
     globalg_ap_certified: Mapped[bool] = mapped_column(Boolean, default=False)
     globalg_ap_number: Mapped[str | None] = mapped_column(String(50))
     other_certifications: Mapped[list | None] = mapped_column(JSON, default=list)
+
+    # Packhouse scoping
+    packhouse_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("packhouses.id"), index=True
+    )
 
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

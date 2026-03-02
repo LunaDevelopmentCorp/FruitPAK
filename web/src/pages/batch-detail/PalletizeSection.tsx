@@ -45,6 +45,8 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
   const [openPallets, setOpenPallets] = useState<PalletSummary[]>([]);
   const [selectedPalletId, setSelectedPalletId] = useState("");
   const [allocateSaving, setAllocateSaving] = useState(false);
+  const [allowMixedSizesExisting, setAllowMixedSizesExisting] = useState(false);
+  const [allowMixedBoxTypesExisting, setAllowMixedBoxTypesExisting] = useState(false);
 
   if (lots.length === 0) return null;
 
@@ -174,6 +176,10 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
           setSelectedPalletId={setSelectedPalletId}
           lotAssignments={lotAssignments}
           setLotAssignments={setLotAssignments}
+          allowMixedSizes={allowMixedSizesExisting}
+          setAllowMixedSizes={setAllowMixedSizesExisting}
+          allowMixedBoxTypes={allowMixedBoxTypesExisting}
+          setAllowMixedBoxTypes={setAllowMixedBoxTypesExisting}
           allocateSaving={allocateSaving}
           onSave={async () => {
             if (!selectedPalletId) {
@@ -184,9 +190,10 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
             const assignments: LotAssignment[] = Object.entries(lotAssignments)
               .filter(([lot_id, count]) => {
                 if (count <= 0) return false;
+                if (allowMixedSizesExisting && allowMixedBoxTypesExisting) return true;
                 const lot = lots.find((l) => l.id === lot_id);
-                if (selPal?.size && lot && lot.size && lot.size !== selPal.size) return false;
-                if (selPal?.box_size_id && lot && lot.box_size_id && lot.box_size_id !== selPal.box_size_id) return false;
+                if (!allowMixedSizesExisting && selPal?.size && lot && lot.size && lot.size !== selPal.size) return false;
+                if (!allowMixedBoxTypesExisting && selPal?.box_size_id && lot && lot.box_size_id && lot.box_size_id !== selPal.box_size_id) return false;
                 return true;
               })
               .map(([lot_id, box_count]) => {
@@ -199,12 +206,17 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
             }
             setAllocateSaving(true);
             try {
-              const selectedPallet = openPallets.find((p) => p.id === selectedPalletId);
-              await allocateBoxesToPallet(selectedPalletId, { lot_assignments: assignments });
+              await allocateBoxesToPallet(selectedPalletId, {
+                lot_assignments: assignments,
+                allow_mixed_sizes: allowMixedSizesExisting || undefined,
+                allow_mixed_box_types: allowMixedBoxTypesExisting || undefined,
+              });
               globalToast("success", t("palletize.boxesAllocated"));
               setAllocatingToExisting(false);
               setSelectedPalletId("");
               setLotAssignments({});
+              setAllowMixedSizesExisting(false);
+              setAllowMixedBoxTypesExisting(false);
               await onRefresh();
             } catch (err: unknown) {
               globalToast("error", getErrorMessage(err, t("palletize.allocationFailed")));
@@ -216,6 +228,8 @@ export default function PalletizeSection({ batch, batchId, onRefresh, boxSizes }
             setAllocatingToExisting(false);
             setSelectedPalletId("");
             setLotAssignments({});
+            setAllowMixedSizesExisting(false);
+            setAllowMixedBoxTypesExisting(false);
           }}
         />
       )}
@@ -595,6 +609,10 @@ interface AllocateFormProps {
   setSelectedPalletId: (v: string) => void;
   lotAssignments: Record<string, number>;
   setLotAssignments: (v: Record<string, number>) => void;
+  allowMixedSizes: boolean;
+  setAllowMixedSizes: (v: boolean) => void;
+  allowMixedBoxTypes: boolean;
+  setAllowMixedBoxTypes: (v: boolean) => void;
   allocateSaving: boolean;
   onSave: () => void;
   onCancel: () => void;
@@ -604,13 +622,15 @@ function AllocateToExistingForm({
   batch, openPallets,
   selectedPalletId, setSelectedPalletId,
   lotAssignments, setLotAssignments,
+  allowMixedSizes, setAllowMixedSizes,
+  allowMixedBoxTypes, setAllowMixedBoxTypes,
   allocateSaving, onSave, onCancel,
 }: AllocateFormProps) {
   const { t } = useTranslation("batches");
   const lots = batch.lots || [];
   const selectedPallet = openPallets.find((p) => p.id === selectedPalletId);
-  const palletFilterSize = selectedPallet?.size;
-  const palletFilterBoxSizeId = selectedPallet?.box_size_id;
+  const palletFilterSize = allowMixedSizes ? undefined : selectedPallet?.size;
+  const palletFilterBoxSizeId = allowMixedBoxTypes ? undefined : selectedPallet?.box_size_id;
 
   const assignedLotSizes = [...new Set(
     lots.filter((l) => (lotAssignments[l.id] ?? 0) > 0).map((l) => l.size).filter(Boolean)
@@ -619,8 +639,8 @@ function AllocateToExistingForm({
     lots.filter((l) => (lotAssignments[l.id] ?? 0) > 0).map((l) => l.box_size_id).filter(Boolean)
   )];
   const compatiblePallets = openPallets.filter((p) =>
-    (!p.size || assignedLotSizes.length === 0 || assignedLotSizes.includes(p.size)) &&
-    (!p.box_size_id || assignedLotBoxTypeIds.length === 0 || assignedLotBoxTypeIds.includes(p.box_size_id))
+    (allowMixedSizes || !p.size || assignedLotSizes.length === 0 || assignedLotSizes.includes(p.size)) &&
+    (allowMixedBoxTypes || !p.box_size_id || assignedLotBoxTypeIds.length === 0 || assignedLotBoxTypeIds.includes(p.box_size_id))
   );
 
   const filteredLots = lots.filter(
@@ -787,6 +807,28 @@ function AllocateToExistingForm({
           </div>
         </div>
       )}
+
+      {/* Override checkboxes */}
+      <div className="flex flex-wrap gap-4 pt-2">
+        <label className="flex items-center gap-2 text-xs text-yellow-600 font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allowMixedSizes}
+            onChange={(e) => setAllowMixedSizes(e.target.checked)}
+            className="rounded"
+          />
+          {t("palletize.allowMixedSizes")}
+        </label>
+        <label className="flex items-center gap-2 text-xs text-yellow-600 font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allowMixedBoxTypes}
+            onChange={(e) => setAllowMixedBoxTypes(e.target.checked)}
+            className="rounded"
+          />
+          {t("palletize.allowMixedBoxTypes")}
+        </label>
+      </div>
 
       <div className="flex gap-2 pt-3 border-t">
         <button

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   listShippingSchedules,
@@ -7,8 +7,28 @@ import {
   deleteShippingSchedule,
   ShippingScheduleSummary,
 } from "../api/shippingSchedules";
-import { listShippingLines, ShippingLineOut } from "../api/shippingLines";
-import { getErrorMessage } from "../api/client";
+import {
+  listShippingLines,
+  createShippingLine,
+  updateShippingLine,
+  deleteShippingLine,
+  ShippingLineOut,
+} from "../api/shippingLines";
+import {
+  listTransporters,
+  createTransporter,
+  updateTransporter,
+  deleteTransporter,
+  TransporterOut,
+} from "../api/transporters";
+import {
+  listShippingAgents,
+  createShippingAgent,
+  updateShippingAgent,
+  deleteShippingAgent,
+  ShippingAgentOut,
+} from "../api/shippingAgents";
+import api, { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
@@ -18,6 +38,580 @@ import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 const inputBase =
   "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-green-500";
 
+const inputCompact =
+  "w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+
+// ── Shared logistics entity type ──────────────────────────────────
+interface LogisticsEntity {
+  id: string;
+  name: string;
+  code: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface LogisticsCreatePayload {
+  name: string;
+  code: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+}
+
+interface LogisticsUpdatePayload {
+  name?: string;
+  code?: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+}
+
+interface LogisticsSectionProps {
+  title: string;
+  items: LogisticsEntity[];
+  loading: boolean;
+  onReload: () => void;
+  onCreate: (payload: LogisticsCreatePayload) => Promise<LogisticsEntity>;
+  onUpdate: (id: string, payload: LogisticsUpdatePayload) => Promise<LogisticsEntity>;
+  onDelete: (id: string) => Promise<unknown>;
+  onToggleActive: (id: string, active: boolean) => Promise<LogisticsEntity>;
+}
+
+// ── Edit row panel ────────────────────────────────────────────────
+function LogisticsEditRow({
+  item,
+  onSave,
+  onCancel,
+  onDelete,
+  onToggleActive,
+}: {
+  item: LogisticsEntity;
+  onSave: (updated: LogisticsEntity) => void;
+  onCancel: () => void;
+  onDelete: (id: string) => void;
+  onToggleActive: (id: string, active: boolean) => void;
+}) {
+  const { t } = useTranslation("shipping");
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: item.name,
+    code: item.code,
+    contact_person: item.contact_person || "",
+    phone: item.phone || "",
+    email: item.email || "",
+    address: item.address || "",
+    notes: item.notes || "",
+  });
+
+  return (
+    <tr>
+      <td colSpan={8} className="px-4 py-4 bg-green-50/30 border-t border-b border-green-200">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.name", { defaultValue: "Name" })} *
+            </label>
+            <input
+              className={inputCompact}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.code", { defaultValue: "Code" })} *
+            </label>
+            <input
+              className={inputCompact}
+              value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.contactPerson", { defaultValue: "Contact Person" })}
+            </label>
+            <input
+              className={inputCompact}
+              value={form.contact_person}
+              onChange={(e) => setForm({ ...form, contact_person: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.phone", { defaultValue: "Phone" })}
+            </label>
+            <input
+              className={inputCompact}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.email", { defaultValue: "Email" })}
+            </label>
+            <input
+              className={inputCompact}
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.address", { defaultValue: "Address" })}
+            </label>
+            <input
+              className={inputCompact}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t("logistics.form.notes", { defaultValue: "Notes" })}
+            </label>
+            <input
+              className={inputCompact}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 items-center mt-3">
+          <button
+            disabled={saving}
+            onClick={async () => {
+              if (!form.name.trim() || !form.code.trim()) {
+                showToast("error", t("logistics.form.requiredFields", { defaultValue: "Name and code are required." }));
+                return;
+              }
+              setSaving(true);
+              try {
+                onSave({
+                  ...item,
+                  name: form.name.trim(),
+                  code: form.code.trim(),
+                  contact_person: form.contact_person.trim() || null,
+                  phone: form.phone.trim() || null,
+                  email: form.email.trim() || null,
+                  address: form.address.trim() || null,
+                  notes: form.notes.trim() || null,
+                });
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="px-4 py-1.5 text-sm bg-green-600 text-white rounded font-medium hover:bg-green-700 disabled:opacity-50"
+          >
+            {saving
+              ? t("logistics.form.saving", { defaultValue: "Saving..." })
+              : t("logistics.form.save", { defaultValue: "Save" })}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-1.5 text-sm border rounded font-medium hover:bg-gray-50"
+          >
+            {t("logistics.form.cancel", { defaultValue: "Cancel" })}
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleActive(item.id, !item.is_active)}
+            className={`px-4 py-1.5 text-sm border rounded font-medium ${
+              item.is_active
+                ? "text-amber-600 border-amber-200 hover:bg-amber-50"
+                : "text-green-600 border-green-200 hover:bg-green-50"
+            }`}
+          >
+            {item.is_active
+              ? t("logistics.inactive", { defaultValue: "Deactivate" })
+              : t("logistics.active", { defaultValue: "Activate" })}
+          </button>
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(t("logistics.deleteConfirm", { name: item.name, defaultValue: `Delete "${item.name}"? This cannot be undone.` }))) {
+                onDelete(item.id);
+              }
+            }}
+            className="px-4 py-1.5 text-sm text-red-600 border border-red-200 rounded font-medium hover:bg-red-50"
+          >
+            {t("logistics.delete", { defaultValue: "Delete" })}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ── Collapsible logistics section ─────────────────────────────────
+function LogisticsSection({
+  title,
+  items,
+  loading,
+  onReload,
+  onCreate,
+  onUpdate,
+  onDelete,
+  onToggleActive,
+}: LogisticsSectionProps) {
+  const { t } = useTranslation("shipping");
+  const [expanded, setExpanded] = useState(false);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    code: "",
+    contact_person: "",
+    phone: "",
+    email: "",
+    address: "",
+    notes: "",
+  });
+
+  const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
+
+  const filtered = useMemo(() => {
+    const rows = items.filter((item) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        (item.contact_person || "").toLowerCase().includes(q) ||
+        (item.email || "").toLowerCase().includes(q)
+      );
+    });
+    return sortRows(rows, sortCol, sortDir, {
+      name: (r) => r.name,
+      code: (r) => r.code,
+      contact_person: (r) => r.contact_person,
+      phone: (r) => r.phone,
+      email: (r) => r.email,
+      is_active: (r) => (r.is_active ? 1 : 0),
+    });
+  }, [items, search, sortCol, sortDir]);
+
+  const resetCreateForm = () => {
+    setCreateForm({ name: "", code: "", contact_person: "", phone: "", email: "", address: "", notes: "" });
+  };
+
+  const handleCreate = async () => {
+    if (!createForm.name.trim() || !createForm.code.trim()) {
+      showToast("error", t("logistics.form.requiredFields", { defaultValue: "Name and code are required." }));
+      return;
+    }
+    setCreating(true);
+    try {
+      await onCreate({
+        name: createForm.name.trim(),
+        code: createForm.code.trim(),
+        contact_person: createForm.contact_person.trim() || undefined,
+        phone: createForm.phone.trim() || undefined,
+        email: createForm.email.trim() || undefined,
+        address: createForm.address.trim() || undefined,
+        notes: createForm.notes.trim() || undefined,
+      });
+      showToast("success", t("logistics.created", { defaultValue: "Record created." }));
+      resetCreateForm();
+      setShowCreate(false);
+      onReload();
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("logistics.createFailed", { defaultValue: "Failed to create record." })));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSave = async (merged: LogisticsEntity) => {
+    try {
+      await onUpdate(merged.id, {
+        name: merged.name,
+        code: merged.code,
+        contact_person: merged.contact_person || undefined,
+        phone: merged.phone || undefined,
+        email: merged.email || undefined,
+        address: merged.address || undefined,
+        notes: merged.notes || undefined,
+      });
+      showToast("success", t("logistics.updated", { defaultValue: "Record updated." }));
+      setEditingId(null);
+      onReload();
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("logistics.updateFailed", { defaultValue: "Failed to update record." })));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await onDelete(id);
+      showToast("success", t("logistics.deleted", { defaultValue: "Record deleted." }));
+      setEditingId(null);
+      onReload();
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("logistics.deleteFailed", { defaultValue: "Failed to delete record." })));
+    }
+  };
+
+  const handleToggleActive = async (id: string, active: boolean) => {
+    try {
+      await onToggleActive(id, active);
+      showToast("success", t("logistics.updated", { defaultValue: "Record updated." }));
+      setEditingId(null);
+      onReload();
+    } catch (err) {
+      showToast("error", getErrorMessage(err, t("logistics.updateFailed", { defaultValue: "Failed to update record." })));
+    }
+  };
+
+  return (
+    <section className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-gray-400 text-sm select-none">{expanded ? "\u25BC" : "\u25B6"}</span>
+          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+            {items.length}
+          </span>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-6 pb-6 space-y-4">
+          {/* Toolbar: search + add button */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("logistics.search", { defaultValue: "Search by name, code, or contact..." })}
+              className="border rounded-lg px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              onClick={() => {
+                resetCreateForm();
+                setShowCreate(!showCreate);
+              }}
+              className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
+            >
+              {t("logistics.add", { defaultValue: "+ Add" })}
+            </button>
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Inline create form */}
+          {showCreate && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.name", { defaultValue: "Name" })} *
+                  </label>
+                  <input
+                    className={inputCompact}
+                    placeholder={t("logistics.form.namePlaceholder", { defaultValue: "e.g. Maersk" })}
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.code", { defaultValue: "Code" })} *
+                  </label>
+                  <input
+                    className={inputCompact}
+                    placeholder={t("logistics.form.codePlaceholder", { defaultValue: "e.g. MAER" })}
+                    value={createForm.code}
+                    onChange={(e) => setCreateForm({ ...createForm, code: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.contactPerson", { defaultValue: "Contact Person" })}
+                  </label>
+                  <input
+                    className={inputCompact}
+                    value={createForm.contact_person}
+                    onChange={(e) => setCreateForm({ ...createForm, contact_person: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.phone", { defaultValue: "Phone" })}
+                  </label>
+                  <input
+                    className={inputCompact}
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.email", { defaultValue: "Email" })}
+                  </label>
+                  <input
+                    className={inputCompact}
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.address", { defaultValue: "Address" })}
+                  </label>
+                  <input
+                    className={inputCompact}
+                    value={createForm.address}
+                    onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t("logistics.form.notes", { defaultValue: "Notes" })}
+                  </label>
+                  <input
+                    className={inputCompact}
+                    value={createForm.notes}
+                    onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={handleCreate}
+                  disabled={creating}
+                  className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
+                >
+                  {creating
+                    ? t("logistics.form.saving", { defaultValue: "Saving..." })
+                    : t("logistics.form.save", { defaultValue: "Save" })}
+                </button>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="px-4 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {t("logistics.form.cancel", { defaultValue: "Cancel" })}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Table */}
+          {loading ? (
+            <p className="text-gray-400 text-sm">{t("logistics.loading", { defaultValue: "Loading..." })}</p>
+          ) : items.length === 0 ? (
+            <p className="text-gray-400 text-sm">{t("logistics.empty", { defaultValue: "No records yet. Add one to get started." })}</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-gray-400 text-sm">{t("logistics.noMatch", { defaultValue: "No records match your search." })}</p>
+          ) : (
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead className="bg-gray-50 text-gray-600 select-none">
+                  <tr>
+                    <th className={`text-left px-4 py-2 font-medium ${sortableThClass}`} onClick={() => toggleSort("name")}>
+                      {t("logistics.headers.name", { defaultValue: "Name" })}{sortIndicator("name")}
+                    </th>
+                    <th className={`text-left px-4 py-2 font-medium ${sortableThClass}`} onClick={() => toggleSort("code")}>
+                      {t("logistics.headers.code", { defaultValue: "Code" })}{sortIndicator("code")}
+                    </th>
+                    <th className={`text-left px-4 py-2 font-medium ${sortableThClass}`} onClick={() => toggleSort("contact_person")}>
+                      {t("logistics.headers.contact", { defaultValue: "Contact Person" })}{sortIndicator("contact_person")}
+                    </th>
+                    <th className={`text-left px-4 py-2 font-medium ${sortableThClass}`} onClick={() => toggleSort("phone")}>
+                      {t("logistics.headers.phone", { defaultValue: "Phone" })}{sortIndicator("phone")}
+                    </th>
+                    <th className={`text-left px-4 py-2 font-medium ${sortableThClass}`} onClick={() => toggleSort("email")}>
+                      {t("logistics.headers.email", { defaultValue: "Email" })}{sortIndicator("email")}
+                    </th>
+                    <th className={`text-center px-4 py-2 font-medium ${sortableThClass}`} onClick={() => toggleSort("is_active")}>
+                      {t("logistics.headers.status", { defaultValue: "Status" })}{sortIndicator("is_active")}
+                    </th>
+                    <th className="px-4 py-2 font-medium" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filtered.map((item) => (
+                    <Fragment key={item.id}>
+                      <tr
+                        onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                        className={`cursor-pointer ${
+                          editingId === item.id
+                            ? "bg-green-50"
+                            : "hover:bg-green-50/50 even:bg-gray-50/50"
+                        }`}
+                      >
+                        <td className="px-4 py-2 font-medium">{item.name}</td>
+                        <td className="px-4 py-2 text-gray-500 font-mono text-xs">{item.code}</td>
+                        <td className="px-4 py-2 text-gray-500">{item.contact_person || "\u2014"}</td>
+                        <td className="px-4 py-2 text-gray-500">{item.phone || "\u2014"}</td>
+                        <td className="px-4 py-2 text-gray-500">{item.email || "\u2014"}</td>
+                        <td className="px-4 py-2 text-center">
+                          {item.is_active ? (
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                              {t("logistics.active", { defaultValue: "Active" })}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                              {t("logistics.inactive", { defaultValue: "Inactive" })}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <span className="text-xs text-gray-400">
+                            {editingId === item.id ? "Click to collapse" : "Click to edit"}
+                          </span>
+                        </td>
+                      </tr>
+                      {editingId === item.id && (
+                        <LogisticsEditRow
+                          key={`edit-${item.id}`}
+                          item={item}
+                          onSave={handleSave}
+                          onCancel={() => setEditingId(null)}
+                          onDelete={handleDelete}
+                          onToggleActive={handleToggleActive}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
   const diff = new Date(dateStr).getTime() - new Date().getTime();
@@ -26,7 +620,7 @@ function daysUntil(dateStr: string | null): number | null {
 
 function CutoffCell({ dateStr }: { dateStr: string | null }) {
   const { t } = useTranslation("shipping");
-  if (!dateStr) return <span className="text-gray-400">—</span>;
+  if (!dateStr) return <span className="text-gray-400">{"\u2014"}</span>;
 
   const days = daysUntil(dateStr)!;
   const formatted = new Date(dateStr).toLocaleDateString();
@@ -52,6 +646,8 @@ function CutoffCell({ dateStr }: { dateStr: string | null }) {
   return <span>{formatted}</span>;
 }
 
+// ── Main page component ──────────────────────────────────────────
+
 export default function ShippingSchedules() {
   const { t } = useTranslation("shipping");
   const { sortCol, sortDir, toggleSort, sortIndicator } = useTableSort();
@@ -60,6 +656,12 @@ export default function ShippingSchedules() {
   const [shippingLines, setShippingLines] = useState<ShippingLineOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Logistics entity state
+  const [allShippingLines, setAllShippingLines] = useState<ShippingLineOut[]>([]);
+  const [transporters, setTransporters] = useState<TransporterOut[]>([]);
+  const [shippingAgents, setShippingAgents] = useState<ShippingAgentOut[]>([]);
+  const [logisticsLoading, setLogisticsLoading] = useState(true);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
@@ -99,14 +701,25 @@ export default function ShippingSchedules() {
       .finally(() => setLoading(false));
   };
 
+  const loadLogistics = () => {
+    setLogisticsLoading(true);
+    Promise.all([listShippingLines(), listTransporters(), listShippingAgents()])
+      .then(([lines, trans, agents]) => {
+        setAllShippingLines(lines);
+        setShippingLines(lines.filter((l) => l.is_active));
+        setTransporters(trans);
+        setShippingAgents(agents);
+      })
+      .catch(() => {})
+      .finally(() => setLogisticsLoading(false));
+  };
+
   useEffect(() => {
     loadSchedules();
   }, [statusFilter, lineFilter]);
 
   useEffect(() => {
-    listShippingLines()
-      .then((lines) => setShippingLines(lines.filter((l) => l.is_active)))
-      .catch(() => {});
+    loadLogistics();
   }, []);
 
   // Client-side search
@@ -188,8 +801,22 @@ export default function ShippingSchedules() {
     }
   };
 
+  // Toggle active helpers for each entity type (backend uses PATCH with is_active)
+  const toggleShippingLineActive = async (id: string, active: boolean) => {
+    const { data } = await api.patch<ShippingLineOut>(`/shipping-lines/${id}`, { is_active: active });
+    return data;
+  };
+  const toggleTransporterActive = async (id: string, active: boolean) => {
+    const { data } = await api.patch<TransporterOut>(`/transporters/${id}`, { is_active: active });
+    return data;
+  };
+  const toggleShippingAgentActive = async (id: string, active: boolean) => {
+    const { data } = await api.patch<ShippingAgentOut>(`/shipping-agents/${id}`, { is_active: active });
+    return data;
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
       <PageHeader
         title={t("list.title")}
         subtitle={t("list.count", { count: filtered.length })}
@@ -420,7 +1047,7 @@ export default function ShippingSchedules() {
         />
       </div>
 
-      {/* ── Table ───────────────────────────────────────────── */}
+      {/* ── Schedules Table ──────────────────────────────────── */}
       {error ? (
         <p className="text-red-600 text-sm">{error}</p>
       ) : loading ? (
@@ -514,6 +1141,46 @@ export default function ShippingSchedules() {
           </table>
         </div>
       )}
+
+      {/* ── Logistics Management Sections ────────────────────── */}
+      <div className="space-y-4 pt-4">
+        <h2 className="text-lg font-semibold text-gray-800">
+          {t("logistics.sectionTitle", { defaultValue: "Logistics Partners" })}
+        </h2>
+
+        <LogisticsSection
+          title={t("logistics.shippingLines", { defaultValue: "Shipping Lines" })}
+          items={allShippingLines}
+          loading={logisticsLoading}
+          onReload={loadLogistics}
+          onCreate={createShippingLine}
+          onUpdate={updateShippingLine}
+          onDelete={deleteShippingLine}
+          onToggleActive={toggleShippingLineActive}
+        />
+
+        <LogisticsSection
+          title={t("logistics.transporters", { defaultValue: "Transporters" })}
+          items={transporters}
+          loading={logisticsLoading}
+          onReload={loadLogistics}
+          onCreate={createTransporter}
+          onUpdate={updateTransporter}
+          onDelete={deleteTransporter}
+          onToggleActive={toggleTransporterActive}
+        />
+
+        <LogisticsSection
+          title={t("logistics.shippingAgents", { defaultValue: "Shipping Agents" })}
+          items={shippingAgents}
+          loading={logisticsLoading}
+          onReload={loadLogistics}
+          onCreate={createShippingAgent}
+          onUpdate={updateShippingAgent}
+          onDelete={deleteShippingAgent}
+          onToggleActive={toggleShippingAgentActive}
+        />
+      </div>
     </div>
   );
 }

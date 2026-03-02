@@ -62,3 +62,20 @@ export async function updateTenantSettings(
   });
   return data;
 }
+
+// ── Transport configs ───────────────────────────────────────
+
+export interface TransportConfigItem {
+  id: string;
+  name: string;
+  container_type: string;
+  pallet_capacity?: number | null;
+  max_weight_kg?: number | null;
+  temp_setpoint_c?: number | null;
+  box_capacities: { box_size_id: string; box_size_name?: string | null; max_boxes: number }[];
+}
+
+export async function listTransportConfigs(): Promise<TransportConfigItem[]> {
+  const { data } = await api.get<TransportConfigItem[]>("/config/transport-configs");
+  return data;
+}

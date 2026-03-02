@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.auth.permissions import has_permission
 from app.utils.locks import get_batch_locks, LOT_QUANTITY_FIELDS
 from app.database import get_db, get_tenant_db
@@ -43,7 +44,7 @@ from app.schemas.batch import (
 from app.schemas.common import CursorPaginatedResponse, PaginatedResponse
 from app.services.grn import create_grn
 from app.utils.activity import log_activity
-from app.utils.cache import cached, invalidate_cache
+from app.utils.cache import invalidate_cache
 
 router = APIRouter()
 
@@ -56,6 +57,7 @@ async def grn_intake(
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Create a new batch from a GRN (Goods Received Note) intake.
 
@@ -64,6 +66,9 @@ async def grn_intake(
 
     Returns the batch details plus a QR code stub URL for traceability.
     """
+    if packhouse_scope is not None and body.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=403, detail="Packhouse not in scope")
+
     try:
         result = await create_grn(body, user_id=user.id, db=db)
     except ValueError as exc:
@@ -104,7 +109,6 @@ async def grn_intake(
 # ── List batches ─────────────────────────────────────────────
 
 @router.get("/", response_model=CursorPaginatedResponse[BatchSummary])
-@cached(ttl=60, prefix="batches")  # Cache for 1 minute (batches change frequently)
 async def list_batches(
     grower_id: str | None = Query(None),
     harvest_team_id: str | None = Query(None),
@@ -118,9 +122,13 @@ async def list_batches(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     # Build base query with filters
     base_stmt = select(Batch).where(Batch.is_deleted == False)  # noqa: E712
+
+    if packhouse_scope is not None:
+        base_stmt = base_stmt.where(Batch.packhouse_id.in_(packhouse_scope))
 
     if grower_id:
         base_stmt = base_stmt.where(Batch.grower_id == grower_id)
@@ -192,6 +200,7 @@ async def get_batch(
     public_db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     # Load batch with grower, packhouse, lots (but NOT history — loaded separately with limit)
     result = await db.execute(
@@ -206,6 +215,8 @@ async def get_batch(
     )
     batch = result.scalar_one_or_none()
     if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     # Load history separately — last 50 events only (uses (batch_id, recorded_at) index)
@@ -306,6 +317,7 @@ async def update_batch(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     # Financial fields require financials.write permission
     financial_fields = {"payment_routing", "harvest_rate_per_kg"}
@@ -325,6 +337,8 @@ async def update_batch(
     )
     batch = result.scalar_one_or_none()
     if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     # ── Downstream lock check ─────────────────────────────────
@@ -358,6 +372,7 @@ async def close_production_run(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Close a batch production run.
 
@@ -371,6 +386,8 @@ async def close_production_run(
     )
     batch = result.scalar_one_or_none()
     if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     if batch.status == "complete":
@@ -425,6 +442,7 @@ async def reopen_production_run(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Reopen a closed production run to allow further edits.
 
@@ -438,6 +456,8 @@ async def reopen_production_run(
     )
     batch = result.scalar_one_or_none()
     if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     if batch.status != "complete":
@@ -470,6 +490,7 @@ async def finalize_grn(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.write")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Finalize a GRN after production run is closed.
 
@@ -483,6 +504,8 @@ async def finalize_grn(
     )
     batch = result.scalar_one_or_none()
     if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     if batch.status == "completed":
@@ -534,14 +557,14 @@ async def finalize_grn(
 async def delete_batch(
     batch_id: str,
     db: AsyncSession = Depends(get_tenant_db),
-    _user: User = Depends(require_permission("batch.write")),
+    _user: User = Depends(require_permission("batch.delete")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Soft-delete a batch (GRN) and all its lots.
 
-    Marks the batch and its lots as is_deleted=True. Does not remove
-    any associated pallet allocations — the pallet detail pages will
-    simply show the lots as deleted.
+    Blocked if any lots have palletized boxes. Requires batch.delete
+    permission. Marks the batch and its lots as is_deleted=True.
     """
     result = await db.execute(
         select(Batch)
@@ -551,6 +574,24 @@ async def delete_batch(
     batch = result.scalar_one_or_none()
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    if packhouse_scope is not None and batch.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Block delete if any lots have palletized boxes
+    lot_ids = [lot.id for lot in (batch.lots or [])]
+    if lot_ids:
+        pal_result = await db.execute(
+            select(func.count()).where(
+                PalletLot.lot_id.in_(lot_ids),
+                PalletLot.is_deleted == False,  # noqa: E712
+            )
+        )
+        palletized_count = pal_result.scalar() or 0
+        if palletized_count > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete batch with palletized lots. Remove pallet allocations first.",
+            )
 
     batch.is_deleted = True
     for lot in (batch.lots or []):

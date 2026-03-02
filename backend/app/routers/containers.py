@@ -1,18 +1,27 @@
 """Container management router.
 
 Endpoints:
-    POST  /api/containers/                     Create empty container
-    POST  /api/containers/from-pallets         Create container and assign pallets
-    POST  /api/containers/{id}/load-pallets    Load pallets into existing container
-    GET   /api/containers/                     List containers (with filters)
-    GET   /api/containers/{container_id}       Detail with pallets + traceability
-    GET   /api/containers/{container_id}/qr    QR code SVG for container
+    POST   /api/containers/                     Create empty container
+    POST   /api/containers/from-pallets         Create container and assign pallets
+    POST   /api/containers/{id}/load-pallets    Load pallets into existing container
+    POST   /api/containers/{id}/mark-loaded     Transition loading → loaded
+    POST   /api/containers/{id}/seal            Transition loaded → sealed
+    POST   /api/containers/{id}/dispatch        Transition sealed → dispatched
+    POST   /api/containers/{id}/export          Transition dispatched → in_transit
+    POST   /api/containers/{id}/arrive          Transition in_transit → arrived
+    POST   /api/containers/{id}/deliver         Transition arrived → delivered
+    POST   /api/containers/{id}/revert          Step back one status
+    GET    /api/containers/                     List containers (with filters)
+    GET    /api/containers/{container_id}       Detail with pallets + traceability
+    GET    /api/containers/{container_id}/qr    QR code SVG for container
+    PATCH  /api/containers/{container_id}       Update container details
+    DELETE /api/containers/{container_id}       Soft-delete container
 """
 
 import io
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -22,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_permission
+from app.auth.packhouse_scope import get_packhouse_scope
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.models.tenant.client import Client
@@ -37,7 +47,9 @@ from app.schemas.container import (
     ContainerSummary,
     ContainerUpdate,
     CreateEmptyContainerRequest,
+    ExportContainerRequest,
     LoadPalletsRequest,
+    SealContainerRequest,
     TraceBatch,
     TraceLot,
     TracePallet,
@@ -50,13 +62,38 @@ router = APIRouter()
 
 
 def _container_summary(container: Container) -> ContainerSummary:
-    """Build a ContainerSummary with denormalized relationship names."""
+    """Build a ContainerSummary with denormalized relationship names + overdue flag."""
     s = ContainerSummary.model_validate(container)
     if container.transporter:
         s.transporter_name = container.transporter.name
     if container.shipping_agent:
         s.shipping_agent_name = container.shipping_agent.name
+    if container.shipping_line:
+        s.shipping_line_name = container.shipping_line.name
+    s.is_overdue = (
+        container.status in ("dispatched", "in_transit")
+        and container.eta is not None
+        and container.eta < date.today()
+    )
     return s
+
+
+async def _load_container(
+    db: AsyncSession, container_id: str, packhouse_scope: list[str] | None,
+) -> Container:
+    """Load a single container with scope check, raising 404 if not found."""
+    result = await db.execute(
+        select(Container).where(
+            Container.id == container_id,
+            Container.is_deleted == False,  # noqa: E712
+        )
+    )
+    container = result.scalar_one_or_none()
+    if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+    if packhouse_scope is not None and container.packhouse_id and container.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Container not found")
+    return container
 
 
 async def _resolve_client(db: AsyncSession, client_id: str | None) -> tuple[str | None, str | None]:
@@ -77,6 +114,7 @@ async def create_empty_container(
     body: CreateEmptyContainerRequest,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Create an empty container (no pallets yet — load them later)."""
     client_id, customer_name = await _resolve_client(db, body.client_id)
@@ -95,6 +133,10 @@ async def create_empty_container(
         seal_number=body.seal_number,
         transporter_id=body.transporter_id,
         shipping_agent_id=body.shipping_agent_id,
+        shipping_line_id=body.shipping_line_id,
+        vessel_name=body.vessel_name,
+        voyage_number=body.voyage_number,
+        eta=body.eta,
         pallet_count=0,
         total_cartons=0,
         status="open",
@@ -122,6 +164,7 @@ async def create_container_from_pallets(
     body: ContainerFromPalletsRequest,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Create a container and assign pallets to it."""
     # Resolve client if provided
@@ -146,6 +189,15 @@ async def create_container_from_pallets(
             status_code=404,
             detail=f"Pallets not found: {', '.join(missing[:3])}",
         )
+
+    # Check pallets are within packhouse scope
+    if packhouse_scope is not None:
+        out_of_scope = [p.pallet_number for p in pallets if p.packhouse_id not in packhouse_scope]
+        if out_of_scope:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Pallets not in scope: {', '.join(out_of_scope[:3])}",
+            )
 
     # Check pallets aren't already in a container
     already_loaded = [p.pallet_number for p in pallets if p.container_id]
@@ -173,6 +225,10 @@ async def create_container_from_pallets(
         seal_number=body.seal_number,
         transporter_id=body.transporter_id,
         shipping_agent_id=body.shipping_agent_id,
+        shipping_line_id=body.shipping_line_id,
+        vessel_name=body.vessel_name,
+        voyage_number=body.voyage_number,
+        eta=body.eta,
         pallet_count=len(pallets),
         total_cartons=total_cartons,
         gross_weight_kg=total_weight if total_weight else None,
@@ -212,6 +268,7 @@ async def load_pallets_into_container(
     body: LoadPalletsRequest,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Load pallets into an existing container."""
     result = await db.execute(
@@ -223,8 +280,10 @@ async def load_pallets_into_container(
     container = result.scalar_one_or_none()
     if not container:
         raise HTTPException(status_code=404, detail="Container not found")
+    if packhouse_scope is not None and container.packhouse_id and container.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Container not found")
 
-    if container.status in ("sealed", "dispatched", "delivered"):
+    if container.status in ("loaded", "sealed", "dispatched", "in_transit", "arrived", "delivered"):
         raise HTTPException(
             status_code=422,
             detail=f"Cannot load pallets — container is {container.status}",
@@ -304,6 +363,7 @@ async def update_container(
     body: ContainerUpdate,
     db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     """Update container details (type, customer, destination, etc.)."""
     result = await db.execute(
@@ -314,6 +374,8 @@ async def update_container(
     )
     container = result.scalar_one_or_none()
     if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+    if packhouse_scope is not None and container.packhouse_id and container.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Container not found")
 
     # ── Downstream lock check ─────────────────────────────────
@@ -369,31 +431,45 @@ async def list_containers(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     base = select(Container).where(Container.is_deleted == False)  # noqa: E712
+
+    if packhouse_scope is not None:
+        base = base.where(Container.packhouse_id.in_(packhouse_scope))
     if status:
         base = base.where(Container.status == status)
     if customer:
         base = base.where(Container.customer_name.ilike(f"%{customer}%"))
     if search:
         q = f"%{search}%"
-        base = (
-            base
+        matching_ids = (
+            select(Container.id)
             .outerjoin(Pallet, (Pallet.container_id == Container.id) & (Pallet.is_deleted == False))  # noqa: E712
             .outerjoin(PalletLot, (PalletLot.pallet_id == Pallet.id) & (PalletLot.is_deleted == False))  # noqa: E712
             .outerjoin(Lot, Lot.id == PalletLot.lot_id)
             .outerjoin(Batch, Batch.id == Lot.batch_id)
-            .where(or_(
-                Container.container_number.ilike(q),
-                Container.customer_name.ilike(q),
-                Container.destination.ilike(q),
-                Container.shipping_container_number.ilike(q),
-                Pallet.pallet_number.ilike(q),
-                Lot.lot_code.ilike(q),
-                Batch.batch_code.ilike(q),
-            ))
+            .where(
+                Container.is_deleted == False,  # noqa: E712
+                or_(
+                    Container.container_number.ilike(q),
+                    Container.customer_name.ilike(q),
+                    Container.destination.ilike(q),
+                    Container.shipping_container_number.ilike(q),
+                    Pallet.pallet_number.ilike(q),
+                    Lot.lot_code.ilike(q),
+                    Batch.batch_code.ilike(q),
+                ),
+            )
             .distinct()
         )
+        if packhouse_scope is not None:
+            matching_ids = matching_ids.where(Container.packhouse_id.in_(packhouse_scope))
+        if status:
+            matching_ids = matching_ids.where(Container.status == status)
+        if customer:
+            matching_ids = matching_ids.where(Container.customer_name.ilike(f"%{customer}%"))
+        base = select(Container).where(Container.id.in_(matching_ids))
 
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
@@ -460,6 +536,7 @@ async def get_container(
     db: AsyncSession = Depends(get_tenant_db),
     _user: User = Depends(require_permission("batch.read")),
     _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
 ):
     result = await db.execute(
         select(Container)
@@ -469,10 +546,17 @@ async def get_container(
             .selectinload(Pallet.pallet_lots)
             .selectinload(PalletLot.lot)
             .selectinload(Lot.box_size),
+            selectinload(Container.pallets)
+            .selectinload(Pallet.pallet_lots)
+            .selectinload(PalletLot.lot)
+            .selectinload(Lot.batch)
+            .selectinload(Batch.grower),
         )
     )
     container = result.scalar_one_or_none()
     if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+    if packhouse_scope is not None and container.packhouse_id and container.packhouse_id not in packhouse_scope:
         raise HTTPException(status_code=404, detail="Container not found")
 
     detail = ContainerDetail.model_validate(container)
@@ -480,6 +564,13 @@ async def get_container(
         detail.transporter_name = container.transporter.name
     if container.shipping_agent:
         detail.shipping_agent_name = container.shipping_agent.name
+    if container.shipping_line:
+        detail.shipping_line_name = container.shipping_line.name
+    detail.is_overdue = (
+        container.status in ("dispatched", "in_transit")
+        and container.eta is not None
+        and container.eta < date.today()
+    )
 
     # Build traceability: container → pallets → lots → batches → growers
     trace_pallets: list[TracePallet] = []
@@ -557,3 +648,316 @@ async def get_container_qr(
     buf = io.BytesIO()
     qr.save(buf, kind="svg", scale=4, dark="#15803d")
     return Response(content=buf.getvalue(), media_type="image/svg+xml")
+
+
+# ── DELETE /api/containers/{container_id} ─────────────────────
+
+@router.delete("/{container_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_container(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("pallet.delete")),
+    _onboarded: User = Depends(require_onboarded),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Soft-delete a container.
+
+    Only allowed when status is 'open' or 'loading' with 0 pallets.
+    Containers that are 'sealed', 'dispatched', or 'delivered' cannot be deleted.
+    """
+    result = await db.execute(
+        select(Container).where(
+            Container.id == container_id,
+            Container.is_deleted == False,  # noqa: E712
+        )
+    )
+    container = result.scalar_one_or_none()
+    if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+    if packhouse_scope is not None and container.packhouse_id and container.packhouse_id not in packhouse_scope:
+        raise HTTPException(status_code=404, detail="Container not found")
+
+    # Block delete for containers past loading stage
+    if container.status in ("loaded", "sealed", "dispatched", "in_transit", "arrived", "delivered"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete container with status '{container.status}'. "
+                   "Only open or empty loading containers can be deleted.",
+        )
+
+    # Block delete for loading containers that still have pallets
+    if container.status == "loading" and container.pallet_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete container with {container.pallet_count} loaded pallet(s). "
+                   "Unload all pallets first.",
+        )
+
+    container.is_deleted = True
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user,
+        action="deleted",
+        entity_type="container",
+        entity_id=container.id,
+        entity_code=container.container_number,
+        summary=f"Deleted container {container.container_number}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# STATUS TRANSITION ENDPOINTS
+# ══════════════════════════════════════════════════════════════
+
+# Allowed forward transitions: current_status → next_status
+_FORWARD_TRANSITIONS: dict[str, str] = {
+    "loading": "loaded",
+    "loaded": "sealed",
+    "sealed": "dispatched",
+    "dispatched": "in_transit",
+    "in_transit": "arrived",
+    "arrived": "delivered",
+}
+
+# Allowed backward transitions for revert
+_BACKWARD_TRANSITIONS: dict[str, str] = {
+    "loaded": "loading",
+    "sealed": "loaded",
+    "dispatched": "sealed",
+    "in_transit": "dispatched",
+    "arrived": "in_transit",
+}
+
+
+@router.post("/{container_id}/mark-loaded", response_model=ContainerSummary)
+async def mark_container_loaded(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Transition loading → loaded. Container must have at least 1 pallet."""
+    container = await _load_container(db, container_id, packhouse_scope)
+    if container.status != "loading":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot mark as loaded — container is '{container.status}', expected 'loading'",
+        )
+    if container.pallet_count < 1:
+        raise HTTPException(
+            status_code=422, detail="Cannot mark as loaded — container has no pallets",
+        )
+
+    container.status = "loaded"
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Marked {container.container_number} as loaded ({container.pallet_count} pallets)",
+    )
+    return _container_summary(container)
+
+
+@router.post("/{container_id}/seal", response_model=ContainerSummary)
+async def seal_container(
+    container_id: str,
+    body: SealContainerRequest,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Transition loaded → sealed. Requires seal number."""
+    container = await _load_container(db, container_id, packhouse_scope)
+    if container.status != "loaded":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot seal — container is '{container.status}', expected 'loaded'",
+        )
+
+    container.status = "sealed"
+    container.seal_number = body.seal_number
+    container.sealed_at = datetime.utcnow()
+    container.sealed_by = user.full_name
+    if body.temp_setpoint_c is not None:
+        container.temp_setpoint_c = body.temp_setpoint_c
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Sealed {container.container_number} (seal: {body.seal_number})",
+        details={"seal_number": body.seal_number},
+    )
+    return _container_summary(container)
+
+
+@router.post("/{container_id}/dispatch", response_model=ContainerSummary)
+async def dispatch_container(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Transition sealed → dispatched. Records dispatch timestamp."""
+    container = await _load_container(db, container_id, packhouse_scope)
+    if container.status != "sealed":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot dispatch — container is '{container.status}', expected 'sealed'",
+        )
+
+    container.status = "dispatched"
+    container.dispatched_at = datetime.utcnow()
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Dispatched {container.container_number}",
+    )
+    return _container_summary(container)
+
+
+@router.post("/{container_id}/export", response_model=ContainerSummary)
+async def export_container(
+    container_id: str,
+    body: ExportContainerRequest,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Transition dispatched → in_transit. Optionally sets vessel/shipping line/ETA."""
+    container = await _load_container(db, container_id, packhouse_scope)
+    if container.status != "dispatched":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot mark exported — container is '{container.status}', expected 'dispatched'",
+        )
+
+    container.status = "in_transit"
+    if body.vessel_name is not None:
+        container.vessel_name = body.vessel_name
+    if body.voyage_number is not None:
+        container.voyage_number = body.voyage_number
+    if body.shipping_line_id is not None:
+        container.shipping_line_id = body.shipping_line_id
+    if body.eta is not None:
+        container.eta = body.eta
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Marked {container.container_number} as exported / in transit",
+        details={"vessel_name": container.vessel_name, "voyage_number": container.voyage_number},
+    )
+    return _container_summary(container)
+
+
+@router.post("/{container_id}/arrive", response_model=ContainerSummary)
+async def arrive_container(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Transition in_transit → arrived. Records arrival timestamp."""
+    container = await _load_container(db, container_id, packhouse_scope)
+    if container.status != "in_transit":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot mark arrived — container is '{container.status}', expected 'in_transit'",
+        )
+
+    container.status = "arrived"
+    container.arrived_at = datetime.utcnow()
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Container {container.container_number} arrived at destination",
+    )
+    return _container_summary(container)
+
+
+@router.post("/{container_id}/deliver", response_model=ContainerSummary)
+async def deliver_container(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Transition arrived → delivered. Confirms client received the container."""
+    container = await _load_container(db, container_id, packhouse_scope)
+    if container.status != "arrived":
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot confirm delivery — container is '{container.status}', expected 'arrived'",
+        )
+
+    container.status = "delivered"
+    container.delivered_at = datetime.utcnow()
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Container {container.container_number} delivered to client",
+    )
+    return _container_summary(container)
+
+
+@router.post("/{container_id}/revert", response_model=ContainerSummary)
+async def revert_container_status(
+    container_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    user: User = Depends(require_permission("batch.write")),
+    packhouse_scope: list[str] | None = Depends(get_packhouse_scope),
+):
+    """Step container back one status for corrections."""
+    container = await _load_container(db, container_id, packhouse_scope)
+
+    prev_status = _BACKWARD_TRANSITIONS.get(container.status)
+    if not prev_status:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot revert — container status '{container.status}' has no previous step",
+        )
+
+    lock_info = await get_container_locks(db, container)
+    if lock_info.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot revert: container is locked by a downstream export",
+        )
+
+    old_status = container.status
+    container.status = prev_status
+    # Clear timestamps for the reverted status
+    if old_status == "sealed":
+        container.seal_number = None
+        container.sealed_at = None
+        container.sealed_by = None
+    elif old_status == "dispatched":
+        container.dispatched_at = None
+    elif old_status == "arrived":
+        container.arrived_at = None
+    container.updated_at = datetime.utcnow()
+    await db.flush()
+
+    await log_activity(
+        db, user, action="status_change", entity_type="container",
+        entity_id=container.id, entity_code=container.container_number,
+        summary=f"Reverted {container.container_number} from '{old_status}' to '{prev_status}'",
+    )
+    return _container_summary(container)

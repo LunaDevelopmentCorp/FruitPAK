@@ -316,6 +316,10 @@ async def _upsert_growers(
             if added:
                 # Assign new list so SQLAlchemy detects the JSON change
                 grower.fields = current_fields
+                # Auto-sum total_hectares from fields
+                field_sum = sum(f.get("hectares") or 0 for f in current_fields if isinstance(f, dict))
+                if field_sum > 0:
+                    grower.total_hectares = round(field_sum, 2)
                 updated += 1
         else:
             # New grower — take grower-level data from first row
@@ -326,6 +330,11 @@ async def _upsert_growers(
                 if val is not None:
                     grower_data[key] = val
             grower_data["fields"] = new_fields if new_fields else []
+            # Auto-sum total_hectares from fields if not explicitly provided
+            if "total_hectares" not in grower_data or grower_data["total_hectares"] is None:
+                field_sum = sum(f.get("hectares") or 0 for f in (new_fields or []) if isinstance(f, dict))
+                if field_sum > 0:
+                    grower_data["total_hectares"] = round(field_sum, 2)
 
             grower = Grower(**grower_data)
             db.add(grower)

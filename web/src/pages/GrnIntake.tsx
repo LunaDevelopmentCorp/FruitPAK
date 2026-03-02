@@ -23,6 +23,7 @@ import BatchQR from "../components/BatchQR";
 import { getErrorMessage } from "../api/client";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
 import { showToast as globalToast } from "../store/toastStore";
+import { usePackhouseStore } from "../store/packhouseStore";
 import PageHeader from "../components/PageHeader";
 
 const inputBase =
@@ -37,6 +38,7 @@ interface FieldError {
 
 export default function GrnIntake() {
   const { t } = useTranslation("grn");
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const [growers, setGrowers] = useState<Grower[]>([]);
   const [packhouses, setPackhouses] = useState<Packhouse[]>([]);
   const [fruitConfigs, setFruitConfigs] = useState<FruitTypeConfig[]>([]);
@@ -125,7 +127,15 @@ export default function GrnIntake() {
         setError(t("loadError"));
       })
       .finally(() => setLoadingRef(false));
-  }, []);
+  }, [currentPackhouseId]);
+
+  // Auto-select packhouse from global picker
+  useEffect(() => {
+    if (currentPackhouseId && packhouses.length > 0) {
+      const match = packhouses.find((p) => p.id === currentPackhouseId);
+      if (match) setValue("packhouse_id", currentPackhouseId);
+    }
+  }, [currentPackhouseId, packhouses, setValue]);
 
   // Auto-dismiss toast
   useEffect(() => {

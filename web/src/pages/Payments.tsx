@@ -6,6 +6,7 @@ import { getErrorMessage } from "../api/client";
 import { getCurrencySymbol } from "../constants/currencies";
 import { useFinancialConfig } from "../hooks/useFinancialConfig";
 import { useTableSort, sortRows, sortableThClass } from "../hooks/useTableSort";
+import { usePackhouseStore } from "../store/packhouseStore";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
@@ -32,6 +33,7 @@ interface FieldError {
 
 export default function Payments() {
   const { t } = useTranslation("payments");
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const { baseCurrency } = useFinancialConfig();
 
   // ── Tab ───────────────────────────────────────────────────
@@ -110,7 +112,7 @@ export default function Payments() {
         setError(t("grower.loadError"));
       })
       .finally(() => setLoadingRef(false));
-  }, []);
+  }, [currentPackhouseId]);
 
   // Reset batch selection when grower changes
   useEffect(() => {

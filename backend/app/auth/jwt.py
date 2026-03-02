@@ -23,6 +23,7 @@ def create_access_token(
     role: str,
     permissions: list[str],
     tenant_schema: str | None = None,
+    assigned_packhouses: list[str] | None = None,
     expires_delta: timedelta | None = None,
 ) -> str:
     expire = datetime.now(timezone.utc) + (
@@ -37,6 +38,8 @@ def create_access_token(
     }
     if tenant_schema:
         payload["tenant_schema"] = tenant_schema
+    if assigned_packhouses is not None:
+        payload["assigned_packhouses"] = assigned_packhouses
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 

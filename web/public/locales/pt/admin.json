@@ -3,6 +3,7 @@
   "tabs": {
     "overview": "Visão Geral",
     "users": "Utilizadores",
+    "roles": "Funções",
     "activity": "Atividade",
     "deletedItems": "Itens Excluídos"
   },
@@ -74,6 +75,11 @@
       },
       "assignedPackhouses": "Packhouses Atribuídas",
       "packhouseHelp": "Deixe vazio para acesso a todas as packhouses",
+      "customRole": "Função Personalizada",
+      "noCustomRole": "Nenhuma (usar padrões da função)",
+      "customRoleHelp": "Substitui as permissões da função base por este modelo",
+      "permissionOverrides": "Exceções de Permissões",
+      "overridesHelp": "Conceder ou revogar permissões individuais apenas para este utilizador",
       "saveChanges": "Salvar Alterações",
       "createUser": "Criar Utilizador"
     },
@@ -88,6 +94,43 @@
       "created": "Utilizador {{name}} criado",
       "deactivated": "{{name}} desativado",
       "reactivated": "{{name}} reativado"
+    }
+  },
+  "roles": {
+    "title": "Gestão de Funções",
+    "builtinTitle": "Funções Integradas",
+    "customTitle": "Funções Personalizadas",
+    "newRole": "+ Nova Função",
+    "loading": "Carregando funções...",
+    "loadFailed": "Falha ao carregar funções",
+    "empty": "Nenhuma função personalizada. Crie uma para começar.",
+    "permCount_one": "{{count}} permissão",
+    "permCount_other": "{{count}} permissões",
+    "headers": {
+      "name": "Nome",
+      "description": "Descrição",
+      "users": "Utilizadores",
+      "status": "Estado"
+    },
+    "modal": {
+      "newTitle": "Nova Função Personalizada",
+      "editTitle": "Editar Função Personalizada",
+      "name": "Nome da Função *",
+      "description": "Descrição",
+      "startFrom": "Partir de uma função integrada",
+      "startFromNone": "Nenhuma (começar vazio)",
+      "permissions": "Permissões",
+      "save": "Salvar Função",
+      "create": "Criar Função"
+    },
+    "delete": {
+      "title": "Excluir Função?",
+      "text": "Isto irá desativar a função \"{{name}}\". Não pode ser excluída enquanto houver utilizadores atribuídos."
+    },
+    "toast": {
+      "created": "Função {{name}} criada",
+      "updated": "Função {{name}} atualizada",
+      "deleted": "Função {{name}} excluída"
     }
   },
   "activity": {

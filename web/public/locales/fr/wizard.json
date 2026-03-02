@@ -188,7 +188,9 @@
     "agentCode": "Code",
     "contactPerson": "Contact",
     "phone": "Telephone",
-    "email": "Email"
+    "email": "Email",
+    "boxCapacities": "Capacites par type de carton",
+    "boxCapacitiesHelp": "Definir le nombre maximum de cartons par taille de carton que ce type de conteneur peut contenir. Laisser vide pour aucune limite."
   },
   "step8": {
     "optional": "Cette etape est facultative. Vous pouvez la passer et configurer les parametres financiers plus tard.",

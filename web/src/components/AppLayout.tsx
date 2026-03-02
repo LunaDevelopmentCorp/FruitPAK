@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../store/authStore";
 import LanguageSelector from "./LanguageSelector";
+import PackhousePicker from "./PackhousePicker";
 
 interface NavLink {
   to: string;
@@ -82,6 +83,7 @@ export default function AppLayout() {
       : [{ headingKey: "", items: [{ to: "/setup", labelKey: "nav.setupWizard" }] }];
 
   const handleLogout = () => {
+    localStorage.removeItem("current_packhouse_id");
     logout();
     navigate("/login");
   };
@@ -184,13 +186,14 @@ export default function AppLayout() {
               />
             </svg>
           </button>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 flex-1">
             {sections
               .flatMap((s) => s.items)
               .find((item) => isActive(item.to))
               ? t(sections.flatMap((s) => s.items).find((item) => isActive(item.to))!.labelKey)
               : ""}
           </div>
+          <PackhousePicker />
         </header>
 
         {/* Page content */}

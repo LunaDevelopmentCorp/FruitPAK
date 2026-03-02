@@ -58,6 +58,45 @@ async def _resolve_enterprise_info(
     return row.tenant_schema, row.is_onboarded
 
 
+async def _load_custom_role_permissions(
+    tenant_schema: str | None, custom_role_id: str | None
+) -> list[str] | None:
+    """Load custom role permissions from the tenant schema.
+
+    Returns the permission list, or None if no custom role is assigned
+    or the role doesn't exist / is inactive.
+    """
+    if not custom_role_id or not tenant_schema:
+        return None
+
+    from sqlalchemy import text as sa_text
+    from app.database import async_session
+    from app.models.tenant.custom_role import CustomRole
+
+    async with async_session() as session:
+        await session.execute(sa_text(f'SET search_path TO "{tenant_schema}", pg_catalog'))
+        result = await session.execute(
+            select(CustomRole.permissions).where(
+                CustomRole.id == custom_role_id,
+                CustomRole.is_active == True,  # noqa: E712
+            )
+        )
+        row = result.scalar_one_or_none()
+        return row if row else None
+
+
+async def _resolve_user_permissions(
+    user: User, tenant_schema: str | None
+) -> list[str]:
+    """Resolve effective permissions for a user, including custom role."""
+    custom_role_perms = await _load_custom_role_permissions(
+        tenant_schema, user.custom_role_id
+    )
+    return resolve_permissions(
+        user.role.value, custom_role_perms, user.custom_permissions
+    )
+
+
 def _build_user_out(
     user: User, permissions: list[str], is_onboarded: bool = False
 ) -> UserOut:
@@ -88,6 +127,7 @@ def _build_token_response(
             role=user.role.value,
             permissions=permissions,
             tenant_schema=tenant_schema,
+            assigned_packhouses=user.assigned_packhouses,
         ),
         refresh_token=create_refresh_token(
             user_id=user.id,
@@ -144,7 +184,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     # Platform admins are always considered onboarded
     if user.role == UserRole.PLATFORM_ADMIN:
         is_onboarded = True
-    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    permissions = await _resolve_user_permissions(user, tenant_schema)
     return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
 
@@ -196,7 +236,7 @@ async def otp_verify(body: OTPVerify, db: AsyncSession = Depends(get_db)):
         await db.flush()
 
     tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
-    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    permissions = await _resolve_user_permissions(user, tenant_schema)
     return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
 
@@ -245,6 +285,7 @@ async def signup(
         role=role,
         enterprise_id=admin.enterprise_id,
         assigned_packhouses=body.assigned_packhouses,
+        custom_role_id=body.custom_role_id,
         created_by=admin.id,
     )
     db.add(user)
@@ -259,7 +300,8 @@ async def signup(
         summary=f"Created user {user.full_name} ({user.email}) with role {user.role.value}",
     )
 
-    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    tenant_schema, _ = await _resolve_enterprise_info(db, admin)
+    permissions = await _resolve_user_permissions(user, tenant_schema)
     return _build_user_out(user, permissions)
 
 
@@ -282,7 +324,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
     if user.role == UserRole.PLATFORM_ADMIN:
         is_onboarded = True
-    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    permissions = await _resolve_user_permissions(user, tenant_schema)
     return _build_token_response(user, permissions, tenant_schema, is_onboarded)
 
 
@@ -294,10 +336,10 @@ async def me(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the current authenticated user's profile and permissions."""
-    _, is_onboarded = await _resolve_enterprise_info(db, user)
+    tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
     if user.role == UserRole.PLATFORM_ADMIN:
         is_onboarded = True
-    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    permissions = await _resolve_user_permissions(user, tenant_schema)
     return _build_user_out(user, permissions, is_onboarded)
 
 
@@ -321,10 +363,10 @@ async def update_me(
 
     await db.flush()
 
-    _, is_onboarded = await _resolve_enterprise_info(db, user)
+    tenant_schema, is_onboarded = await _resolve_enterprise_info(db, user)
     if user.role == UserRole.PLATFORM_ADMIN:
         is_onboarded = True
-    permissions = resolve_permissions(user.role.value, user.custom_permissions)
+    permissions = await _resolve_user_permissions(user, tenant_schema)
     return _build_user_out(user, permissions, is_onboarded)
 
 

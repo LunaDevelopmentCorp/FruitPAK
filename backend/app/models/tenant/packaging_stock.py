@@ -11,15 +11,19 @@ manual adjustments.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import TenantBase
 
 
 class PackagingStock(TenantBase):
-    """Current inventory level per packaging type."""
+    """Current inventory level per packaging type per packhouse."""
     __tablename__ = "packaging_stock"
+    __table_args__ = (
+        UniqueConstraint("box_size_id", "packhouse_id", name="uq_packaging_stock_box_packhouse"),
+        UniqueConstraint("pallet_type_id", "packhouse_id", name="uq_packaging_stock_pallet_packhouse"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
@@ -27,10 +31,15 @@ class PackagingStock(TenantBase):
 
     # Link to either a box size or pallet type (one must be set)
     box_size_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("box_sizes.id"), unique=True
+        String(36), ForeignKey("box_sizes.id")
     )
     pallet_type_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("pallet_types.id"), unique=True
+        String(36), ForeignKey("pallet_types.id")
+    )
+
+    # Packhouse scoping
+    packhouse_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("packhouses.id"), index=True
     )
 
     current_quantity: Mapped[int] = mapped_column(Integer, default=0)

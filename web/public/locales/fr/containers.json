@@ -81,6 +81,7 @@
     "loadSelected": "Charger la selection ({{count}})",
     "loadingButton": "Chargement...",
     "loaded": "{{count}} palette(s) chargee(s) dans le conteneur",
-    "loadFailed": "Echec du chargement des palettes"
+    "loadFailed": "Echec du chargement des palettes",
+    "forceOverride": "Ignorer les restrictions de capacite et de types mixtes"
   }
 }

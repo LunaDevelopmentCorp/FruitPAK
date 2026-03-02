@@ -34,6 +34,10 @@ ALL_PERMISSIONS: set[str] = {
     "users.write",            # create / edit users
     "users.delete",           # deactivate / remove users
 
+    # Role management
+    "roles.read",             # view custom role templates
+    "roles.manage",           # create / edit / delete role templates
+
     # Packhouse
     "packhouse.read",
     "packhouse.write",
@@ -78,6 +82,25 @@ ALL_PERMISSIONS: set[str] = {
 }
 
 
+# ── Permission groups (for the UI matrix) ─────────────────────
+
+PERMISSION_GROUPS: dict[str, list[str]] = {
+    "Platform": ["platform.manage", "platform.impersonate"],
+    "Enterprise": ["enterprise.manage", "enterprise.delete"],
+    "Users": ["users.read", "users.write", "users.delete"],
+    "Roles": ["roles.read", "roles.manage"],
+    "Packhouse": ["packhouse.read", "packhouse.write", "packhouse.delete"],
+    "Grower / Supplier": ["grower.read", "grower.write", "grower.delete"],
+    "Batch / GRN": ["batch.read", "batch.write", "batch.delete"],
+    "Lot": ["lot.read", "lot.write", "lot.delete"],
+    "Pallet / Container": ["pallet.read", "pallet.write", "pallet.delete"],
+    "Cold Storage": ["storage.read", "storage.write"],
+    "Export": ["export.read", "export.write", "export.delete"],
+    "Financials": ["financials.read", "financials.write"],
+    "Reports": ["reports.read", "reports.export"],
+}
+
+
 # ── Role → default permissions ──────────────────────────────
 
 ROLE_DEFAULTS: dict[str, set[str]] = {
@@ -112,15 +135,20 @@ ROLE_DEFAULTS: dict[str, set[str]] = {
 
 def resolve_permissions(
     role: str,
+    custom_role_permissions: list[str] | None = None,
     custom_overrides: dict[str, bool] | None = None,
 ) -> list[str]:
     """Compute effective permissions for a user.
 
-    1. Start with the role's defaults.
+    1. If a custom role template is assigned, use its permission set as the base.
+       Otherwise, start with the built-in role's defaults.
     2. Apply custom_overrides: {perm: True} adds, {perm: False} removes.
     3. Return a sorted list (for stable JWT claims).
     """
-    base = ROLE_DEFAULTS.get(role, set()).copy()
+    if custom_role_permissions is not None:
+        base = {p for p in custom_role_permissions if p in ALL_PERMISSIONS}
+    else:
+        base = ROLE_DEFAULTS.get(role, set()).copy()
 
     if custom_overrides:
         for perm, granted in custom_overrides.items():

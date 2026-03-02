@@ -19,6 +19,10 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const packhouseId = localStorage.getItem("current_packhouse_id");
+  if (packhouseId) {
+    config.headers["X-Packhouse-Id"] = packhouseId;
+  }
   console.log("[api] Request:", config.method?.toUpperCase(), config.url, token ? "(token attached)" : "(no token)");
   return config;
 });

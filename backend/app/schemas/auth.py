@@ -10,6 +10,7 @@ class SignupRequest(BaseModel):
     full_name: str
     phone: str | None = None
     role: str = "operator"        # administrator | supervisor | operator
+    custom_role_id: str | None = None
     assigned_packhouses: list[str] | None = None
 
 

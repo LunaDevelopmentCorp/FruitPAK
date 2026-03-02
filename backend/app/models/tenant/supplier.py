@@ -6,7 +6,7 @@ Tagged by category so the UI can filter/group them.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import TenantBase
@@ -26,6 +26,11 @@ class Supplier(TenantBase):
     email: Mapped[str | None] = mapped_column(String(255))
     address: Mapped[str | None] = mapped_column(Text)
     tax_number: Mapped[str | None] = mapped_column(String(50))
+    # Packhouse scoping
+    packhouse_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("packhouses.id"), index=True
+    )
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

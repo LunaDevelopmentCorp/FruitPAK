@@ -27,6 +27,7 @@ import PlatformUsers from "./pages/platform/PlatformUsers";
 import AdminShell from "./pages/admin/AdminShell";
 import AdminOverview from "./pages/admin/AdminOverview";
 import UserManagement from "./pages/admin/UserManagement";
+import RoleManagement from "./pages/admin/RoleManagement";
 import ActivityLog from "./pages/admin/ActivityLog";
 import DeletedItems from "./pages/admin/DeletedItems";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -83,6 +84,7 @@ export default function App() {
               <Route index element={<Navigate to="/admin/overview" replace />} />
               <Route path="overview" element={<AdminOverview />} />
               <Route path="users" element={<UserManagement />} />
+              <Route path="roles" element={<RoleManagement />} />
               <Route path="activity" element={<ActivityLog />} />
               <Route path="deleted-items" element={<DeletedItems />} />
             </Route>

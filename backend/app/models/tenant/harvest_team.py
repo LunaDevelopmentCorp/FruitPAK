@@ -42,5 +42,10 @@ class HarvestTeam(TenantBase):
     # Assigned fields/blocks from the grower: ["Block A", "Block B"]
     assigned_fields: Mapped[list | None] = mapped_column(JSON, default=list)
 
+    # Packhouse scoping
+    packhouse_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("packhouses.id"), index=True
+    )
+
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

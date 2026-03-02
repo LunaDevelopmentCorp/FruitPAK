@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { usePackhouseStore } from "../store/packhouseStore";
 import {
   getPackagingStock,
   receivePackaging,
@@ -43,6 +44,7 @@ function movementLabel(type: string): string {
 
 export default function PackagingStock() {
   const { t } = useTranslation("packaging");
+  const currentPackhouseId = usePackhouseStore((s) => s.currentPackhouseId);
   const [stock, setStock] = useState<PackagingStockItem[]>([]);
   const [movements, setMovements] = useState<PackagingMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +110,7 @@ export default function PackagingStock() {
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
-  }, []);
+  }, [currentPackhouseId]);
 
   // Re-fetch movements when server-side filters change
   const handleFilterChange = (newStockId: string, newType: string) => {

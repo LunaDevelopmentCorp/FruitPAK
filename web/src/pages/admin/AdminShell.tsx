@@ -12,17 +12,18 @@ export default function AdminShell() {
   const ADMIN_TABS = [
     { to: "/admin/overview", label: t("tabs.overview") },
     { to: "/admin/users", label: t("tabs.users") },
+    { to: "/admin/roles", label: t("tabs.roles") },
     { to: "/admin/activity", label: t("tabs.activity") },
     { to: "/admin/deleted-items", label: t("tabs.deletedItems") },
   ];
 
   useEffect(() => {
-    if (user && user.role !== "administrator") {
+    if (user && user.role !== "administrator" && user.role !== "platform_admin") {
       navigate("/dashboard", { replace: true });
     }
   }, [user, navigate]);
 
-  if (user && user.role !== "administrator") return null;
+  if (user && user.role !== "administrator" && user.role !== "platform_admin") return null;
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">

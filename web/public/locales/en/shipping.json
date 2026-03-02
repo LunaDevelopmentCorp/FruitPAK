@@ -59,5 +59,52 @@
     "cancel": "Cancel",
     "created": "Sailing added.",
     "requiredFields": "Please fill in all required fields."
+  },
+  "logistics": {
+    "shippingLines": "Shipping Lines",
+    "transporters": "Transporters",
+    "shippingAgents": "Shipping Agents",
+    "add": "+ Add",
+    "search": "Search by name, code, or contact...",
+    "empty": "No records yet. Add one to get started.",
+    "noMatch": "No records match your search.",
+    "loading": "Loading...",
+    "headers": {
+      "name": "Name",
+      "code": "Code",
+      "contact": "Contact Person",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "notes": "Notes",
+      "status": "Status",
+      "actions": ""
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "toggleActive": "Toggle active status",
+    "form": {
+      "name": "Name",
+      "code": "Code",
+      "contactPerson": "Contact Person",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "notes": "Notes",
+      "namePlaceholder": "e.g. Maersk",
+      "codePlaceholder": "e.g. MAER",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "requiredFields": "Name and code are required."
+    },
+    "created": "Record created.",
+    "updated": "Record updated.",
+    "deleted": "Record deleted.",
+    "createFailed": "Failed to create record.",
+    "updateFailed": "Failed to update record.",
+    "deleteFailed": "Failed to delete record.",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+    "delete": "Delete"
   }
 }

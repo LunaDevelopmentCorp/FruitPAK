@@ -14,10 +14,12 @@ from app.models.tenant.grower import Grower
 from app.models.tenant.harvest_team import HarvestTeam
 from app.models.tenant.product_config import ProductConfig, PackSpec, BoxSize, PalletType, BinType, PalletTypeBoxCapacity
 from app.models.tenant.transport_config import TransportConfig
+from app.models.tenant.container_type_capacity import ContainerTypeBoxCapacity
 from app.models.tenant.financial_config import FinancialConfig
 from app.models.tenant.shipping_line import ShippingLine
 from app.models.tenant.transporter import Transporter
 from app.models.tenant.shipping_agent import ShippingAgent
+from app.models.tenant.custom_role import CustomRole
 
 # ── Core operational models ──────────────────────────────────
 from app.models.tenant.batch import Batch
@@ -45,8 +47,8 @@ __all__ = [
     "WizardState", "CompanyProfile", "Packhouse", "PackLine",
     "Supplier", "Grower", "HarvestTeam",
     "ProductConfig", "PackSpec", "BoxSize", "PalletType", "BinType", "PalletTypeBoxCapacity",
-    "TransportConfig", "FinancialConfig",
-    "ShippingLine", "Transporter", "ShippingAgent",
+    "TransportConfig", "ContainerTypeBoxCapacity", "FinancialConfig",
+    "ShippingLine", "Transporter", "ShippingAgent", "CustomRole",
     # Core operational
     "Batch", "BatchHistory", "Lot", "Pallet", "PalletLot", "Container", "Export",
     "ShippingSchedule",

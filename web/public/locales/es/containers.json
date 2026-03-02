@@ -81,6 +81,7 @@
     "loadSelected": "Cargar Seleccionados ({{count}})",
     "loadingButton": "Cargando...",
     "loaded": "{{count}} pallet(s) cargados en el contenedor",
-    "loadFailed": "Error al cargar pallets"
+    "loadFailed": "Error al cargar pallets",
+    "forceOverride": "Ignorar restricciones de capacidad y tipos mixtos"
   }
 }

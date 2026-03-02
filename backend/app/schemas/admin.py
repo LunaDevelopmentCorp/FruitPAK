@@ -68,6 +68,10 @@ class UserSummary(BaseModel):
     role: str
     is_active: bool
     assigned_packhouses: list[str] | None = None
+    custom_role_id: str | None = None
+    custom_role_name: str | None = None
+    permissions: list[str] = []
+    custom_permissions: dict[str, bool] | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -78,6 +82,8 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     phone: str | None = None
     assigned_packhouses: list[str] | None = None
+    custom_role_id: str | None = None
+    custom_permissions: dict[str, bool] | None = None
 
 
 class CreateUserRequest(BaseModel):
@@ -87,3 +93,4 @@ class CreateUserRequest(BaseModel):
     phone: str | None = None
     role: str = "operator"
     assigned_packhouses: list[str] | None = None
+    custom_role_id: str | None = None

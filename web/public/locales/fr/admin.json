@@ -3,6 +3,7 @@
   "tabs": {
     "overview": "Vue d'ensemble",
     "users": "Utilisateurs",
+    "roles": "Roles",
     "activity": "Activite",
     "deletedItems": "Elements supprimes"
   },
@@ -74,6 +75,11 @@
       },
       "assignedPackhouses": "Stations assignees",
       "packhouseHelp": "Laissez vide pour donner acces a toutes les stations",
+      "customRole": "Role personnalise",
+      "noCustomRole": "Aucun (utiliser les valeurs par defaut du role)",
+      "customRoleHelp": "Remplace les permissions du role de base par ce modele",
+      "permissionOverrides": "Exceptions de permissions",
+      "overridesHelp": "Accorder ou revoquer des permissions individuelles pour cet utilisateur uniquement",
       "saveChanges": "Enregistrer les modifications",
       "createUser": "Creer l'utilisateur"
     },
@@ -88,6 +94,43 @@
       "created": "Utilisateur {{name}} cree",
       "deactivated": "{{name}} desactive",
       "reactivated": "{{name}} reactive"
+    }
+  },
+  "roles": {
+    "title": "Gestion des roles",
+    "builtinTitle": "Roles integres",
+    "customTitle": "Roles personnalises",
+    "newRole": "+ Nouveau role",
+    "loading": "Chargement des roles...",
+    "loadFailed": "Echec du chargement des roles",
+    "empty": "Aucun role personnalise. Creez-en un pour commencer.",
+    "permCount_one": "{{count}} permission",
+    "permCount_other": "{{count}} permissions",
+    "headers": {
+      "name": "Nom",
+      "description": "Description",
+      "users": "Utilisateurs",
+      "status": "Statut"
+    },
+    "modal": {
+      "newTitle": "Nouveau role personnalise",
+      "editTitle": "Modifier le role personnalise",
+      "name": "Nom du role *",
+      "description": "Description",
+      "startFrom": "Partir d'un role integre",
+      "startFromNone": "Aucun (commencer vide)",
+      "permissions": "Permissions",
+      "save": "Enregistrer le role",
+      "create": "Creer le role"
+    },
+    "delete": {
+      "title": "Supprimer le role ?",
+      "text": "Cela desactivera le role \"{{name}}\". Il ne peut pas etre supprime tant que des utilisateurs y sont attribues."
+    },
+    "toast": {
+      "created": "Role {{name}} cree",
+      "updated": "Role {{name}} mis a jour",
+      "deleted": "Role {{name}} supprime"
     }
   },
   "activity": {

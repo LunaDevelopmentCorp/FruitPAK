@@ -34,6 +34,7 @@ from app.models.tenant.tenant_config import TenantConfig
 from app.models.tenant.supplier import Supplier
 from app.models.tenant.shipping_agent import ShippingAgent
 from app.models.tenant.shipping_line import ShippingLine
+from app.models.tenant.container_type_capacity import ContainerTypeBoxCapacity
 from app.models.tenant.transport_config import TransportConfig
 from app.models.tenant.transporter import Transporter
 from app.models.tenant.wizard_state import WizardState
@@ -321,6 +322,13 @@ async def save_step_4(
                     f if isinstance(f, dict) else f.model_dump()
                     for f in data["fields"]
                 ]
+                # Auto-sum total_hectares from fields
+                field_sum = sum(
+                    (f.get("hectares") or 0) if isinstance(f, dict) else 0
+                    for f in data["fields"]
+                )
+                if field_sum > 0:
+                    data["total_hectares"] = round(field_sum, 2)
             # Match by name first, then by grower_code (handles renames)
             grower = existing_by_name.get(g.name) or existing_by_code.get(data.get("grower_code"))
             if grower:
@@ -589,11 +597,24 @@ async def save_step_7(
     _check_prerequisites(7, state.completed_steps)
 
     if body.transport_configs:
+        await db.execute(delete(ContainerTypeBoxCapacity))
         await db.execute(delete(TransportConfig))
         await db.flush()
+        import uuid as _uuid
         for tc in body.transport_configs:
-            db.add(TransportConfig(**tc.model_dump()))
-        await db.flush()
+            config = TransportConfig(**tc.model_dump(exclude={"box_capacities"}))
+            db.add(config)
+            await db.flush()
+            if tc.box_capacities:
+                for bc in tc.box_capacities:
+                    cap = ContainerTypeBoxCapacity(
+                        id=str(_uuid.uuid4()),
+                        transport_config_id=config.id,
+                        box_size_id=bc.box_size_id,
+                        max_boxes=bc.max_boxes,
+                    )
+                    db.add(cap)
+                await db.flush()
 
     if body.shipping_lines:
         await db.execute(delete(ShippingLine))

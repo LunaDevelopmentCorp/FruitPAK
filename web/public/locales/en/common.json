@@ -71,6 +71,7 @@
     "loading": "Loading",
     "sealed": "Sealed",
     "dispatched": "Dispatched",
+    "in_transit": "In Transit",
     "delivered": "Delivered",
     "paid": "Paid",
     "pending": "Pending",
@@ -147,6 +148,11 @@
     "days": "days",
     "boxes": "boxes",
     "pallets": "pallets"
+  },
+  "packhouse": {
+    "allPackhouses": "All Packhouses",
+    "selectPackhouse": "Select Packhouse",
+    "switchPackhouse": "Switch Packhouse"
   },
   "locks": {
     "fieldLocked": "This field is locked because it is referenced downstream",

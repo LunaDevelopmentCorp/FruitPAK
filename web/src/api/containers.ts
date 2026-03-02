@@ -26,6 +26,12 @@ export interface ContainerSummary {
   transporter_name: string | null;
   shipping_agent_id: string | null;
   shipping_agent_name: string | null;
+  shipping_line_id?: string | null;
+  shipping_line_name?: string | null;
+  vessel_name?: string | null;
+  voyage_number?: string | null;
+  eta?: string | null;
+  is_overdue?: boolean;
   status: string;
   pallet_numbers?: string[];
   lot_codes?: string[];
@@ -74,6 +80,14 @@ export interface ContainerDetailType extends ContainerSummary {
   packhouse_id: string | null;
   qr_code_url: string | null;
   notes: string | null;
+  arrived_at?: string | null;
+  delivered_at?: string | null;
+  sealed_at?: string | null;
+  sealed_by?: string | null;
+  dispatched_at?: string | null;
+  transport_config_id?: string | null;
+  temp_setpoint_c?: number | null;
+  capacity_warnings?: string[];
   updated_at: string;
   pallets: ContainerPalletItem[];
   traceability: TracePallet[];
@@ -115,6 +129,10 @@ export interface CreateEmptyContainerPayload {
   seal_number?: string;
   transporter_id?: string;
   shipping_agent_id?: string;
+  shipping_line_id?: string;
+  vessel_name?: string;
+  voyage_number?: string;
+  eta?: string;
   notes?: string;
 }
 
@@ -129,6 +147,7 @@ export async function createEmptyContainer(
 
 export interface LoadPalletsPayload {
   pallet_ids: string[];
+  force?: boolean;
 }
 
 export async function loadPalletsIntoContainer(
@@ -155,6 +174,10 @@ export interface UpdateContainerPayload {
   seal_number?: string | null;
   transporter_id?: string | null;
   shipping_agent_id?: string | null;
+  shipping_line_id?: string | null;
+  vessel_name?: string | null;
+  voyage_number?: string | null;
+  eta?: string | null;
   notes?: string | null;
   status?: string;
 }
@@ -178,5 +201,48 @@ export async function listContainers(
 
 export async function getContainer(id: string): Promise<ContainerDetailType> {
   const { data } = await api.get<ContainerDetailType>(`/containers/${id}`);
+  return data;
+}
+
+// ── Delete container ─────────────────────────────────────────
+
+export async function deleteContainer(id: string): Promise<void> {
+  await api.delete(`/containers/${id}`);
+}
+
+// ── Status transitions ──────────────────────────────────────
+
+export async function markContainerLoaded(id: string) {
+  const { data } = await api.post(`/containers/${id}/mark-loaded`);
+  return data;
+}
+
+export async function sealContainer(id: string, body: { seal_number: string; temp_setpoint_c?: number | null }) {
+  const { data } = await api.post(`/containers/${id}/seal`, body);
+  return data;
+}
+
+export async function dispatchContainer(id: string) {
+  const { data } = await api.post(`/containers/${id}/dispatch`);
+  return data;
+}
+
+export async function exportContainer(id: string, body: { vessel_name?: string | null; voyage_number?: string | null; shipping_line_id?: string | null; eta?: string | null }) {
+  const { data } = await api.post(`/containers/${id}/export`, body);
+  return data;
+}
+
+export async function markContainerArrived(id: string) {
+  const { data } = await api.post(`/containers/${id}/arrive`);
+  return data;
+}
+
+export async function confirmContainerDelivery(id: string) {
+  const { data } = await api.post(`/containers/${id}/deliver`);
+  return data;
+}
+
+export async function revertContainerStatus(id: string) {
+  const { data } = await api.post(`/containers/${id}/revert`);
   return data;
 }

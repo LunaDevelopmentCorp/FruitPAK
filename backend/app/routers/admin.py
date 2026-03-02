@@ -367,16 +367,57 @@ async def list_activity(
 @router.get("/users", response_model=list[UserSummary])
 async def list_users(
     public_db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_tenant_db),
     user: User = Depends(require_role(UserRole.ADMINISTRATOR)),
     _onboarded: User = Depends(require_onboarded),
 ):
-    """List all users belonging to the admin's enterprise."""
+    """List all users belonging to the admin's enterprise, with resolved permissions."""
+    from app.auth.permissions import resolve_permissions
+    from app.models.tenant.custom_role import CustomRole
+
     result = await public_db.execute(
         select(User)
         .where(User.enterprise_id == user.enterprise_id)
         .order_by(User.created_at.desc())
     )
-    return [UserSummary.model_validate(u) for u in result.scalars().all()]
+    users = result.scalars().all()
+
+    # Load custom role names from tenant schema
+    role_ids = {u.custom_role_id for u in users if u.custom_role_id}
+    role_names: dict[str, str] = {}
+    role_perms: dict[str, list[str]] = {}
+    if role_ids:
+        cr_result = await db.execute(
+            select(CustomRole.id, CustomRole.name, CustomRole.permissions).where(
+                CustomRole.id.in_(role_ids),
+                CustomRole.is_active == True,  # noqa: E712
+            )
+        )
+        for row in cr_result.all():
+            role_names[row[0]] = row[1]
+            role_perms[row[0]] = row[2] or []
+
+    summaries = []
+    for u in users:
+        custom_role_permissions = role_perms.get(u.custom_role_id) if u.custom_role_id else None
+        permissions = resolve_permissions(
+            u.role.value, custom_role_permissions, u.custom_permissions
+        )
+        summaries.append(UserSummary(
+            id=u.id,
+            email=u.email,
+            full_name=u.full_name,
+            phone=u.phone,
+            role=u.role.value if hasattr(u.role, "value") else str(u.role),
+            is_active=u.is_active,
+            assigned_packhouses=u.assigned_packhouses,
+            custom_role_id=u.custom_role_id,
+            custom_role_name=role_names.get(u.custom_role_id) if u.custom_role_id else None,
+            permissions=permissions,
+            custom_permissions=u.custom_permissions,
+            created_at=u.created_at,
+        ))
+    return summaries
 
 
 @router.patch("/users/{user_id}", response_model=UserSummary)
@@ -427,7 +468,23 @@ async def update_user(
         changes["assigned_packhouses"] = {"from": target.assigned_packhouses, "to": payload.assigned_packhouses}
         target.assigned_packhouses = payload.assigned_packhouses
 
+    permissions_changed = False
+
+    if payload.custom_role_id is not None:
+        changes["custom_role_id"] = {"from": target.custom_role_id, "to": payload.custom_role_id}
+        target.custom_role_id = payload.custom_role_id if payload.custom_role_id else None
+        permissions_changed = True
+
+    if payload.custom_permissions is not None:
+        changes["custom_permissions"] = {"from": target.custom_permissions, "to": payload.custom_permissions}
+        target.custom_permissions = payload.custom_permissions if payload.custom_permissions else None
+        permissions_changed = True
+
     await public_db.flush()
+
+    # If permissions changed, revoke tokens so next login gets updated perms
+    if permissions_changed:
+        await TokenRevocation.revoke_all_user_tokens(target.id)
 
     # Log to tenant activity log
     await log_activity(
@@ -440,7 +497,44 @@ async def update_user(
         details=changes,
     )
 
-    return UserSummary.model_validate(target)
+    # Resolve permissions for response
+    from app.auth.permissions import resolve_permissions
+    from app.models.tenant.custom_role import CustomRole
+
+    custom_role_permissions = None
+    custom_role_name = None
+    if target.custom_role_id:
+        cr_result = await tenant_db.execute(
+            select(CustomRole.name, CustomRole.permissions).where(
+                CustomRole.id == target.custom_role_id,
+                CustomRole.is_active == True,  # noqa: E712
+            )
+        )
+        cr_row = cr_result.one_or_none()
+        if cr_row:
+            custom_role_name = cr_row[0]
+            custom_role_permissions = cr_row[1]
+
+    effective_perms = resolve_permissions(
+        target.role.value if hasattr(target.role, "value") else str(target.role),
+        custom_role_permissions,
+        target.custom_permissions,
+    )
+
+    return UserSummary(
+        id=target.id,
+        email=target.email,
+        full_name=target.full_name,
+        phone=target.phone,
+        role=target.role.value if hasattr(target.role, "value") else str(target.role),
+        is_active=target.is_active,
+        assigned_packhouses=target.assigned_packhouses,
+        custom_role_id=target.custom_role_id,
+        custom_role_name=custom_role_name,
+        permissions=effective_perms,
+        custom_permissions=target.custom_permissions,
+        created_at=target.created_at,
+    )
 
 
 @router.post("/users/{user_id}/deactivate", response_model=UserSummary)

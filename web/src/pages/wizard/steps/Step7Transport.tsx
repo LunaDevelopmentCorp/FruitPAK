@@ -1,8 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { StepProps } from "../WizardShell";
 import { Spinner } from "../WizardShell";
+import { getBoxSizeSpecs, BoxSizeSpec } from "../../../api/config";
+
+interface BoxCapacity {
+  box_size_id: string;
+  max_boxes: number;
+}
 
 interface TransportForm {
   name: string;
@@ -10,6 +16,7 @@ interface TransportForm {
   temp_setpoint_c: number | null;
   pallet_capacity: number | null;
   max_weight_kg: number | null;
+  box_capacities: BoxCapacity[];
 }
 
 interface ContactEntity {
@@ -48,9 +55,15 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: R
 
 export default function Step7Transport({ onSave, saving, draftData }: StepProps) {
   const { t } = useTranslation("wizard");
-  const { register, control, watch, getValues } = useForm<FormData>({
+  const [boxSizes, setBoxSizes] = useState<BoxSizeSpec[]>([]);
+
+  useEffect(() => {
+    getBoxSizeSpecs().then(setBoxSizes).catch(() => {});
+  }, []);
+
+  const { register, control, watch, getValues, setValue } = useForm<FormData>({
     defaultValues: (draftData as Partial<FormData>) ?? {
-      transport_configs: [{ name: "", container_type: "reefer_40ft", temp_setpoint_c: null, pallet_capacity: null, max_weight_kg: null }],
+      transport_configs: [{ name: "", container_type: "reefer_40ft", temp_setpoint_c: null, pallet_capacity: null, max_weight_kg: null, box_capacities: [] }],
       shipping_lines: [],
       transporters: [],
       shipping_agents: [],
@@ -64,7 +77,10 @@ export default function Step7Transport({ onSave, saving, draftData }: StepProps)
   const configs = watch("transport_configs");
 
   const filterEmpty = (data: FormData) => ({
-    transport_configs: data.transport_configs.filter((c) => c.name?.trim()),
+    transport_configs: data.transport_configs.filter((c) => c.name?.trim()).map(c => ({
+      ...c,
+      box_capacities: (c.box_capacities || []).filter(bc => bc.max_boxes > 0),
+    })),
     shipping_lines: data.shipping_lines.filter((c) => c.name?.trim()),
     transporters: data.transporters.filter((c) => c.name?.trim()),
     shipping_agents: data.shipping_agents.filter((c) => c.name?.trim()),
@@ -75,8 +91,9 @@ export default function Step7Transport({ onSave, saving, draftData }: StepProps)
   return (
     <form className="space-y-6 max-w-2xl">
       {fields.map((field, idx) => {
-        const tempC = configs?.[idx]?.temp_setpoint_c;
-        const weightKg = configs?.[idx]?.max_weight_kg;
+        const currentConfig = configs?.[idx];
+        const tempC = currentConfig?.temp_setpoint_c;
+        const weightKg = currentConfig?.max_weight_kg;
         return (
           <fieldset key={field.id} className="p-4 border rounded space-y-3">
             <div className="flex justify-between items-center">
@@ -108,10 +125,45 @@ export default function Step7Transport({ onSave, saving, draftData }: StepProps)
                 )}
               </div>
             </div>
+
+            {/* Box Capacities */}
+            {boxSizes.length > 0 && (
+              <div className="mt-2 bg-gray-50 rounded p-3 space-y-2">
+                <p className="text-xs text-gray-500 font-medium">{t("step7.boxCapacities")}</p>
+                <p className="text-xs text-gray-400">{t("step7.boxCapacitiesHelp")}</p>
+                <div className="space-y-1">
+                  {boxSizes.map((bs) => {
+                    const caps = currentConfig?.box_capacities || [];
+                    const existingIdx = caps.findIndex((c) => c.box_size_id === bs.id);
+                    return (
+                      <div key={bs.id} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 w-40 truncate">{bs.name} ({bs.weight_kg}kg)</span>
+                        <input type="number" min={1} placeholder="—"
+                          className="border rounded px-2 py-1 text-xs text-right w-24"
+                          value={existingIdx >= 0 ? caps[existingIdx].max_boxes || "" : ""}
+                          onChange={(e) => {
+                            const val = e.target.value ? parseInt(e.target.value, 10) : 0;
+                            const newCaps = [...(currentConfig?.box_capacities || [])];
+                            if (existingIdx >= 0) {
+                              if (val > 0) newCaps[existingIdx] = { box_size_id: bs.id, max_boxes: val };
+                              else newCaps.splice(existingIdx, 1);
+                            } else if (val > 0) {
+                              newCaps.push({ box_size_id: bs.id, max_boxes: val });
+                            }
+                            setValue(`transport_configs.${idx}.box_capacities`, newCaps);
+                          }}
+                        />
+                        <span className="text-xs text-gray-400">boxes</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </fieldset>
         );
       })}
-      <button type="button" onClick={() => append({ name: "", container_type: "reefer_40ft", temp_setpoint_c: null, pallet_capacity: null, max_weight_kg: null })} className="text-sm text-green-600">{t("step7.addConfig")}</button>
+      <button type="button" onClick={() => append({ name: "", container_type: "reefer_40ft", temp_setpoint_c: null, pallet_capacity: null, max_weight_kg: null, box_capacities: [] })} className="text-sm text-green-600">{t("step7.addConfig")}</button>
 
       {/* Shipping Lines */}
       <CollapsibleSection title={t("step7.shippingLines")}>

@@ -188,7 +188,9 @@
     "agentCode": "Codigo",
     "contactPerson": "Contacto",
     "phone": "Telefono",
-    "email": "Correo electronico"
+    "email": "Correo electronico",
+    "boxCapacities": "Capacidades por tipo de caja",
+    "boxCapacitiesHelp": "Establecer el numero maximo de cajas por tamano que este tipo de contenedor puede contener. Dejar en blanco para sin limite."
   },
   "step8": {
     "optional": "Este paso es opcional. Puede omitirlo y configurar los datos financieros más adelante.",

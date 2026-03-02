@@ -9,6 +9,10 @@ Endpoints:
     GET  /api/config/financial-summary                      Base currency + export currencies
     GET  /api/config/tenant-settings                        Get all tenant config settings
     PUT  /api/config/tenant-settings                        Update tenant config settings
+    GET  /api/config/transport-configs                      List transport configs with box capacities
+    GET  /api/config/transport-configs/{id}                 Single transport config with capacities
+    PATCH /api/config/transport-configs/{id}                Update transport config fields
+    PUT  /api/config/transport-configs/{id}/box-capacities  Replace box capacity matrix
 """
 
 import uuid
@@ -23,9 +27,11 @@ from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
 from app.utils.cache import cached, invalidate_cache
+from app.models.tenant.container_type_capacity import ContainerTypeBoxCapacity
 from app.models.tenant.financial_config import FinancialConfig
 from app.models.tenant.product_config import BinType, BoxSize, PalletType, PalletTypeBoxCapacity, ProductConfig
 from app.models.tenant.tenant_config import TenantConfig
+from app.models.tenant.transport_config import TransportConfig
 from app.schemas.config import (
     BinTypeOut,
     BoxCapacityOut,
@@ -35,6 +41,12 @@ from app.schemas.config import (
     PalletTypeCapacityOut,
     ProductConfigOut,
     TenantSettingsUpdate,
+)
+from app.schemas.container import (
+    BoxCapacityInput,
+    BoxCapacityOut as ContainerBoxCapacityOut,
+    TransportConfigOut,
+    TransportConfigUpdate,
 )
 
 router = APIRouter()
@@ -203,3 +215,140 @@ async def update_tenant_settings(
     result = await db.execute(select(TenantConfig))
     configs = result.scalars().all()
     return {c.key: c.value for c in configs}
+
+
+# ── Transport Configs ─────────────────────────────────────────
+
+
+def _transport_config_to_out(tc: TransportConfig) -> TransportConfigOut:
+    """Convert a TransportConfig ORM instance to the output schema."""
+    caps = []
+    for bc in tc.box_capacities:
+        caps.append(ContainerBoxCapacityOut(
+            box_size_id=bc.box_size_id,
+            box_size_name=bc.box_size.name if bc.box_size else None,
+            max_boxes=bc.max_boxes,
+        ))
+    return TransportConfigOut(
+        id=tc.id,
+        name=tc.name,
+        container_type=tc.container_type,
+        temp_setpoint_c=tc.temp_setpoint_c,
+        temp_min_c=tc.temp_min_c,
+        temp_max_c=tc.temp_max_c,
+        pallet_capacity=tc.pallet_capacity,
+        max_weight_kg=tc.max_weight_kg,
+        box_capacities=caps,
+    )
+
+
+@router.get("/transport-configs", response_model=list[TransportConfigOut])
+@cached(ttl=600, prefix="config")
+async def list_transport_configs(
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_onboarded),
+):
+    """List all transport configs with box capacities."""
+    result = await db.execute(
+        select(TransportConfig)
+        .options(
+            selectinload(TransportConfig.box_capacities)
+            .selectinload(ContainerTypeBoxCapacity.box_size)
+        )
+        .order_by(TransportConfig.name)
+    )
+    return [_transport_config_to_out(tc) for tc in result.scalars().all()]
+
+
+@router.get("/transport-configs/{config_id}", response_model=TransportConfigOut)
+async def get_transport_config(
+    config_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_onboarded),
+):
+    """Get a single transport config with box capacities."""
+    result = await db.execute(
+        select(TransportConfig)
+        .where(TransportConfig.id == config_id)
+        .options(
+            selectinload(TransportConfig.box_capacities)
+            .selectinload(ContainerTypeBoxCapacity.box_size)
+        )
+    )
+    tc = result.scalar_one_or_none()
+    if not tc:
+        raise HTTPException(status_code=404, detail="Transport config not found")
+    return _transport_config_to_out(tc)
+
+
+@router.patch("/transport-configs/{config_id}", response_model=TransportConfigOut)
+async def update_transport_config(
+    config_id: str,
+    body: TransportConfigUpdate,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("config.write")),
+):
+    """Update fields on a transport config."""
+    result = await db.execute(
+        select(TransportConfig)
+        .where(TransportConfig.id == config_id)
+        .options(
+            selectinload(TransportConfig.box_capacities)
+            .selectinload(ContainerTypeBoxCapacity.box_size)
+        )
+    )
+    tc = result.scalar_one_or_none()
+    if not tc:
+        raise HTTPException(status_code=404, detail="Transport config not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(tc, key, value)
+
+    await db.flush()
+    await db.refresh(tc)
+    await invalidate_cache("config")
+    return _transport_config_to_out(tc)
+
+
+@router.put(
+    "/transport-configs/{config_id}/box-capacities",
+    response_model=TransportConfigOut,
+)
+async def replace_box_capacities(
+    config_id: str,
+    body: list[BoxCapacityInput],
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("config.write")),
+):
+    """Replace the box capacity matrix for a transport config."""
+    result = await db.execute(
+        select(TransportConfig)
+        .where(TransportConfig.id == config_id)
+        .options(
+            selectinload(TransportConfig.box_capacities)
+            .selectinload(ContainerTypeBoxCapacity.box_size)
+        )
+    )
+    tc = result.scalar_one_or_none()
+    if not tc:
+        raise HTTPException(status_code=404, detail="Transport config not found")
+
+    # Delete existing capacities
+    for cap in list(tc.box_capacities):
+        await db.delete(cap)
+    await db.flush()
+
+    # Create new capacities
+    for item in body:
+        db.add(ContainerTypeBoxCapacity(
+            id=str(uuid.uuid4()),
+            transport_config_id=tc.id,
+            box_size_id=item.box_size_id,
+            max_boxes=item.max_boxes,
+        ))
+
+    await db.flush()
+    await db.refresh(tc)
+    await invalidate_cache("config")
+    return _transport_config_to_out(tc)
