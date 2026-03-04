@@ -17,6 +17,23 @@ from app.tenancy import _tenant_ctx
 
 logger = logging.getLogger(__name__)
 
+# ── Cache metrics ──────────────────────────────────────────────
+_cache_hits = 0
+_cache_misses = 0
+_METRICS_LOG_INTERVAL = 100  # Log hit rate every N requests
+
+
+def get_cache_metrics() -> dict:
+    """Return current cache hit/miss counts (for /metrics endpoint)."""
+    total = _cache_hits + _cache_misses
+    return {
+        "hits": _cache_hits,
+        "misses": _cache_misses,
+        "total": total,
+        "hit_rate": round(_cache_hits / total, 3) if total > 0 else 0.0,
+    }
+
+
 # Global Redis connection pool
 _redis_client: Optional[redis.Redis] = None
 
@@ -80,6 +97,7 @@ def cached(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
+            global _cache_hits, _cache_misses
             # Build cache key — always include tenant schema for isolation
             tenant = _tenant_ctx.get()  # None when outside tenant context
             if key_builder:
@@ -110,9 +128,16 @@ def cached(
                 cached_value = await redis_client.get(key)
 
                 if cached_value:
+                    _cache_hits += 1
+                    total = _cache_hits + _cache_misses
+                    if total % _METRICS_LOG_INTERVAL == 0:
+                        logger.info("Cache stats: %d hits, %d misses (%.1f%% hit rate)",
+                                    _cache_hits, _cache_misses,
+                                    _cache_hits / total * 100)
                     logger.debug(f"Cache HIT: {key}")
                     return json.loads(cached_value)
 
+                _cache_misses += 1
                 logger.debug(f"Cache MISS: {key}")
 
                 # Execute function and cache result

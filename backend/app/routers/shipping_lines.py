@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
+from app.utils.cache import cached, invalidate_cache
 from app.models.tenant.shipping_line import ShippingLine
 from app.schemas.shipping_line import ShippingLineCreate, ShippingLineOut, ShippingLineUpdate
 
@@ -23,6 +24,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[ShippingLineOut])
+@cached(ttl=300, prefix="shipping_lines")
 async def list_shipping_lines(
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_tenant_db),
@@ -55,6 +57,7 @@ async def create_shipping_line(
     line = ShippingLine(id=str(uuid.uuid4()), **body.model_dump())
     db.add(line)
     await db.flush()
+    await invalidate_cache("shipping_lines")
     return ShippingLineOut.model_validate(line)
 
 
@@ -75,6 +78,7 @@ async def update_shipping_line(
     for key, value in updates.items():
         setattr(line, key, value)
     await db.flush()
+    await invalidate_cache("shipping_lines")
     return ShippingLineOut.model_validate(line)
 
 
@@ -92,4 +96,5 @@ async def toggle_shipping_line(
 
     line.is_active = not line.is_active
     await db.flush()
+    await invalidate_cache("shipping_lines")
     return ShippingLineOut.model_validate(line)

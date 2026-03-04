@@ -9,7 +9,10 @@ Two session dependencies for FastAPI:
   - get_tenant_db()  → sets search_path to the current tenant schema
 """
 
-from sqlalchemy import text
+import logging
+import time
+
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
@@ -19,13 +22,30 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
+logger = logging.getLogger("fruitpak.db")
+
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
-    pool_size=50,
-    max_overflow=30,
+    pool_size=settings.pool_size,
+    max_overflow=settings.max_overflow,
     pool_pre_ping=True,
 )
+
+
+# ── Slow query logging ────────────────────────────────────
+# Log any query taking longer than 1 second (production observability)
+
+@event.listens_for(engine.sync_engine, "before_cursor_execute")
+def _before_execute(conn, cursor, statement, parameters, context, executemany):
+    conn.info["query_start"] = time.time()
+
+
+@event.listens_for(engine.sync_engine, "after_cursor_execute")
+def _after_execute(conn, cursor, statement, parameters, context, executemany):
+    elapsed = time.time() - conn.info.get("query_start", 0)
+    if elapsed > 1.0:
+        logger.warning("Slow query (%.2fs): %s", elapsed, statement[:200])
 
 async_session = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False

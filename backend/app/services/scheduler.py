@@ -158,10 +158,56 @@ async def _ensure_tenant_tables():
         logger.info("Ensured tables for schema %s", schema)
 
 
+async def _warm_caches():
+    """Pre-populate Redis cache for config/reference endpoints on startup.
+
+    Iterates all active tenant schemas and calls the cached list functions
+    so the first real request hits warm cache instead of cold DB.
+    """
+    from app.tenancy import set_current_tenant_schema, clear_tenant_context
+
+    # Import cached list functions
+    from app.routers.config import list_bin_types, list_product_configs, list_fruit_types, list_box_sizes
+    from app.routers.shipping_lines import list_shipping_lines
+    from app.routers.transporters import list_transporters
+    from app.routers.shipping_agents import list_shipping_agents
+
+    async with async_session() as db:
+        await db.execute(text("SET search_path TO public"))
+        result = await db.execute(
+            select(Enterprise.tenant_schema).where(Enterprise.is_active == True)  # noqa: E712
+        )
+        schemas = [row[0] for row in result.all()]
+
+    for schema in schemas:
+        set_current_tenant_schema(schema)
+        try:
+            async with async_session() as db:
+                await db.execute(
+                    text(f'SET search_path TO "{schema}", pg_catalog')
+                )
+                # Warm config endpoints
+                for fn in [list_bin_types, list_product_configs, list_fruit_types, list_box_sizes]:
+                    try:
+                        await fn(db=db, _user=None)
+                    except Exception:
+                        pass  # non-critical — skip on error
+                # Warm shipping/transporter/agent endpoints
+                for fn in [list_shipping_lines, list_transporters, list_shipping_agents]:
+                    try:
+                        await fn(db=db, _user=None)
+                    except Exception:
+                        pass
+            logger.info("Cache warmed for %s", schema)
+        finally:
+            clear_tenant_context()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan: start the scheduler on startup, cancel on shutdown."""
     await _ensure_tenant_tables()
+    await _warm_caches()
     task = asyncio.create_task(_scheduler_loop())
     logger.info("Reconciliation scheduler started")
     try:

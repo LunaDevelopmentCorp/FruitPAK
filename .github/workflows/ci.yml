@@ -65,7 +65,6 @@ jobs:
         run: |
           pip install ruff
           ruff check .
-        continue-on-error: true
 
       - name: Run migrations
         working-directory: ./backend
@@ -118,12 +117,10 @@ jobs:
       - name: Lint with ESLint
         working-directory: ./web
         run: npm run lint
-        continue-on-error: true
 
       - name: Type check with TypeScript
         working-directory: ./web
         run: npm run type-check
-        continue-on-error: true
 
       - name: Run tests with coverage
         working-directory: ./web
@@ -202,12 +199,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # TODO: Replace with actual AWS ECS deployment when infrastructure is ready
+      # Example:
+      #   - uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #     with:
+      #       task-definition: ecs-task-def-staging.json
+      #       service: fruitpak-staging
+      #       cluster: fruitpak-staging
+      #       wait-for-service-stability: true
       - name: Deploy to staging
         run: |
-          echo "🚀 Deploying to staging environment..."
-          # Add your staging deployment commands here
-          # Example: kubectl apply -f k8s/staging/
-          # Example: aws ecs update-service --cluster staging --service fruitpak
+          echo "Deploying to staging environment..."
+          echo "TODO: Replace this stub with AWS ECS deployment"
+
+      - name: Smoke test staging
+        if: vars.STAGING_URL
+        run: |
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.STAGING_URL }}/health")
+            if [ "$STATUS" = "200" ]; then echo "Health check passed"; exit 0; fi
+            echo "Attempt $i: got $STATUS, retrying in 5s..."
+            sleep 5
+          done
+          echo "Health check failed after 10 attempts"; exit 1
 
   deploy-production:
     name: Deploy to Production
@@ -222,9 +236,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # TODO: Replace with actual AWS ECS deployment when infrastructure is ready
+      # Example:
+      #   - uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #     with:
+      #       task-definition: ecs-task-def-production.json
+      #       service: fruitpak-production
+      #       cluster: fruitpak-production
+      #       wait-for-service-stability: true
       - name: Deploy to production
         run: |
-          echo "🚀 Deploying to production environment..."
-          # Add your production deployment commands here
-          # Example: kubectl apply -f k8s/production/
-          # Example: aws ecs update-service --cluster production --service fruitpak
+          echo "Deploying to production environment..."
+          echo "TODO: Replace this stub with AWS ECS deployment"
+
+      - name: Smoke test production
+        if: vars.PRODUCTION_URL
+        run: |
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/health")
+            if [ "$STATUS" = "200" ]; then echo "Health check passed"; exit 0; fi
+            echo "Attempt $i: got $STATUS, retrying in 5s..."
+            sleep 5
+          done
+          echo "Health check failed after 10 attempts"; exit 1

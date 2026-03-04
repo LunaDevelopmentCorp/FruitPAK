@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, status
@@ -12,6 +13,8 @@ from app.database import engine
 logger = logging.getLogger("fruitpak.health")
 
 router = APIRouter(tags=["health"])
+
+_start_time = time.monotonic()
 
 
 @router.get("/health")
@@ -75,3 +78,46 @@ async def readiness_check():
         "checks": checks,
         "timestamp": datetime.utcnow().isoformat(),
     }, return_status
+
+
+@router.get("/metrics")
+async def metrics():
+    """Application metrics for monitoring dashboards.
+
+    Exposes DB pool stats, Redis health, and uptime.
+    Protected in production by disabling docs — access via internal network only.
+    """
+    pool = engine.pool.status()  # type: ignore[union-attr]
+    pool_size = engine.pool.size()  # type: ignore[union-attr]
+    pool_overflow = engine.pool.overflow()  # type: ignore[union-attr]
+    pool_checkedin = engine.pool.checkedin()  # type: ignore[union-attr]
+    pool_checkedout = engine.pool.checkedout()  # type: ignore[union-attr]
+
+    redis_ok = False
+    try:
+        from app.utils.cache import get_redis
+        r = await get_redis()
+        await r.ping()
+        redis_ok = True
+    except Exception:
+        pass
+
+    # Cache hit/miss metrics
+    from app.utils.cache import get_cache_metrics
+    cache_stats = get_cache_metrics()
+
+    return {
+        "uptime_seconds": round(time.monotonic() - _start_time, 1),
+        "database": {
+            "pool_size": pool_size,
+            "pool_overflow": pool_overflow,
+            "connections_in_use": pool_checkedout,
+            "connections_idle": pool_checkedin,
+            "pool_status": pool,
+        },
+        "redis": {
+            "connected": redis_ok,
+        },
+        "cache": cache_stats,
+        "timestamp": datetime.utcnow().isoformat(),
+    }

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
+from app.utils.cache import cached, invalidate_cache
 from app.models.tenant.transporter import Transporter
 from app.schemas.transporter import TransporterCreate, TransporterOut, TransporterUpdate
 
@@ -23,6 +24,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[TransporterOut])
+@cached(ttl=300, prefix="transporters")
 async def list_transporters(
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_tenant_db),
@@ -55,6 +57,7 @@ async def create_transporter(
     transporter = Transporter(id=str(uuid.uuid4()), **body.model_dump())
     db.add(transporter)
     await db.flush()
+    await invalidate_cache("transporters")
     return TransporterOut.model_validate(transporter)
 
 
@@ -75,6 +78,7 @@ async def update_transporter(
     for key, value in updates.items():
         setattr(transporter, key, value)
     await db.flush()
+    await invalidate_cache("transporters")
     return TransporterOut.model_validate(transporter)
 
 
@@ -92,4 +96,5 @@ async def toggle_transporter(
 
     transporter.is_active = not transporter.is_active
     await db.flush()
+    await invalidate_cache("transporters")
     return TransporterOut.model_validate(transporter)

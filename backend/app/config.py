@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # Database pool (tunable per deployment — see Tier 5 plan)
+    pool_size: int = 50
+    max_overflow: int = 30
+
+    # Observability (optional — leave empty to disable)
+    sentry_dsn: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

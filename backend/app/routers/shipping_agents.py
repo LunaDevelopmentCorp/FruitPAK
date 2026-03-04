@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import require_onboarded, require_permission
 from app.database import get_tenant_db
 from app.models.public.user import User
+from app.utils.cache import cached, invalidate_cache
 from app.models.tenant.shipping_agent import ShippingAgent
 from app.schemas.shipping_agent import ShippingAgentCreate, ShippingAgentOut, ShippingAgentUpdate
 
@@ -23,6 +24,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[ShippingAgentOut])
+@cached(ttl=300, prefix="shipping_agents")
 async def list_shipping_agents(
     include_inactive: bool = False,
     db: AsyncSession = Depends(get_tenant_db),
@@ -55,6 +57,7 @@ async def create_shipping_agent(
     agent = ShippingAgent(id=str(uuid.uuid4()), **body.model_dump())
     db.add(agent)
     await db.flush()
+    await invalidate_cache("shipping_agents")
     return ShippingAgentOut.model_validate(agent)
 
 
@@ -75,6 +78,7 @@ async def update_shipping_agent(
     for key, value in updates.items():
         setattr(agent, key, value)
     await db.flush()
+    await invalidate_cache("shipping_agents")
     return ShippingAgentOut.model_validate(agent)
 
 
@@ -92,4 +96,5 @@ async def toggle_shipping_agent(
 
     agent.is_active = not agent.is_active
     await db.flush()
+    await invalidate_cache("shipping_agents")
     return ShippingAgentOut.model_validate(agent)
