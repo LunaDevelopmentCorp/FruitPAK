@@ -67,10 +67,9 @@ def _build_prefix(fmt: str, today_str: str, batch_code: str | None = None) -> st
 async def _count_existing(db: AsyncSession, entity: str, prefix: str) -> int:
     """Count existing codes with the given prefix."""
     table_name, column_name = ENTITY_TABLE_MAP[entity]
-    # Use raw SQL to count matching codes across entity table
-    safe_prefix = prefix.replace("'", "''")
     result = await db.execute(
-        text(f"SELECT COUNT(*) FROM {table_name} WHERE {column_name} LIKE '{safe_prefix}%'")
+        text(f"SELECT COUNT(*) FROM {table_name} WHERE {column_name} LIKE :prefix"),
+        {"prefix": f"{prefix}%"},
     )
     return result.scalar() or 0
 

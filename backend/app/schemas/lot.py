@@ -2,7 +2,9 @@
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.validators import validate_flat_json_dict
 
 
 # ── Create lots from a batch (high-level) ────────────────────
@@ -49,6 +51,11 @@ class LotCreate(BaseModel):
     quality_data: dict | None = None
     notes: str | None = None
 
+    @field_validator("quality_data")
+    @classmethod
+    def _validate_qd(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v)
+
 
 # ── Update (partial) ─────────────────────────────────────────
 
@@ -63,6 +70,11 @@ class LotUpdate(BaseModel):
     weight_kg: float | None = None
     pack_date: date | None = None
     quality_data: dict | None = None
+
+    @field_validator("quality_data")
+    @classmethod
+    def _validate_qd(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v)
     status: str | None = None
     waste_kg: float | None = Field(None, ge=0)
     waste_reason: str | None = None

@@ -7,7 +7,13 @@
 
 import { parseError, getUserFriendlyMessage, type AppError } from './errorHandling';
 import { errorLogger } from '../services/errorLogger';
-import type { ToastAPI } from '../hooks/useToast';
+
+interface ToastAPI {
+  success: (message: string, description?: string, duration?: number) => string;
+  error: (message: string, description?: string, duration?: number) => string;
+  warning: (message: string, description?: string, duration?: number) => string;
+  info: (message: string, description?: string, duration?: number) => string;
+}
 
 interface HandleErrorOptions {
   toast?: ToastAPI;

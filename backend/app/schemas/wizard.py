@@ -5,9 +5,10 @@ The `StepNComplete` variants are used for final validation when
 marking a step as completed.
 """
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from app.schemas.container import BoxCapacityInput
+from app.schemas.validators import validate_flat_json_dict
 
 
 # ── Wizard state / progress ─────────────────────────────────
@@ -49,10 +50,15 @@ class Step1Complete(Step1Data):
 
 # ── Step 2: Packhouse setup ─────────────────────────────────
 
+class StationInput(BaseModel):
+    name: str
+    position: int
+
+
 class PackLineInput(BaseModel):
     name: str
     line_number: int
-    stations: list[dict] | None = None
+    stations: list[StationInput] | None = None
     custom_units: list[str] | None = None
 
 
@@ -244,6 +250,11 @@ class TransportInput(BaseModel):
     atmosphere_settings: dict | None = None
     box_capacities: list[BoxCapacityInput] | None = None
 
+    @field_validator("atmosphere_settings")
+    @classmethod
+    def _validate_atmosphere(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v, max_keys=20)
+
 
 class ShippingLineInput(BaseModel):
     name: str
@@ -288,3 +299,8 @@ class Step8Data(BaseModel):
     grower_payment_terms_days: int | None = None
     client_payment_terms_days: int | None = None
     additional_rates: dict | None = None
+
+    @field_validator("additional_rates")
+    @classmethod
+    def _validate_rates(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v, max_keys=30, allow_list_values=False)

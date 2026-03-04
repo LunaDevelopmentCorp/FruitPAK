@@ -212,7 +212,7 @@ async def otp_request(body: OTPRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=429, detail=str(e))
 
     response = {"message": "OTP sent"}
-    if not __import__("app.config", fromlist=["settings"]).settings.twilio_account_sid:
+    if not settings.twilio_account_sid:
         response["dev_code"] = code  # only in dev
     return response
 

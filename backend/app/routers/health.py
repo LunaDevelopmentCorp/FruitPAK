@@ -1,5 +1,6 @@
 """Health check endpoints for load balancers and monitoring."""
 
+import logging
 import os
 from datetime import datetime
 
@@ -7,6 +8,8 @@ from fastapi import APIRouter, status
 from sqlalchemy import text
 
 from app.database import engine
+
+logger = logging.getLogger("fruitpak.health")
 
 router = APIRouter(tags=["health"])
 
@@ -45,8 +48,9 @@ async def readiness_check():
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         checks["database"] = "ok"
-    except Exception as e:
-        checks["database"] = f"error: {str(e)[:100]}"
+    except Exception:
+        logger.exception("Health check: database connection failed")
+        checks["database"] = "error"
         overall_healthy = False
 
     # Check Redis connection
@@ -58,8 +62,9 @@ async def readiness_check():
         await redis_client.ping()
         await redis_client.close()
         checks["redis"] = "ok"
-    except Exception as e:
-        checks["redis"] = f"error: {str(e)[:100]}"
+    except Exception:
+        logger.exception("Health check: Redis connection failed")
+        checks["redis"] = "error"
         overall_healthy = False
 
     return_status = status.HTTP_200_OK if overall_healthy else status.HTTP_503_SERVICE_UNAVAILABLE

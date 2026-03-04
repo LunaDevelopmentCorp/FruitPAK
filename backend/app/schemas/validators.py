@@ -228,21 +228,85 @@ def validate_alphanumeric(value: str, allow_spaces: bool = False) -> str:
     return value
 
 
-# Example usage in Pydantic models:
-#
-# from pydantic import BaseModel, field_validator
-# from app.schemas.validators import validate_email, sanitize_string
-#
-# class UserCreate(BaseModel):
-#     email: str
-#     name: str
-#
-#     @field_validator("email")
-#     @classmethod
-#     def validate_email_field(cls, v: str) -> str:
-#         return validate_email(v)
-#
-#     @field_validator("name")
-#     @classmethod
-#     def validate_name_field(cls, v: str) -> str:
-#         return sanitize_string(v, max_length=100)
+_PRIMITIVE_TYPES = (str, int, float, bool, type(None))
+
+
+def validate_flat_json_dict(
+    value: dict | None,
+    *,
+    max_keys: int = 50,
+    max_key_len: int = 100,
+    max_str_value_len: int = 1000,
+    allow_list_values: bool = True,
+) -> dict | None:
+    """Validate a JSON dict has flat structure with primitive values.
+
+    Prevents deeply nested objects, oversized payloads, and non-primitive
+    values from being stored in flexible JSON columns.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("Must be a JSON object")
+    if len(value) > max_keys:
+        raise ValueError(f"Too many keys (max {max_keys})")
+    for k, v in value.items():
+        if not isinstance(k, str):
+            raise ValueError("All keys must be strings")
+        if len(k) > max_key_len:
+            raise ValueError(f"Key '{k[:20]}...' too long (max {max_key_len})")
+        if isinstance(v, _PRIMITIVE_TYPES):
+            if isinstance(v, str) and len(v) > max_str_value_len:
+                raise ValueError(
+                    f"Value for '{k}' too long (max {max_str_value_len} chars)"
+                )
+        elif isinstance(v, list) and allow_list_values:
+            if len(v) > 100:
+                raise ValueError(f"List for '{k}' too long (max 100 items)")
+            for item in v:
+                if not isinstance(item, _PRIMITIVE_TYPES):
+                    raise ValueError(
+                        f"List items in '{k}' must be primitive values"
+                    )
+        else:
+            raise ValueError(
+                f"Value for '{k}' must be a string, number, boolean, or null"
+            )
+    return value
+
+
+def validate_settings_dict(
+    value: dict[str, Any] | None,
+    *,
+    max_keys: int = 30,
+) -> dict[str, Any] | None:
+    """Validate a tenant settings dict — allows one level of nesting."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("Must be a JSON object")
+    if len(value) > max_keys:
+        raise ValueError(f"Too many keys (max {max_keys})")
+    for k, v in value.items():
+        if not isinstance(k, str) or len(k) > 100:
+            raise ValueError(f"Invalid settings key: {k!r}")
+        if isinstance(v, dict):
+            # One level of nesting allowed
+            if len(v) > 50:
+                raise ValueError(f"Nested object for '{k}' too large")
+            for nk, nv in v.items():
+                if not isinstance(nk, str):
+                    raise ValueError(f"Nested keys in '{k}' must be strings")
+                if not isinstance(nv, _PRIMITIVE_TYPES):
+                    raise ValueError(
+                        f"Nested value '{k}.{nk}' must be primitive"
+                    )
+        elif isinstance(v, list):
+            if len(v) > 100:
+                raise ValueError(f"List for '{k}' too long")
+            for item in v:
+                if not isinstance(item, _PRIMITIVE_TYPES):
+                    raise ValueError(f"List items in '{k}' must be primitive")
+        elif not isinstance(v, _PRIMITIVE_TYPES):
+            raise ValueError(f"Value for '{k}' must be a primitive type")
+    return value

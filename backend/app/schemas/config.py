@@ -2,7 +2,9 @@
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from app.schemas.validators import validate_settings_dict
 
 
 class BinTypeOut(BaseModel):
@@ -67,3 +69,9 @@ class FinancialSummaryOut(BaseModel):
 
 class TenantSettingsUpdate(BaseModel):
     settings: dict[str, Any]
+
+    @field_validator("settings")
+    @classmethod
+    def _validate_settings(cls, v: dict[str, Any]) -> dict[str, Any]:
+        validated = validate_settings_dict(v)
+        return validated if validated is not None else v

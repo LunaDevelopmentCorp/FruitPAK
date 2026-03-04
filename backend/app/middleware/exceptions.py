@@ -5,6 +5,7 @@ and proper logging for debugging.
 """
 
 import logging
+import re
 import traceback
 from typing import Union
 
@@ -16,6 +17,18 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
+
+# Patterns to scrub from log output
+_SENSITIVE_PATTERNS = re.compile(
+    r'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'  # JWT tokens
+    r'|Bearer\s+[A-Za-z0-9_.-]{20,}'  # Bearer tokens
+    r'|password["\']?\s*[:=]\s*["\']?[^"\'\s,}]{3,}'  # password values
+)
+
+
+def _scrub_sensitive(text: str) -> str:
+    """Strip JWT tokens, bearer tokens, and passwords from log text."""
+    return _SENSITIVE_PATTERNS.sub("[REDACTED]", text)
 
 
 class FruitPAKException(Exception):
@@ -191,7 +204,7 @@ async def database_exception_handler(
 ) -> JSONResponse:
     """Handle database integrity errors (unique violations, foreign key, etc.)."""
     logger.error(
-        f"Database integrity error on {request.url.path}: {str(exc)}",
+        f"Database integrity error on {request.url.path}: {_scrub_sensitive(str(exc))}",
         extra={
             "path": request.url.path,
             "method": request.method,
@@ -228,7 +241,7 @@ async def operational_exception_handler(
 ) -> JSONResponse:
     """Handle database operational errors (connection issues, etc.)."""
     logger.error(
-        f"Database operational error on {request.url.path}: {str(exc)}",
+        f"Database operational error on {request.url.path}: {_scrub_sensitive(str(exc))}",
         extra={
             "path": request.url.path,
             "method": request.method,
@@ -247,13 +260,13 @@ async def general_exception_handler(
     exc: Exception,
 ) -> JSONResponse:
     """Handle all other unhandled exceptions."""
-    # Log full traceback for debugging
+    # Log full traceback for debugging (scrubbed of sensitive data)
     logger.error(
-        f"Unhandled exception on {request.url.path}: {str(exc)}",
+        f"Unhandled exception on {request.url.path}: {_scrub_sensitive(str(exc))}",
         extra={
             "path": request.url.path,
             "method": request.method,
-            "traceback": traceback.format_exc(),
+            "traceback": _scrub_sensitive(traceback.format_exc()),
         },
         exc_info=True,
     )

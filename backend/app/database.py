@@ -24,6 +24,7 @@ engine = create_async_engine(
     echo=settings.debug,
     pool_size=50,
     max_overflow=30,
+    pool_pre_ping=True,
 )
 
 async_session = async_sessionmaker(

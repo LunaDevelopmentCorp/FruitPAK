@@ -1,8 +1,8 @@
 """Background task scheduler — runs daily reconciliation for all tenants.
 
 Uses FastAPI's lifespan context to start/stop an asyncio background loop.
-No external dependencies (no Celery, no APScheduler) — just a simple
-asyncio.sleep loop that fires once per day at the configured hour.
+Uses Redis distributed lock to ensure only one instance runs reconciliation
+in multi-worker deployments.
 
 Usage:
     In main.py, replace `app = FastAPI(...)` with:
@@ -12,11 +12,6 @@ Usage:
 
 Configuration:
     RECONCILIATION_HOUR=2   (run at 02:00 UTC daily, via .env)
-
-For production, consider replacing this with:
-    - APScheduler + Redis job store (for multi-worker deduplication)
-    - Celery Beat (if you already use Celery)
-    - pg_cron (if you want the DB to own the schedule)
 """
 
 import asyncio
@@ -111,6 +106,21 @@ async def _scheduler_loop() -> None:
         )
 
         await asyncio.sleep(wait_seconds)
+
+        # Distributed lock: only one instance runs reconciliation
+        try:
+            from app.utils.cache import get_redis
+            redis_client = await get_redis()
+            lock_key = f"fruitpak:reconciliation:lock:{now.strftime('%Y-%m-%d')}"
+            acquired = await redis_client.set(
+                lock_key, "1", nx=True, ex=7200  # 2h TTL
+            )
+            if not acquired:
+                logger.info("Another instance holds the reconciliation lock, skipping")
+                await asyncio.sleep(60)
+                continue
+        except Exception:
+            logger.warning("Redis unavailable for distributed lock, proceeding anyway")
 
         try:
             await run_daily_reconciliation()

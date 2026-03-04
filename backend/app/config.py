@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # App
     environment: str = "development"
-    debug: bool = True
+    debug: bool = False
     allowed_origins: str = "http://localhost:3000,http://localhost:19006"
 
     # Database
@@ -32,3 +32,9 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.environment != "development" and settings.secret_key == "change-me-in-production":
+    raise RuntimeError(
+        "SECRET_KEY must be set in production — cannot use default value. "
+        "Set SECRET_KEY in your .env file."
+    )

@@ -1,9 +1,11 @@
-"""Rate limiting middleware using Redis.
+"""Rate limiting middleware using Redis with in-memory fallback.
 
 Protects endpoints from abuse with configurable per-user and per-IP limits.
 Uses sliding window algorithm for accurate rate limiting.
+Falls back to per-process in-memory counter when Redis is unavailable.
 """
 
+import logging
 import time
 from typing import Callable, Optional
 
@@ -11,6 +13,13 @@ from fastapi import HTTPException, Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.utils.cache import get_redis
+
+logger = logging.getLogger("fruitpak.ratelimit")
+
+# In-memory fallback: {key: (count, window_start_time)}
+_local_counters: dict[str, tuple[int, float]] = {}
+_LOCAL_CLEANUP_INTERVAL = 300  # cleanup stale entries every 5 min
+_last_cleanup = 0.0
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -162,11 +171,48 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             return True, remaining, reset_time
 
-        except Exception as e:
-            # If Redis fails, allow request (fail open)
-            import logging
-            logging.error(f"Rate limit check failed: {e}")
-            return True, limit, current_time + window
+        except Exception:
+            # Redis unavailable — use in-memory fallback with 2x limit
+            logger.warning("Redis unavailable for rate limiting, using in-memory fallback")
+            return _check_local_rate_limit(key, limit * 2, window)
+
+
+def _check_local_rate_limit(
+    key: str, limit: int, window: int
+) -> tuple[bool, int, float]:
+    """In-memory fallback rate limiter (per-process, not shared across replicas).
+
+    Uses a simple fixed-window counter. Less accurate than Redis sliding window
+    but prevents brute-force attacks when Redis is down.
+    """
+    global _last_cleanup
+    current_time = time.time()
+
+    # Periodic cleanup of stale entries
+    if current_time - _last_cleanup > _LOCAL_CLEANUP_INTERVAL:
+        _last_cleanup = current_time
+        stale_keys = [
+            k for k, (_, start) in _local_counters.items()
+            if current_time - start > window * 2
+        ]
+        for k in stale_keys:
+            del _local_counters[k]
+
+    count, window_start = _local_counters.get(key, (0, current_time))
+
+    # Reset if window has expired
+    if current_time - window_start >= window:
+        count = 0
+        window_start = current_time
+
+    count += 1
+    _local_counters[key] = (count, window_start)
+    reset_time = window_start + window
+
+    if count > limit:
+        return False, 0, reset_time
+
+    return True, limit - count, reset_time
 
 
 class RateLimiter:

@@ -18,6 +18,9 @@ app = FastAPI(
     description="Fruit Inventory Packhouse Management & Export System",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
 # ── Exception Handlers ───────────────────────────────────────
@@ -47,8 +50,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins.split(","),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Packhouse-Id", "Accept-Language"],
 )
 
 # Tenant context (innermost - processes request data)

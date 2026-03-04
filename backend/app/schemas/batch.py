@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.lot import LotSummary
+from app.schemas.validators import validate_flat_json_dict
 
 
 # ── GRN Intake (primary intake flow) ─────────────────────────
@@ -38,6 +39,11 @@ class GRNRequest(BaseModel):
     vehicle_reg: str | None = None
     driver_name: str | None = None
     delivery_notes: str | None = None
+
+    @field_validator("quality_assessment")
+    @classmethod
+    def _validate_qa(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v)
 
     @model_validator(mode="after")
     def weight_or_units_required(self):
@@ -77,6 +83,11 @@ class BatchCreate(BaseModel):
     bin_type: str | None = None
     notes: str | None = None
 
+    @field_validator("quality_assessment")
+    @classmethod
+    def _validate_qa(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v)
+
 
 # ── Update (partial) ─────────────────────────────────────────
 
@@ -89,6 +100,11 @@ class BatchUpdate(BaseModel):
     arrival_temp_c: float | None = None
     brix_reading: float | None = None
     quality_assessment: dict | None = None
+
+    @field_validator("quality_assessment")
+    @classmethod
+    def _validate_qa(cls, v: dict | None) -> dict | None:
+        return validate_flat_json_dict(v)
     status: str | None = None
     rejection_reason: str | None = None
     waste_kg: float | None = Field(None, ge=0)
