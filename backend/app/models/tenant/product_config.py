@@ -95,6 +95,7 @@ class PalletType(TenantBase):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     capacity_boxes: Mapped[int] = mapped_column(Integer, default=240)
+    tare_weight_kg: Mapped[float] = mapped_column(Float, default=0.0)
     notes: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

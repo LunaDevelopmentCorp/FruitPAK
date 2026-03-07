@@ -7,6 +7,7 @@ import { listClients, ClientSummary } from "../api/clients";
 import { listTransporters, TransporterOut } from "../api/transporters";
 import { listShippingAgents, ShippingAgentOut } from "../api/shippingAgents";
 import { listShippingLines, ShippingLineOut } from "../api/shippingLines";
+import { listShippingSchedules, ShippingScheduleSummary } from "../api/shippingSchedules";
 import { getErrorMessage } from "../api/client";
 import { showToast } from "../store/toastStore";
 import PageHeader from "../components/PageHeader";
@@ -32,6 +33,7 @@ export default function ContainersList() {
   const [transporters, setTransporters] = useState<TransporterOut[]>([]);
   const [shippingAgents, setShippingAgents] = useState<ShippingAgentOut[]>([]);
   const [shippingLines, setShippingLines] = useState<ShippingLineOut[]>([]);
+  const [schedules, setSchedules] = useState<ShippingScheduleSummary[]>([]);
   const [newContainerType, setNewContainerType] = useState("reefer_40ft");
   const [newCapacity, setNewCapacity] = useState(20);
   const [newClientId, setNewClientId] = useState("");
@@ -43,6 +45,7 @@ export default function ContainersList() {
   const [newShippingLineId, setNewShippingLineId] = useState("");
   const [newVesselName, setNewVesselName] = useState("");
   const [newVoyageNumber, setNewVoyageNumber] = useState("");
+  const [newEtd, setNewEtd] = useState("");
   const [newEta, setNewEta] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -78,6 +81,9 @@ export default function ContainersList() {
     listShippingLines()
       .then(setShippingLines)
       .catch(() => {});
+    listShippingSchedules({ status: "scheduled" })
+      .then(setSchedules)
+      .catch(() => {});
   };
 
   const handleCancelCreate = () => {
@@ -93,6 +99,7 @@ export default function ContainersList() {
     setNewShippingLineId("");
     setNewVesselName("");
     setNewVoyageNumber("");
+    setNewEtd("");
     setNewEta("");
   };
 
@@ -112,6 +119,7 @@ export default function ContainersList() {
       if (newShippingLineId) payload.shipping_line_id = newShippingLineId;
       if (newVesselName.trim()) payload.vessel_name = newVesselName.trim();
       if (newVoyageNumber.trim()) payload.voyage_number = newVoyageNumber.trim();
+      if (newEtd) payload.etd = newEtd;
       if (newEta) payload.eta = newEta;
 
       await createEmptyContainer(payload);
@@ -260,6 +268,32 @@ export default function ContainersList() {
                 ))}
               </select>
             </div>
+            {schedules.length > 0 && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">{t("container.sailingSchedule")}</label>
+                <select
+                  onChange={(e) => {
+                    const sched = schedules.find((s) => s.id === e.target.value);
+                    if (sched) {
+                      setNewVesselName(sched.vessel_name || "");
+                      setNewVoyageNumber(sched.voyage_number || "");
+                      setNewShippingLineId(sched.shipping_line_id || "");
+                      setNewEtd(sched.etd || "");
+                      setNewEta(sched.eta || "");
+                    }
+                  }}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  defaultValue=""
+                >
+                  <option value="">{t("container.selectSchedule")}</option>
+                  {schedules.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.vessel_name} — {s.voyage_number} (ETD: {s.etd || "—"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t("create.vesselName")}</label>
               <input
@@ -277,6 +311,15 @@ export default function ContainersList() {
                 value={newVoyageNumber}
                 onChange={(e) => setNewVoyageNumber(e.target.value)}
                 placeholder={t("create.voyagePlaceholder")}
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t("create.etd")}</label>
+              <input
+                type="date"
+                value={newEtd}
+                onChange={(e) => setNewEtd(e.target.value)}
                 className="w-full border rounded px-3 py-2 text-sm"
               />
             </div>

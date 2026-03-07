@@ -21,6 +21,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/dashboard", labelKey: "nav.dashboard" },
       { to: "/grn-intake", labelKey: "nav.grnIntake" },
+      { to: "/reports", labelKey: "nav.reports" },
     ],
   },
   {
@@ -51,6 +52,7 @@ const NAV_SECTIONS: NavSection[] = [
     headingKey: "nav.system",
     items: [
       { to: "/shipping-schedules", labelKey: "nav.shippingSchedules" },
+      { to: "/pack-specs", labelKey: "nav.packSpecs" },
       { to: "/setup", labelKey: "nav.setupWizard" },
     ],
   },

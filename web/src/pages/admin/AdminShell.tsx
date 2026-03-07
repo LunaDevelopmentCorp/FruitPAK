@@ -15,6 +15,8 @@ export default function AdminShell() {
     { to: "/admin/roles", label: t("tabs.roles") },
     { to: "/admin/activity", label: t("tabs.activity") },
     { to: "/admin/deleted-items", label: t("tabs.deletedItems") },
+    { to: "/admin/system-health", label: t("tabs.systemHealth") },
+    { to: "/admin/export-import", label: t("tabs.exportImport") },
   ];
 
   useEffect(() => {

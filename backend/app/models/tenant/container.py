@@ -74,6 +74,7 @@ class Container(TenantBase):
     )
     vessel_name: Mapped[str | None] = mapped_column(String(255))
     voyage_number: Mapped[str | None] = mapped_column(String(100))
+    etd: Mapped[date | None] = mapped_column(Date)  # vessel departure at origin
 
     # ── Export link ──────────────────────────────────────────
     export_id: Mapped[str | None] = mapped_column(

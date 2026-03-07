@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     pool_size: int = 50
     max_overflow: int = 30
 
+    # S3 document storage (optional — leave empty to use local fallback)
+    aws_s3_bucket: str = ""
+    aws_region: str = "af-south-1"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+
+    # Email (optional — SendGrid)
+    sendgrid_api_key: str = ""
+    email_from_address: str = ""
+    email_from_name: str = "FruitPAK"
+
     # Observability (optional — leave empty to disable)
     sentry_dsn: str = ""
 

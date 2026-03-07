@@ -67,6 +67,39 @@ class FinancialSummaryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PackSpecOut(BaseModel):
+    id: str
+    name: str
+    pack_type: str | None = None
+    weight_kg: float | None = None
+    units_per_carton: int | None = None
+    cartons_per_layer: int | None = None
+    layers_per_pallet: int | None = None
+    target_market: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class PackSpecCreate(BaseModel):
+    name: str
+    pack_type: str | None = None
+    weight_kg: float | None = None
+    units_per_carton: int | None = None
+    cartons_per_layer: int | None = None
+    layers_per_pallet: int | None = None
+    target_market: str | None = None
+
+
+class PackSpecUpdate(BaseModel):
+    name: str | None = None
+    pack_type: str | None = None
+    weight_kg: float | None = None
+    units_per_carton: int | None = None
+    cartons_per_layer: int | None = None
+    layers_per_pallet: int | None = None
+    target_market: str | None = None
+
+
 class TenantSettingsUpdate(BaseModel):
     settings: dict[str, Any]
 

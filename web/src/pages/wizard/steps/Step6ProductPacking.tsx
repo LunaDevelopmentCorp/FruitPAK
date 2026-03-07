@@ -37,6 +37,7 @@ interface BoxCapacityForm {
 interface PalletTypeForm {
   name: string;
   capacity_boxes: number;
+  tare_weight_kg: number;
   notes: string;
   box_capacities: BoxCapacityForm[];
 }
@@ -71,7 +72,7 @@ const COMMON_PACK_SPECS: PackSpecForm[] = [
 ];
 
 const EMPTY_BOX: BoxTypeForm = { name: "", weight_kg: 4.0, dimensions: "", tare_weight_kg: 0, net_weight_target_kg: null, min_weight_kg: null, max_weight_kg: null };
-const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, notes: "", box_capacities: [] };
+const EMPTY_PALLET: PalletTypeForm = { name: "", capacity_boxes: 240, tare_weight_kg: 0, notes: "", box_capacities: [] };
 const EMPTY_BIN: BinTypeForm = { name: "", default_weight_kg: 0, tare_weight_kg: 0 };
 
 export default function Step6ProductPacking({ onSave, saving, draftData }: StepProps) {
@@ -334,7 +335,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                       <input
                         {...register(`box_sizes.${idx}.tare_weight_kg`, { valueAsNumber: true })}
                         type="number"
-                        step="0.01"
+                        step="0.001"
                         min={0}
                         placeholder="0"
                         className="min-w-[80px] w-full border rounded px-2 py-1.5 text-sm text-right"
@@ -412,7 +413,7 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                   {t("common:actions.remove")}
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <input
                   {...register(`pallet_types.${idx}.name`)}
                   placeholder={t("step6.palletTypePlaceholder")}
@@ -423,6 +424,14 @@ export default function Step6ProductPacking({ onSave, saving, draftData }: StepP
                   type="number"
                   min={1}
                   placeholder={t("step6.defaultCapacity")}
+                  className="border rounded px-2 py-1.5 text-sm text-right"
+                />
+                <input
+                  {...register(`pallet_types.${idx}.tare_weight_kg`, { valueAsNumber: true })}
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  placeholder={t("step6.palletTareWeight")}
                   className="border rounded px-2 py-1.5 text-sm text-right"
                 />
                 <input

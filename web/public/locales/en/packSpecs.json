@@ -1,0 +1,30 @@
+{
+  "title": "Pack Specifications",
+  "subtitle": "Manage packing configurations for cartons and containers. Click a row to edit.",
+  "addSpec": "+ New Pack Spec",
+  "createTitle": "New Pack Specification",
+  "createBtn": "Create Spec",
+  "searchPlaceholder": "Search by name, type, or market...",
+  "showing": "{{count}} of {{total}}",
+  "empty": "No pack specifications configured yet. Create one to get started.",
+  "loadFailed": "Failed to load pack specifications",
+  "confirmDelete": "Delete \"{{name}}\"? This cannot be undone if no lots reference it.",
+  "headers": {
+    "name": "Name",
+    "packType": "Pack Type",
+    "weight": "Weight (kg)",
+    "unitsPerCarton": "Units/Carton",
+    "cartonsPerLayer": "Cartons/Layer",
+    "layersPerPallet": "Layers/Pallet",
+    "boxesPerPallet": "Boxes/Pallet",
+    "targetMarket": "Target Market"
+  },
+  "toast": {
+    "created": "Pack spec created",
+    "updated": "Pack spec updated",
+    "deleted": "Pack spec deleted",
+    "createFailed": "Failed to create pack spec",
+    "updateFailed": "Failed to update pack spec",
+    "deleteFailed": "Failed to delete pack spec"
+  }
+}

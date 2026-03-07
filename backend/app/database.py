@@ -46,6 +46,8 @@ def _after_execute(conn, cursor, statement, parameters, context, executemany):
     elapsed = time.time() - conn.info.get("query_start", 0)
     if elapsed > 1.0:
         logger.warning("Slow query (%.2fs): %s", elapsed, statement[:200])
+        from app.utils.health_log import add_warning
+        add_warning("slow_query", f"Slow query ({elapsed:.2f}s): {statement[:200]}")
 
 async_session = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False

@@ -155,6 +155,7 @@
     "palletType": "Pallet Type {{index}}",
     "palletTypePlaceholder": "e.g. Standard 240",
     "defaultCapacity": "Default capacity",
+    "palletTareWeight": "Pallet tare (kg)",
     "notesOptional": "Notes (optional)",
     "capacityPerBoxType": "Capacity per box type (optional)",
     "capacityPerBoxHelp": "Leave blank to use the default capacity ({{capacity}}) for all box types.",

@@ -85,7 +85,7 @@ export default function BatchDetail() {
         backTo="/batches"
         backLabel={t("detail.backToBatches")}
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={batch.status} className="text-sm px-3 py-1" />
             <button
               onClick={() => setConfirmDelete(true)}

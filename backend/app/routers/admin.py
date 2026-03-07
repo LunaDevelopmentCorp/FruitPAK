@@ -2,6 +2,7 @@
 
 Endpoints:
     GET    /api/admin/overview                                     System overview metrics
+    GET    /api/admin/system-health                                System health dashboard
     GET    /api/admin/activity                                     Activity log
     GET    /api/admin/users                                        List enterprise users
     PATCH  /api/admin/users/{user_id}                              Update user
@@ -12,6 +13,7 @@ Endpoints:
     DELETE /api/admin/deleted-items/{item_type}/{item_id}/purge     Permanently delete
 """
 
+import time
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,7 +23,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.deps import require_onboarded, require_role
 from app.auth.revocation import TokenRevocation
-from app.database import get_db, get_tenant_db
+from app.database import engine, get_db, get_tenant_db
 from app.models.public.user import User, UserRole
 from app.models.tenant.activity_log import ActivityLog
 from app.models.tenant.batch import Batch
@@ -320,6 +322,89 @@ async def get_admin_overview(
         active_users=active_users,
         recent_activity=recent_activity,
     )
+
+
+# ══════════════════════════════════════════════════════════════
+# SYSTEM HEALTH
+# ══════════════════════════════════════════════════════════════
+
+# Startup timestamp for uptime calculation
+_start_time = time.time()
+
+
+@router.get("/system-health")
+async def get_system_health(
+    _user: User = Depends(require_role(UserRole.ADMINISTRATOR, UserRole.PLATFORM_ADMIN)),
+):
+    """System health dashboard — service statuses, pool stats, warnings."""
+    import redis.asyncio as aioredis
+    from app.utils.cache import get_cache_metrics, get_redis
+    from app.utils.health_log import get_recent_warnings, get_warning_counts
+
+    uptime_seconds = round(time.time() - _start_time, 1)
+
+    # ── Database pool stats ──────────────────────────────
+    pool = engine.pool
+    db_status = "ok"
+    try:
+        pool_size = pool.size()
+        checked_in = pool.checkedin()
+        checked_out = pool.checkedout()
+        overflow = pool.overflow()
+        utilization = round(checked_out / max(pool_size, 1), 3)
+    except Exception:
+        db_status = "error"
+        pool_size = checked_in = checked_out = overflow = 0
+        utilization = 0.0
+
+    # ── Redis ping ───────────────────────────────────────
+    redis_status = "ok"
+    try:
+        redis_client = await get_redis()
+        await redis_client.ping()
+    except Exception:
+        redis_status = "error"
+
+    # ── Cache metrics ────────────────────────────────────
+    cache_stats = get_cache_metrics()
+    cache_status = "ok" if cache_stats["total"] == 0 or cache_stats["hit_rate"] >= 0.3 else "warning"
+
+    # ── Warnings ─────────────────────────────────────────
+    warning_counts = get_warning_counts()
+    recent = get_recent_warnings(50)
+
+    # ── Overall status ───────────────────────────────────
+    if db_status == "error" or redis_status == "error":
+        overall = "unhealthy"
+    elif len(recent) > 0 or cache_status == "warning":
+        overall = "degraded"
+    else:
+        overall = "healthy"
+
+    return {
+        "status": overall,
+        "uptime_seconds": uptime_seconds,
+        "services": {
+            "database": {
+                "status": db_status,
+                "pool_size": pool_size,
+                "in_use": checked_out,
+                "idle": checked_in,
+                "overflow": overflow,
+                "utilization": utilization,
+            },
+            "redis": {"status": redis_status},
+            "cache": {
+                "status": cache_status,
+                **cache_stats,
+            },
+        },
+        "warnings": {
+            "total": len(recent),
+            "counts": warning_counts,
+            "recent": list(reversed(recent)),  # newest first
+        },
+    }
 
 
 # ══════════════════════════════════════════════════════════════

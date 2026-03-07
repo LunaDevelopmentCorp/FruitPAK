@@ -88,8 +88,15 @@ class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
             # Skip in development
             return await call_next(request)
 
-        # Check if request is HTTP
-        if request.url.scheme == "http":
+        # Skip redirect for health check paths (ALB health checks
+        # don't send X-Forwarded-Proto)
+        if request.url.path in ("/health", "/health/ready"):
+            return await call_next(request)
+
+        # Check X-Forwarded-Proto first (set by ALB/reverse proxy),
+        # fall back to request.url.scheme for direct connections
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if proto == "http":
             # Build HTTPS URL
             https_url = request.url.replace(scheme="https")
 

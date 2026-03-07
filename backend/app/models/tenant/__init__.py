@@ -42,6 +42,9 @@ from app.models.tenant.reconciliation_alert import ReconciliationAlert
 # ── Packaging stock ─────────────────────────────────────────
 from app.models.tenant.packaging_stock import PackagingStock, PackagingMovement
 
+# ── Shipment documents ──────────────────────────────────────
+from app.models.tenant.shipment_document import ShipmentDocument
+
 __all__ = [
     # Setup / config
     "WizardState", "CompanyProfile", "Packhouse", "PackLine",
@@ -58,4 +61,6 @@ __all__ = [
     "ReconciliationAlert",
     # Packaging stock
     "PackagingStock", "PackagingMovement",
+    # Shipment documents
+    "ShipmentDocument",
 ]

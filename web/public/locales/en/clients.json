@@ -46,5 +46,37 @@
     "updated": "Updated {{name}}",
     "created": "Created client {{name}}"
   },
-  "days": "days"
+  "days": "days",
+  "detail": {
+    "backToList": "Back to Clients",
+    "shipments": "Shipments",
+    "noShipments": "No containers assigned to this client yet.",
+    "noDocs": "No documents yet. Generate a packing list or upload documents.",
+    "generateShipping": "Generate Shipping PL",
+    "generateTraceability": "Generate Traceability PL",
+    "generating": "Generating...",
+    "generateSuccess": "Packing list generated and saved.",
+    "generateFailed": "Failed to generate packing list.",
+    "upload": "Upload File",
+    "uploading": "Uploading...",
+    "uploadSuccess": "Document uploaded.",
+    "uploadFailed": "Failed to upload document.",
+    "download": "Download",
+    "downloadFailed": "Failed to download document.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {{name}}? This cannot be undone.",
+    "deleteSuccess": "Document deleted.",
+    "deleteFailed": "Failed to delete document.",
+    "emailDocs": "Email Documents",
+    "emailTitle": "Email Shipment Documents",
+    "emailTo": "Recipient Email",
+    "emailSubject": "Subject",
+    "emailMessage": "Message (optional)",
+    "emailMessagePlaceholder": "Add a message to the client...",
+    "emailAttachments": "{{count}} document(s) will be attached.",
+    "emailSent": "Sent {{count}} document(s) to {{to}}.",
+    "emailFailed": "Failed to send email.",
+    "sending": "Sending...",
+    "send": "Send Email"
+  }
 }

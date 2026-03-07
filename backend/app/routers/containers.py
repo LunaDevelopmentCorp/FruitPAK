@@ -322,10 +322,13 @@ async def load_pallets_into_container(
             detail=f"Already in a container: {', '.join(already_loaded[:3])}",
         )
 
-    # Link pallets
+    # Link pallets — assign sequential position based on current count
+    next_pos = container.pallet_count + 1
     for pallet in pallets:
         pallet.container_id = container.id
         pallet.loaded_at = datetime.utcnow()
+        pallet.position_in_container = str(next_pos)
+        next_pos += 1
         if pallet.status in ("open", "closed", "stored", "allocated"):
             pallet.status = "loaded"
 
@@ -425,6 +428,7 @@ async def update_container(
 async def list_containers(
     status: str | None = None,
     customer: str | None = None,
+    client_id: str | None = None,
     search: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
@@ -439,6 +443,8 @@ async def list_containers(
         base = base.where(Container.packhouse_id.in_(packhouse_scope))
     if status:
         base = base.where(Container.status == status)
+    if client_id:
+        base = base.where(Container.client_id == client_id)
     if customer:
         base = base.where(Container.customer_name.ilike(f"%{customer}%"))
     if search:
@@ -847,6 +853,8 @@ async def export_container(
         container.voyage_number = body.voyage_number
     if body.shipping_line_id is not None:
         container.shipping_line_id = body.shipping_line_id
+    if body.etd is not None:
+        container.etd = body.etd
     if body.eta is not None:
         container.eta = body.eta
     container.updated_at = datetime.utcnow()

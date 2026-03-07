@@ -45,7 +45,8 @@
     "vesselPlaceholder": "e.g. MSC Flaminia",
     "voyageNumber": "Voyage Number",
     "voyagePlaceholder": "e.g. 025E",
-    "eta": "ETA",
+    "etd": "ETD (Origin)",
+    "eta": "ETA (Destination)",
     "etaPlaceholder": "Estimated arrival date"
   },
   "detail": {
@@ -119,7 +120,10 @@
     "shippingLine": "Shipping Line",
     "vesselName": "Vessel Name",
     "voyageNumber": "Voyage Number",
-    "etaLabel": "ETA",
+    "etdLabel": "ETD (Origin)",
+    "etaLabel": "ETA (Destination)",
+    "sailingSchedule": "Sailing Schedule",
+    "selectSchedule": "— Select a schedule —",
     "timestamps": "Timestamps",
     "sealedAt": "Sealed at",
     "sealedBy": "Sealed by",

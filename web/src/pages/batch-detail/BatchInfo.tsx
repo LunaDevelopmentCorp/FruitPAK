@@ -184,7 +184,7 @@ export default React.memo(function BatchInfo({
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             {t("info.weights")}
           </h4>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t("info.binType")}</label>
               <select
@@ -246,7 +246,7 @@ export default React.memo(function BatchInfo({
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             {t("info.fruitDetails")}
           </h4>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t("info.fruitType")}</label>
               <p className="px-2 py-1.5 text-sm text-gray-600 bg-gray-100 rounded">
@@ -269,7 +269,7 @@ export default React.memo(function BatchInfo({
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             {t("info.delivery")}
           </h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t("info.vehicleReg")}</label>
               <input {...register("vehicle_reg")} className={inputCls} />

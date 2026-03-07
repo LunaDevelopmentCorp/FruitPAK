@@ -7,7 +7,7 @@ marking a step as completed.
 
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.schemas.container import BoxCapacityInput
+from app.schemas.container import BoxCapacityInput as ContainerBoxCapacityInput
 from app.schemas.validators import validate_flat_json_dict
 
 
@@ -199,7 +199,7 @@ class BinTypeInput(BaseModel):
     tare_weight_kg: float = 0.0
 
 
-class BoxCapacityInput(BaseModel):
+class PalletBoxCapacityInput(BaseModel):
     """Per-box-size capacity override for a pallet type."""
     box_size_name: str
     capacity: int
@@ -208,8 +208,9 @@ class BoxCapacityInput(BaseModel):
 class PalletTypeInput(BaseModel):
     name: str
     capacity_boxes: int = 240
+    tare_weight_kg: float = 0.0
     notes: str | None = None
-    box_capacities: list[BoxCapacityInput] | None = None
+    box_capacities: list[PalletBoxCapacityInput] | None = None
 
 
 class PalletRulesInput(BaseModel):
@@ -248,7 +249,7 @@ class TransportInput(BaseModel):
     pallet_capacity: int | None = None
     max_weight_kg: float | None = None
     atmosphere_settings: dict | None = None
-    box_capacities: list[BoxCapacityInput] | None = None
+    box_capacities: list[ContainerBoxCapacityInput] | None = None
 
     @field_validator("atmosphere_settings")
     @classmethod

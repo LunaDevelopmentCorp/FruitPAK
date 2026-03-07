@@ -18,7 +18,10 @@ import ContainerDetail from "./pages/ContainerDetail";
 import ShippingSchedules from "./pages/ShippingSchedules";
 import PackagingStock from "./pages/PackagingStock";
 import ClientManagement from "./pages/ClientManagement";
+import ClientDetail from "./pages/ClientDetail";
 import DataManagement from "./pages/DataManagement";
+import PackSpecs from "./pages/PackSpecs";
+import Reports from "./pages/Reports";
 import ReconciliationDashboard from "./pages/reconciliation/ReconciliationDashboard";
 import PlatformShell from "./pages/platform/PlatformShell";
 import PlatformStats from "./pages/platform/PlatformStats";
@@ -30,6 +33,8 @@ import UserManagement from "./pages/admin/UserManagement";
 import RoleManagement from "./pages/admin/RoleManagement";
 import ActivityLog from "./pages/admin/ActivityLog";
 import DeletedItems from "./pages/admin/DeletedItems";
+import SystemHealth from "./pages/admin/SystemHealth";
+import TenantExportImport from "./pages/admin/TenantExportImport";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -76,9 +81,12 @@ export default function App() {
             <Route path="/shipping-schedules" element={<ShippingSchedules />} />
             <Route path="/packaging" element={<PackagingStock />} />
             <Route path="/clients" element={<ClientManagement />} />
+            <Route path="/clients/:clientId" element={<ClientDetail />} />
+            <Route path="/pack-specs" element={<PackSpecs />} />
             <Route path="/data" element={<DataManagement />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/team-payments" element={<TeamPayments />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/reconciliation" element={<ReconciliationDashboard />} />
             <Route path="/admin" element={<AdminShell />}>
               <Route index element={<Navigate to="/admin/overview" replace />} />
@@ -87,6 +95,8 @@ export default function App() {
               <Route path="roles" element={<RoleManagement />} />
               <Route path="activity" element={<ActivityLog />} />
               <Route path="deleted-items" element={<DeletedItems />} />
+              <Route path="system-health" element={<SystemHealth />} />
+              <Route path="export-import" element={<TenantExportImport />} />
             </Route>
             <Route path="/platform" element={<PlatformShell />}>
               <Route index element={<Navigate to="/platform/stats" replace />} />

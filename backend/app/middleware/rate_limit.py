@@ -174,6 +174,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         except Exception:
             # Redis unavailable — use in-memory fallback with 2x limit
             logger.warning("Redis unavailable for rate limiting, using in-memory fallback")
+            from app.utils.health_log import add_warning
+            add_warning("rate_limit", "Redis unavailable — using in-memory fallback")
             return _check_local_rate_limit(key, limit * 2, window)
 
 

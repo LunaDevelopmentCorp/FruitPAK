@@ -157,7 +157,7 @@ export default function PalletDetail() {
         backTo="/pallets"
         backLabel={t("detail.backLabel")}
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={pallet.status} className="text-sm px-3 py-1" />
             {!editing && canModify && (
               <>
@@ -232,7 +232,7 @@ export default function PalletDetail() {
           {(pallet.locked_fields?.length ?? 0) > 0 && (
             <LockBanner message={t("common:locks.palletLoaded")} />
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("detail.palletType")}>
               {palletTypes.length > 0 ? (
                 <select {...register("pallet_type_name")} disabled={pallet.locked_fields?.includes("pallet_type_name")} className={inputClass}>
@@ -249,7 +249,7 @@ export default function PalletDetail() {
               <input type="number" {...register("capacity_boxes", { valueAsNumber: true })} min={1} disabled={pallet.locked_fields?.includes("capacity_boxes")} className={inputClass} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("detail.fruitType")}>
               <input {...register("fruit_type")} placeholder={t("detail.fruitTypePlaceholder")} className={inputClass} />
             </Field>
@@ -257,7 +257,7 @@ export default function PalletDetail() {
               <input {...register("variety")} placeholder={t("detail.varietyPlaceholder")} className={inputClass} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("common:table.grade")}>
               <input {...register("grade")} placeholder={t("detail.gradePlaceholder")} disabled={pallet.locked_fields?.includes("grade")} className={inputClass} />
             </Field>
@@ -265,7 +265,7 @@ export default function PalletDetail() {
               <input {...register("size")} placeholder={t("detail.sizePlaceholder")} disabled={pallet.locked_fields?.includes("size")} className={inputClass} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("list.headers.boxType")}>
               {boxSizes.length > 0 ? (
                 <select {...register("box_size_id")} disabled={pallet.locked_fields?.includes("box_size_id")} className={inputClass}>
@@ -282,12 +282,12 @@ export default function PalletDetail() {
               <input {...register("target_market")} className={inputClass} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("common:table.notes")}>
               <textarea {...register("notes")} rows={2} className={inputClass} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("detail.coldStoreRoom")}>
               <input {...register("cold_store_room")} className={inputClass} />
             </Field>
@@ -295,7 +295,7 @@ export default function PalletDetail() {
               <input {...register("cold_store_position")} className={inputClass} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("detail.netWeightKg")}>
               <input type="number" step="0.1" {...register("net_weight_kg", { valueAsNumber: true })} className={inputClass} />
             </Field>
@@ -387,6 +387,7 @@ export default function PalletDetail() {
           {t("detail.linkedLots")} ({pallet.pallet_lots.length})
         </h3>
         {pallet.pallet_lots.length > 0 ? (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
@@ -429,6 +430,7 @@ export default function PalletDetail() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <p className="text-gray-400 text-sm">{t("detail.noLots")}</p>
         )}

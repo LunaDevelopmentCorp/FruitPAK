@@ -6,6 +6,10 @@ Endpoints:
     GET  /api/config/pallet-type-capacities/{pallet_type_id}  Box capacities for a pallet type
     GET  /api/config/fruit-types                            Aggregated fruit type → varieties/grades/sizes
     GET  /api/config/box-sizes                              Box sizes with specification fields
+    GET  /api/config/pack-specs                             List pack specifications
+    POST /api/config/pack-specs                             Create pack specification
+    PATCH /api/config/pack-specs/{id}                       Update pack specification
+    DELETE /api/config/pack-specs/{id}                      Delete pack specification
     GET  /api/config/financial-summary                      Base currency + export currencies
     GET  /api/config/tenant-settings                        Get all tenant config settings
     PUT  /api/config/tenant-settings                        Update tenant config settings
@@ -29,7 +33,7 @@ from app.models.public.user import User
 from app.utils.cache import cached, invalidate_cache
 from app.models.tenant.container_type_capacity import ContainerTypeBoxCapacity
 from app.models.tenant.financial_config import FinancialConfig
-from app.models.tenant.product_config import BinType, BoxSize, PalletType, PalletTypeBoxCapacity, ProductConfig
+from app.models.tenant.product_config import BinType, BoxSize, PackSpec, PalletType, PalletTypeBoxCapacity, ProductConfig
 from app.models.tenant.tenant_config import TenantConfig
 from app.models.tenant.transport_config import TransportConfig
 from app.schemas.config import (
@@ -38,6 +42,9 @@ from app.schemas.config import (
     BoxSizeSpecOut,
     FinancialSummaryOut,
     FruitTypeConfig,
+    PackSpecCreate,
+    PackSpecOut,
+    PackSpecUpdate,
     PalletTypeCapacityOut,
     ProductConfigOut,
     TenantSettingsUpdate,
@@ -158,6 +165,85 @@ async def list_box_sizes(
     """List all box sizes with specification fields."""
     result = await db.execute(select(BoxSize).order_by(BoxSize.name))
     return [BoxSizeSpecOut.model_validate(bs) for bs in result.scalars().all()]
+
+
+# ── Pack Specs ───────────────────────────────────────────────
+
+@router.get("/pack-specs", response_model=list[PackSpecOut])
+@cached(ttl=600, prefix="config")
+async def list_pack_specs(
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_onboarded),
+):
+    """List all pack specifications."""
+    result = await db.execute(select(PackSpec).order_by(PackSpec.name))
+    return [PackSpecOut.model_validate(ps) for ps in result.scalars().all()]
+
+
+@router.post("/pack-specs", response_model=PackSpecOut, status_code=201)
+async def create_pack_spec(
+    body: PackSpecCreate,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("config.write")),
+):
+    """Create a new pack specification."""
+    ps = PackSpec(id=str(uuid.uuid4()), **body.model_dump())
+    db.add(ps)
+    await db.flush()
+    await db.refresh(ps)
+    await invalidate_cache("config")
+    return PackSpecOut.model_validate(ps)
+
+
+@router.patch("/pack-specs/{spec_id}", response_model=PackSpecOut)
+async def update_pack_spec(
+    spec_id: str,
+    body: PackSpecUpdate,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("config.write")),
+):
+    """Update a pack specification."""
+    result = await db.execute(select(PackSpec).where(PackSpec.id == spec_id))
+    ps = result.scalar_one_or_none()
+    if not ps:
+        raise HTTPException(status_code=404, detail="Pack spec not found")
+
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(ps, key, value)
+
+    await db.flush()
+    await db.refresh(ps)
+    await invalidate_cache("config")
+    return PackSpecOut.model_validate(ps)
+
+
+@router.delete("/pack-specs/{spec_id}", status_code=204)
+async def delete_pack_spec(
+    spec_id: str,
+    db: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(require_permission("config.write")),
+):
+    """Delete a pack specification (only if not referenced by any lots)."""
+    from app.models.tenant.lot import Lot
+
+    result = await db.execute(select(PackSpec).where(PackSpec.id == spec_id))
+    ps = result.scalar_one_or_none()
+    if not ps:
+        raise HTTPException(status_code=404, detail="Pack spec not found")
+
+    # Check for lot references
+    ref = await db.execute(
+        select(Lot.id).where(Lot.pack_spec_id == spec_id).limit(1)
+    )
+    if ref.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete: pack spec is referenced by existing lots",
+        )
+
+    await db.delete(ps)
+    await db.flush()
+    await invalidate_cache("config")
 
 
 # ── Financial Summary ────────────────────────────────────────

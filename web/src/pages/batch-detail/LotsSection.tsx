@@ -170,7 +170,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
                   : null;
             return (
             <div key={idx}>
-              <div className="grid grid-cols-7 gap-2 items-end">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 items-end">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{t("lots.grade")}</label>
                   <select
@@ -358,6 +358,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
       {/* Lots table with pagination */}
       {lots.length > 0 ? (
         <>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-gray-500 text-xs">
               <tr>
@@ -697,6 +698,7 @@ export default function LotsSection({ batch, batchId, onRefresh, configs }: Prop
               </tr>
             </tfoot>
           </table>
+          </div>
 
           {/* Pagination controls */}
           {totalPages > 1 && (

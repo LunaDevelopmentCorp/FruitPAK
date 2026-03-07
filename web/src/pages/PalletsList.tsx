@@ -741,7 +741,7 @@ export default function PalletsList() {
       ) : filtered.length === 0 ? (
         <p className="text-gray-400 text-sm">{t("list.empty")}</p>
       ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-white rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
@@ -845,7 +845,7 @@ export default function PalletsList() {
                               .catch(() => setAllocateLots([]))
                               .finally(() => setAllocateLoading(false));
                           }}
-                          className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-0.5 rounded font-medium hover:bg-green-100"
+                          className="text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 min-h-[44px] rounded font-medium hover:bg-green-100"
                         >
                           {t("list.allocate")}
                         </button>

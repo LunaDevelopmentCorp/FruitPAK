@@ -172,6 +172,8 @@ def cached(
             except redis.RedisError as e:
                 # If Redis fails, log and continue without caching
                 logger.warning(f"Redis error (falling back to uncached): {e}")
+                from app.utils.health_log import add_warning
+                add_warning("cache", f"Redis error (uncached fallback): {e}")
                 return await func(*args, **kwargs)
 
         return wrapper

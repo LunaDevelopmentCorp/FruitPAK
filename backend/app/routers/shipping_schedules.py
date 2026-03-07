@@ -79,6 +79,7 @@ async def create_shipping_schedule(
         ),
     )
 
+    await db.refresh(schedule)
     return _schedule_summary(schedule)
 
 

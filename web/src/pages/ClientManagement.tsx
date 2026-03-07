@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   listClients,
@@ -20,6 +21,7 @@ import StatusBadge from "../components/StatusBadge";
 const INCOTERMS = ["FOB", "CIF", "CFR", "EXW", "DDP"] as const;
 
 export default function ClientManagement() {
+  const navigate = useNavigate();
   const { t } = useTranslation("clients");
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,7 +243,11 @@ export default function ClientManagement() {
               status: (c) => (c.is_active ? "active" : "inactive"),
             }).map((c) => (
               <tr key={c.id} className={`hover:bg-green-50/50 even:bg-gray-50/50 ${!c.is_active ? "opacity-50" : ""}`}>
-                <td className="px-4 py-2 font-medium text-gray-800">{c.name}</td>
+                <td className="px-4 py-2 font-medium text-gray-800">
+                  <button onClick={() => navigate(`/clients/${c.id}`)} className="hover:text-green-700 hover:underline text-left">
+                    {c.name}
+                  </button>
+                </td>
                 <td className="px-4 py-2 text-gray-600">{c.contact_person || "\u2014"}</td>
                 <td className="px-4 py-2 text-gray-600">{c.email || "\u2014"}</td>
                 <td className="px-4 py-2 text-gray-500">{c.phone || "\u2014"}</td>

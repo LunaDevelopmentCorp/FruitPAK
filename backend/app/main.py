@@ -12,7 +12,7 @@ from app.middleware.security import (
     SecureCookieMiddleware,
 )
 from app.middleware.exceptions import register_exception_handlers
-from app.routers import admin, auth, batches, bulk_import, clients, config, containers, custom_roles, enterprises, growers, harvest_teams, health, lots, packaging, packhouses, pallets, payments, platform, reconciliation, shipping_agents, shipping_lines, shipping_schedules, transporters, wizard
+from app.routers import admin, auth, batches, bulk_import, clients, config, containers, custom_roles, enterprises, growers, harvest_teams, health, lots, packaging, packhouses, pallets, payments, platform, reconciliation, reports, shipment_documents, shipping_agents, shipping_lines, shipping_schedules, tenant_export, transporters, wizard
 from app.services.scheduler import lifespan
 
 # Configure logging before anything else
@@ -98,6 +98,7 @@ app.include_router(pallets.router, prefix="/api/pallets", tags=["pallets"])
 app.include_router(packaging.router, prefix="/api/packaging", tags=["packaging"])
 app.include_router(clients.router, prefix="/api/clients", tags=["clients"])
 app.include_router(containers.router, prefix="/api/containers", tags=["containers"])
+app.include_router(shipment_documents.router, prefix="/api", tags=["shipment-documents"])
 app.include_router(shipping_lines.router, prefix="/api/shipping-lines", tags=["shipping-lines"])
 app.include_router(transporters.router, prefix="/api/transporters", tags=["transporters"])
 app.include_router(shipping_agents.router, prefix="/api/shipping-agents", tags=["shipping-agents"])
@@ -105,7 +106,9 @@ app.include_router(shipping_schedules.router, prefix="/api/shipping-schedules", 
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
+app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(bulk_import.router, prefix="/api/bulk-import", tags=["bulk-import"])
 app.include_router(custom_roles.router, prefix="/api/roles", tags=["roles"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(tenant_export.router, prefix="/api/admin", tags=["admin"])
 app.include_router(platform.router, prefix="/api/platform", tags=["platform"])

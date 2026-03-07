@@ -5,7 +5,9 @@
     "users": "Users",
     "roles": "Roles",
     "activity": "Activity",
-    "deletedItems": "Deleted Items"
+    "deletedItems": "Deleted Items",
+    "systemHealth": "System Health",
+    "exportImport": "Export / Import"
   },
   "overview": {
     "loading": "Loading overview...",
@@ -189,5 +191,64 @@
       "purgedWithRelated": "Permanently deleted {{code}} (+ {{count}} related items)",
       "purgeFailed": "Failed to delete permanently"
     }
+  },
+  "health": {
+    "loading": "Loading system health...",
+    "loadFailed": "Failed to load system health data",
+    "refresh": "Refresh",
+    "uptime": "Uptime",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "status": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unhealthy": "Unhealthy"
+    },
+    "services": {
+      "database": "Database",
+      "redis": "Redis",
+      "cache": "Cache"
+    },
+    "pool": {
+      "utilization": "Pool utilization",
+      "inUse": "In use",
+      "idle": "Idle",
+      "size": "Pool"
+    },
+    "cache": {
+      "hitRate": "Hit rate",
+      "hits": "Hits",
+      "misses": "Misses"
+    },
+    "warnings": {
+      "title": "Warning Log",
+      "empty": "No warnings — all systems normal",
+      "time": "Time",
+      "category": "Category",
+      "message": "Message"
+    }
+  },
+  "export": {
+    "exportTitle": "Export Tenant Configuration",
+    "exportDesc": "Download all reference data (growers, packhouses, fruit configs, pallet types, box sizes, etc.) as a JSON file. Transactional data (batches, lots, pallets) is excluded.",
+    "downloadBtn": "Download Config JSON",
+    "downloaded": "Configuration exported successfully",
+    "failed": "Failed to export configuration",
+    "importTitle": "Import Tenant Configuration",
+    "importDesc": "Upload a previously exported JSON file to import configuration into this tenant. Existing records are skipped (upsert by name).",
+    "chooseFile": "Choose JSON File",
+    "importBtn": "Import Config",
+    "importSuccess": "Configuration imported successfully",
+    "importFailed": "Failed to import configuration",
+    "created": "Created",
+    "skipped": "Skipped",
+    "errors": "Errors",
+    "table": "Table",
+    "errorList": "Import errors:",
+    "infoTitle": "What gets exported?",
+    "info1": "Reference data: growers, packhouses, pack lines, harvest teams, clients, shipping lines, transporters, shipping agents",
+    "info2": "Configuration: fruit types, box sizes, bin types, pack specs, pallet types, transport configs, custom roles",
+    "info3": "Settings: company profile, financial config, tenant config",
+    "info4": "NOT exported: batches, lots, pallets, containers, payments, invoices, activity logs"
   }
 }

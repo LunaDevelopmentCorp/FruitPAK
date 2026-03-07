@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateContainer, UpdateContainerPayload } from "../../api/containers";
 import { ShippingLineOut } from "../../api/shippingLines";
+import { ShippingScheduleSummary } from "../../api/shippingSchedules";
 import { getErrorMessage } from "../../api/client";
 import { showToast } from "../../store/toastStore";
 import { LockBanner } from "../../components/LockIndicator";
@@ -13,7 +14,8 @@ export default function ShipmentInfo({
   containerId,
   onRefresh,
   shippingLines,
-}: ContainerSectionProps & { shippingLines: ShippingLineOut[] }) {
+  schedules = [],
+}: ContainerSectionProps & { shippingLines: ShippingLineOut[]; schedules?: ShippingScheduleSummary[] }) {
   const { t } = useTranslation("containers");
   const { t: tc } = useTranslation("common");
 
@@ -30,6 +32,7 @@ export default function ShipmentInfo({
     shipping_line_id: "",
     vessel_name: "",
     voyage_number: "",
+    etd: "",
     eta: "",
     notes: "",
   });
@@ -48,6 +51,9 @@ export default function ShipmentInfo({
       shipping_line_id: container.shipping_line_id || "",
       vessel_name: container.vessel_name || "",
       voyage_number: container.voyage_number || "",
+      etd: container.etd
+        ? new Date(container.etd).toISOString().slice(0, 10)
+        : "",
       eta: container.eta
         ? new Date(container.eta).toISOString().slice(0, 10)
         : "",
@@ -73,6 +79,7 @@ export default function ShipmentInfo({
         shipping_line_id: editForm.shipping_line_id || null,
         vessel_name: editForm.vessel_name || null,
         voyage_number: editForm.voyage_number || null,
+        etd: editForm.etd || null,
         eta: editForm.eta || null,
         notes: editForm.notes || null,
       };
@@ -209,6 +216,40 @@ export default function ShipmentInfo({
               />
             </div>
           </div>
+          {/* Sailing schedule selector */}
+          {schedules.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                {t("container.sailingSchedule")}
+              </label>
+              <select
+                onChange={(e) => {
+                  const sched = schedules.find((s) => s.id === e.target.value);
+                  if (sched) {
+                    setEditForm((f) => ({
+                      ...f,
+                      vessel_name: sched.vessel_name,
+                      voyage_number: sched.voyage_number,
+                      etd: sched.etd?.slice(0, 10) || "",
+                      eta: sched.eta?.slice(0, 10) || "",
+                      shipping_line_id: sched.shipping_line_id || f.shipping_line_id,
+                    }));
+                  }
+                }}
+                className="w-full border rounded px-3 py-2 text-sm"
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  {t("container.selectSchedule")}
+                </option>
+                {schedules.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.vessel_name} — V.{s.voyage_number} ({s.port_of_loading} → {s.port_of_discharge}, ETD {s.etd?.slice(0, 10)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">
@@ -258,6 +299,22 @@ export default function ShipmentInfo({
                 className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                {t("container.etdLabel")}
+              </label>
+              <input
+                type="date"
+                value={editForm.etd}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, etd: e.target.value }))
+                }
+                disabled={container.locked_fields?.includes("etd")}
+                className="w-full border rounded px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">
                 {t("container.etaLabel")}
@@ -362,6 +419,14 @@ export default function ShipmentInfo({
           <Row
             label={t("container.voyageNumber")}
             value={container.voyage_number || "\u2014"}
+          />
+          <Row
+            label={t("container.etdLabel")}
+            value={
+              container.etd
+                ? new Date(container.etd).toLocaleDateString()
+                : "\u2014"
+            }
           />
           <Row
             label={t("container.etaLabel")}

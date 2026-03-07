@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getContainer, ContainerDetailType } from "../api/containers";
 import { listShippingLines, ShippingLineOut } from "../api/shippingLines";
+import { listShippingSchedules, ShippingScheduleSummary } from "../api/shippingSchedules";
 import PageHeader from "../components/PageHeader";
 import StatusBadge from "../components/StatusBadge";
 
@@ -28,6 +29,7 @@ export default function ContainerDetail() {
 
   // Shared config data (loaded once)
   const [shippingLines, setShippingLines] = useState<ShippingLineOut[]>([]);
+  const [schedules, setSchedules] = useState<ShippingScheduleSummary[]>([]);
 
   // Modal / dialog visibility
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -50,9 +52,10 @@ export default function ContainerDetail() {
   useEffect(() => {
     listShippingLines()
       .then(setShippingLines)
-      .catch(() => {
-        /* ignore -- dropdown will just be empty */
-      });
+      .catch(() => {});
+    listShippingSchedules({ status: "scheduled" })
+      .then(setSchedules)
+      .catch(() => {});
   }, []);
 
   if (loading)
@@ -109,6 +112,7 @@ export default function ContainerDetail() {
         containerId={containerId!}
         onRefresh={fetchContainer}
         shippingLines={shippingLines}
+        schedules={schedules}
       />
 
       <ShipmentInfo
@@ -116,6 +120,7 @@ export default function ContainerDetail() {
         containerId={containerId!}
         onRefresh={fetchContainer}
         shippingLines={shippingLines}
+        schedules={schedules}
       />
 
       <Timestamps container={container} />

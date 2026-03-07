@@ -23,6 +23,7 @@ class ContainerFromPalletsRequest(BaseModel):
     shipping_line_id: str | None = None
     vessel_name: str | None = None
     voyage_number: str | None = None
+    etd: date | None = None
     eta: date | None = None
     notes: str | None = None
 
@@ -43,6 +44,7 @@ class CreateEmptyContainerRequest(BaseModel):
     shipping_line_id: str | None = None
     vessel_name: str | None = None
     voyage_number: str | None = None
+    etd: date | None = None
     eta: date | None = None
     notes: str | None = None
 
@@ -64,6 +66,7 @@ class ContainerUpdate(BaseModel):
     shipping_line_id: str | None = None
     vessel_name: str | None = None
     voyage_number: str | None = None
+    etd: date | None = None
     eta: date | None = None
     notes: str | None = None
     transport_config_id: str | None = None
@@ -90,6 +93,7 @@ class ExportContainerRequest(BaseModel):
     vessel_name: str | None = None
     voyage_number: str | None = None
     shipping_line_id: str | None = None
+    etd: date | None = None
     eta: date | None = None
 
 
@@ -155,6 +159,7 @@ class ContainerSummary(BaseModel):
     shipping_line_name: str | None = None
     vessel_name: str | None = None
     voyage_number: str | None = None
+    etd: date | None = None
     eta: date | None = None
     is_overdue: bool = False
     status: str

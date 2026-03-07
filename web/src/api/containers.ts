@@ -30,6 +30,7 @@ export interface ContainerSummary {
   shipping_line_name?: string | null;
   vessel_name?: string | null;
   voyage_number?: string | null;
+  etd?: string | null;
   eta?: string | null;
   is_overdue?: boolean;
   status: string;
@@ -132,6 +133,7 @@ export interface CreateEmptyContainerPayload {
   shipping_line_id?: string;
   vessel_name?: string;
   voyage_number?: string;
+  etd?: string;
   eta?: string;
   notes?: string;
 }
@@ -177,6 +179,7 @@ export interface UpdateContainerPayload {
   shipping_line_id?: string | null;
   vessel_name?: string | null;
   voyage_number?: string | null;
+  etd?: string | null;
   eta?: string | null;
   notes?: string | null;
   status?: string;
@@ -227,7 +230,7 @@ export async function dispatchContainer(id: string) {
   return data;
 }
 
-export async function exportContainer(id: string, body: { vessel_name?: string | null; voyage_number?: string | null; shipping_line_id?: string | null; eta?: string | null }) {
+export async function exportContainer(id: string, body: { vessel_name?: string | null; voyage_number?: string | null; shipping_line_id?: string | null; etd?: string | null; eta?: string | null }) {
   const { data } = await api.post(`/containers/${id}/export`, body);
   return data;
 }

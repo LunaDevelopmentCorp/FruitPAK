@@ -33,6 +33,48 @@ export async function getBoxSizeSpecs(): Promise<BoxSizeSpec[]> {
   return data;
 }
 
+// ── Pack specs ──────────────────────────────────────────────
+
+export interface PackSpec {
+  id: string;
+  name: string;
+  pack_type: string | null;
+  weight_kg: number | null;
+  units_per_carton: number | null;
+  cartons_per_layer: number | null;
+  layers_per_pallet: number | null;
+  target_market: string | null;
+}
+
+export interface PackSpecPayload {
+  name: string;
+  pack_type?: string | null;
+  weight_kg?: number | null;
+  units_per_carton?: number | null;
+  cartons_per_layer?: number | null;
+  layers_per_pallet?: number | null;
+  target_market?: string | null;
+}
+
+export async function listPackSpecs(): Promise<PackSpec[]> {
+  const { data } = await api.get<PackSpec[]>("/config/pack-specs");
+  return data;
+}
+
+export async function createPackSpec(payload: PackSpecPayload): Promise<PackSpec> {
+  const { data } = await api.post<PackSpec>("/config/pack-specs", payload);
+  return data;
+}
+
+export async function updatePackSpec(id: string, payload: Partial<PackSpecPayload>): Promise<PackSpec> {
+  const { data } = await api.patch<PackSpec>(`/config/pack-specs/${id}`, payload);
+  return data;
+}
+
+export async function deletePackSpec(id: string): Promise<void> {
+  await api.delete(`/config/pack-specs/${id}`);
+}
+
 // ── Financial summary ────────────────────────────────────────
 
 export interface FinancialSummary {

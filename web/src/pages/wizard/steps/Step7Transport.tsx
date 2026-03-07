@@ -76,9 +76,13 @@ export default function Step7Transport({ onSave, saving, draftData }: StepProps)
 
   const configs = watch("transport_configs");
 
+  const numOrNull = (v: unknown): number | null => (typeof v === "number" && !isNaN(v) ? v : null);
   const filterEmpty = (data: FormData) => ({
     transport_configs: data.transport_configs.filter((c) => c.name?.trim()).map(c => ({
       ...c,
+      temp_setpoint_c: numOrNull(c.temp_setpoint_c),
+      pallet_capacity: numOrNull(c.pallet_capacity),
+      max_weight_kg: numOrNull(c.max_weight_kg),
       box_capacities: (c.box_capacities || []).filter(bc => bc.max_boxes > 0),
     })),
     shipping_lines: data.shipping_lines.filter((c) => c.name?.trim()),

@@ -10,3 +10,53 @@
     transform: translateX(0);
   }
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  /* Hide sidebar, header, and non-print elements */
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+  /* Remove layout constraints so content fills page */
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  body {
+    background: white !important;
+    font-size: 9px !important;
+  }
+  /* Compact table cells for A4 portrait fit */
+  table {
+    page-break-inside: auto;
+    font-size: 7px !important;
+    width: 100% !important;
+  }
+  th, td {
+    padding: 1px 3px !important;
+    white-space: nowrap;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  /* Compact summary cards */
+  .grid {
+    gap: 4px !important;
+    font-size: 7px !important;
+  }
+  /* Remove spacing around content for max table space */
+  .max-w-\[1400px\] {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  /* Compact totals row */
+  .flex.gap-4 {
+    gap: 8px !important;
+    font-size: 8px !important;
+  }
+}

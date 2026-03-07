@@ -10,6 +10,7 @@ import {
   revertContainerStatus,
 } from "../../api/containers";
 import { ShippingLineOut } from "../../api/shippingLines";
+import { ShippingScheduleSummary } from "../../api/shippingSchedules";
 import { getErrorMessage } from "../../api/client";
 import { showToast } from "../../store/toastStore";
 import { ContainerSectionProps } from "./types";
@@ -19,7 +20,8 @@ export default function StatusActions({
   containerId,
   onRefresh,
   shippingLines,
-}: ContainerSectionProps & { shippingLines: ShippingLineOut[] }) {
+  schedules = [],
+}: ContainerSectionProps & { shippingLines: ShippingLineOut[]; schedules?: ShippingScheduleSummary[] }) {
   const { t } = useTranslation("containers");
   const { t: tc } = useTranslation("common");
 
@@ -31,6 +33,7 @@ export default function StatusActions({
     vessel_name: "",
     voyage_number: "",
     shipping_line_id: "",
+    etd: "",
     eta: "",
   });
 
@@ -100,11 +103,12 @@ export default function StatusActions({
         vessel_name: exportForm.vessel_name || null,
         voyage_number: exportForm.voyage_number || null,
         shipping_line_id: exportForm.shipping_line_id || null,
+        etd: exportForm.etd || null,
         eta: exportForm.eta || null,
       });
       showToast("success", t("container.markExportedSuccess"));
       setShowExportForm(false);
-      setExportForm({ vessel_name: "", voyage_number: "", shipping_line_id: "", eta: "" });
+      setExportForm({ vessel_name: "", voyage_number: "", shipping_line_id: "", etd: "", eta: "" });
       onRefresh();
     } catch (err) {
       showToast("error", getErrorMessage(err, t("container.markExportedFailed")));
@@ -294,6 +298,37 @@ export default function StatusActions({
       {/* Export inline form */}
       {showExportForm && container.status === "dispatched" && (
         <div className="mt-4 p-3 bg-indigo-50 rounded-md border border-indigo-200 space-y-3">
+          {schedules.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">
+                {t("container.sailingSchedule")}
+              </label>
+              <select
+                onChange={(e) => {
+                  const sched = schedules.find((s) => s.id === e.target.value);
+                  if (sched) {
+                    setExportForm((f) => ({
+                      ...f,
+                      vessel_name: sched.vessel_name || "",
+                      voyage_number: sched.voyage_number || "",
+                      shipping_line_id: sched.shipping_line_id || "",
+                      etd: sched.etd || "",
+                      eta: sched.eta || "",
+                    }));
+                  }
+                }}
+                className="w-full border rounded px-3 py-2 text-sm"
+                defaultValue=""
+              >
+                <option value="">{t("container.selectSchedule")}</option>
+                {schedules.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.vessel_name} — {s.voyage_number} (ETD: {s.etd || "—"})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-600 mb-1">
@@ -344,6 +379,19 @@ export default function StatusActions({
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">
+                {t("container.etdLabel")}
+              </label>
+              <input
+                type="date"
+                value={exportForm.etd}
+                onChange={(e) =>
+                  setExportForm((f) => ({ ...f, etd: e.target.value }))
+                }
+                className="w-full border rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">
                 {t("container.etaLabel")}
               </label>
               <input
@@ -371,6 +419,7 @@ export default function StatusActions({
                   vessel_name: "",
                   voyage_number: "",
                   shipping_line_id: "",
+                  etd: "",
                   eta: "",
                 });
               }}
