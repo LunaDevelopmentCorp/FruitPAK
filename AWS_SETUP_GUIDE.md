@@ -1,7 +1,8 @@
 # FruitPAK — AWS Setup Guide
 
 **Date:** March 2026
-**Status:** You have RDS running. ECS and Route 53 are next.
+**Status:** FULLY DEPLOYED — https://fruitpak.growafrica.tech
+**CI/CD:** Auto-deploy on push to main via GitHub Actions
 
 ---
 
